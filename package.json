@@ -1,0 +1,29 @@
+{
+  "name": "skate",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm check && vite build",
+    "check": "tsc --noEmit && tsc --noEmit -p tsconfig.domain.json",
+    "lint": "biome check . && depcruise src --config .dependency-cruiser.cjs",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@types/three": "^0.186.0",
+    "dependency-cruiser": "^18.4.0",
+    "lil-gui": "^0.21.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  },
+  "packageManager": "pnpm@11.3.0"
+}

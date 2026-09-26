@@ -1,0 +1,11 @@
+// Compiles the domain layers and the shared kernel WITHOUT the DOM lib, so any
+// use of window/document/etc. in pure code fails `pnpm check`.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src/shared/**/*.ts", "src/contexts/*/domain/**/*.ts"],
+  "exclude": ["**/*.test.ts"]
+}
