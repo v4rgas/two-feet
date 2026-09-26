@@ -4,7 +4,7 @@ import { Vec3 } from "../../../shared";
 /**
  * Physical definition of a skateboard (value object). SI units.
  * Local board frame (ADR 0002): origin at the deck's centre (mid-thickness of the flat
- * section), +X toward the nose, +Y up, +Z to the board's right (heel edge in regular).
+ * section), +X toward the nose, +Y up, +Z to the board's right (toe edge in regular).
  * Rendering must build its meshes from these numbers so visuals match colliders.
  */
 export interface BoardSpec {
