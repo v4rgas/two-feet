@@ -254,7 +254,8 @@ two snapshots.
   one typed, frozen object. There are no magic numbers in logic. The lil-gui
   tuning panel binds to these objects.
 - The world is right-handed and **Y-up**. The board's local frame is: +X
-  toward the nose, +Y up, +Z toward the heel edge in regular stance.
+  toward the nose, +Y up, +Z toward the toe edge in regular stance (the
+  rider faces +Z), so -Z is the toe edge in goofy.
 - File names are `kebab-case.ts`. Types are `PascalCase`. There are no
   default exports.
 - The event bus is synchronous and typed (a discriminated union on `type`).

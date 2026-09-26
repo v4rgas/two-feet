@@ -23,7 +23,7 @@ Origin at the centre of the deck's flat section, at mid-thickness.
 
 - **+X** toward the nose.
 - **+Y** up, out of the grip tape.
-- **+Z** toward the heel edge in regular stance (REQUIREMENTS §2.5) — i.e. the board's
+- **+Z** toward the toe edge in regular stance, the heel edge in goofy (REQUIREMENTS §2.5) — i.e. the board's
   "right" side when looking from the tail to the nose. Wheel names use this: `…LeftWheel`
   is on -Z, `…RightWheel` on +Z.
 
@@ -47,10 +47,9 @@ Trick definitions use rider-relative signs (positive roll = kickflip direction,
 positive yaw = backside shuvit). The recognizer maps board-frame totals using the
 stance; the sign is calibrated by a headless physics scenario.
 
-## Open point
+## Resolved: toe edge
 
 With +X = nose and Y-up, a rider facing +Z has their **left** side toward the nose,
-which is the natural "regular" body orientation — so the toe edge would be +Z. The
-spec says +Z is the heel edge in regular. We follow the spec literally (only feet are
-rendered, so the body's facing is not visible). If a visible body is added, revisit
-this and the toe/heel mapping in `rider` together.
+which is the natural regular body orientation. So in regular the toe edge is +Z and the
+rider faces +Z; in goofy the toe edge is -Z. (An earlier draft of the spec said +Z was
+the heel edge; that was a mistake and has been corrected.)
