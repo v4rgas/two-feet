@@ -166,10 +166,6 @@ export const PRESENTATION_CONFIG = deepFreeze({
     flickTrailHoldS: 0.25,
     /** Number of trail dots behind the stick dot. */
     flickTrailLength: 6,
-    /** Airtime readout stays this long after landing, s. */
-    airtimeHoldS: 1.2,
-    /** Airtime bar is full at this airtime, s. */
-    airtimeFullScaleS: 1,
     /** Grind balance bar: the marker warns from this |balance| on (falls off past 1). */
     balanceDanger: 0.75,
   },

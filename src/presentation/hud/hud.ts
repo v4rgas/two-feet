@@ -4,7 +4,6 @@ import type { RenderFrame } from "../render-frame";
 import "./hud.css";
 import type { PadLayout } from "./hud-model";
 import {
-  AirtimeModel,
   balanceInDanger,
   balanceMarkerX,
   grindLabel,
@@ -130,17 +129,14 @@ class FootPad {
 }
 
 /**
- * DOM HUD (STYLE.md §HUD): two foot pads laid out like the keys, a trick popup and an
- * airtime readout. Reads the `RenderFrame` only.
+ * DOM HUD (STYLE.md §HUD): two foot pads laid out like the keys and a trick popup.
+ * Reads the `RenderFrame` only.
  */
 export class Hud {
   private readonly root: HTMLDivElement;
   private readonly leftPad: FootPad;
   private readonly rightPad: FootPad;
   private readonly popup: HTMLDivElement;
-  private readonly airtime: HTMLDivElement;
-  private readonly airtimeValue: HTMLSpanElement;
-  private readonly airtimeFill: HTMLDivElement;
   private readonly stance: HTMLDivElement;
   private lastStance = "";
   private readonly spin: HTMLDivElement;
@@ -152,11 +148,8 @@ export class Hud {
   private lastBalanceKey = "";
   private readonly config: PresentationConfig;
   private readonly popupModel: PopupModel;
-  private readonly airtimeModel: AirtimeModel;
   private layout: PadLayout | null = null;
   private lastPopupOpacity = -1;
-  private lastAirtimeText = "";
-  private lastAirOpacity = -1;
 
   constructor(parent: HTMLElement, config: PresentationConfig) {
     this.root = el("div", "skate-hud", parent);
@@ -170,12 +163,6 @@ export class Hud {
     for (const [name, value] of Object.entries(vars)) this.root.style.setProperty(name, value);
 
     this.popup = el("div", "skate-popup", this.root);
-    this.airtime = el("div", "skate-airtime", this.root);
-    const row = el("div", "skate-airtime-row", this.airtime);
-    el("span", "", row).textContent = "air";
-    this.airtimeValue = el("span", "skate-airtime-value", row);
-    const bar = el("div", "skate-airtime-bar", this.airtime);
-    this.airtimeFill = el("div", "skate-airtime-fill", bar);
 
     this.balance = el("div", "skate-balance", this.root);
     this.balanceName = el("div", "skate-balance-name", this.balance);
@@ -189,7 +176,6 @@ export class Hud {
     this.leftPad = new FootPad(this.root, "left", config);
     this.rightPad = new FootPad(this.root, "right", config);
     this.popupModel = new PopupModel(config.hud);
-    this.airtimeModel = new AirtimeModel(config.hud);
   }
 
   update(frame: RenderFrame, dtS: number): void {
@@ -212,7 +198,6 @@ export class Hud {
     this.leftPad.update(frame, this.layout.left, dtS);
     this.rightPad.update(frame, this.layout.right, dtS);
     this.updatePopup(frame, dtS);
-    this.updateAirtime(frame, dtS);
     this.updateBalance(frame);
   }
 
@@ -253,25 +238,6 @@ export class Hud {
       const rise = (1 - Math.min(1, popup.ageS / 0.2)) * 8;
       this.popup.style.opacity = String(opacity);
       this.popup.style.transform = `translateY(${rise.toFixed(1)}px)`;
-    }
-  }
-
-  private updateAirtime(frame: RenderFrame, dtS: number): void {
-    const board = frame.currentBoard;
-    // On a grind edge the board is off the ground but not in the air.
-    const onEdge = frame.rider.grind !== null;
-    const live = onEdge ? null : (frame.air?.airtimeS ?? (board.grounded ? null : board.airtimeS));
-    this.airtimeModel.update(live, dtS);
-    const text = `${this.airtimeModel.shownS.toFixed(2)} s`;
-    if (text !== this.lastAirtimeText) {
-      this.lastAirtimeText = text;
-      this.airtimeValue.textContent = text;
-      this.airtimeFill.style.transform = `scaleX(${this.airtimeModel.fill.toFixed(3)})`;
-    }
-    const opacity = Math.round(this.airtimeModel.opacity * 100) / 100;
-    if (opacity !== this.lastAirOpacity) {
-      this.lastAirOpacity = opacity;
-      this.airtime.style.opacity = String(opacity);
     }
   }
 

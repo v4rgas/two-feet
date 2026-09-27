@@ -4,7 +4,7 @@ import type { PresentationConfig } from "../presentation.config";
 
 /**
  * Pure HUD logic (no DOM): which pad shows which foot, popup timing and text, flick trail
- * and airtime readout. The DOM widgets in `hud.ts` only draw what these return.
+ * The DOM widgets in `hud.ts` only draw what these return.
  */
 
 type HudConfig = PresentationConfig["hud"];
@@ -141,35 +141,6 @@ export function nextTrailIntensity(
   if (stickSpeedPerS >= config.flickTrailMinSpeedPerS) return 1;
   if (config.flickTrailHoldS <= 0) return 0;
   return Math.max(0, current - dtS / config.flickTrailHoldS);
-}
-
-/** Airtime readout: the live airtime while airborne, held for a while after landing. */
-export class AirtimeModel {
-  /** Value to show, s. */
-  shownS = 0;
-  /** Readout opacity in [0, 1]. */
-  opacity = 0;
-  private sinceLandingS = Number.POSITIVE_INFINITY;
-
-  constructor(private readonly config: HudConfig) {}
-
-  /** `airtimeS` is the live airtime, or null while grounded. */
-  update(airtimeS: number | null, dtS: number): void {
-    if (airtimeS !== null && airtimeS > 0) {
-      this.shownS = airtimeS;
-      this.sinceLandingS = 0;
-      this.opacity = 1;
-      return;
-    }
-    this.sinceLandingS += dtS;
-    const hold = this.config.airtimeHoldS;
-    this.opacity = this.sinceLandingS >= hold ? 0 : 1 - this.sinceLandingS / hold;
-  }
-
-  /** Bar fill in [0, 1]. */
-  get fill(): number {
-    return Math.min(1, this.shownS / this.config.airtimeFullScaleS);
-  }
 }
 
 /**

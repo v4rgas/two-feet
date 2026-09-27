@@ -3,7 +3,6 @@ import type { DomainEvent } from "../../shared";
 import { Vec3 } from "../../shared";
 import { PRESENTATION_CONFIG } from "../presentation.config";
 import {
-  AirtimeModel,
   balanceInDanger,
   balanceMarkerX,
   grindLabel,
@@ -101,22 +100,6 @@ describe("flick trail", () => {
     expect(nextTrailIntensity(0, HUD.flickTrailMinSpeedPerS + 1, 1 / 60, HUD)).toBe(1);
     expect(nextTrailIntensity(1, 0, HUD.flickTrailHoldS / 2, HUD)).toBeCloseTo(0.5);
     expect(nextTrailIntensity(0.1, 0, 1, HUD)).toBe(0);
-  });
-});
-
-describe("AirtimeModel", () => {
-  it("shows live airtime, then holds it and fades after landing", () => {
-    const air = new AirtimeModel(HUD);
-    air.update(null, 0.016);
-    expect(air.opacity).toBe(0);
-    air.update(0.4, 0.016);
-    expect(air.shownS).toBe(0.4);
-    expect(air.opacity).toBe(1);
-    air.update(null, HUD.airtimeHoldS / 2);
-    expect(air.shownS).toBe(0.4);
-    expect(air.opacity).toBeCloseTo(0.5);
-    air.update(null, HUD.airtimeHoldS);
-    expect(air.opacity).toBe(0);
   });
 });
 

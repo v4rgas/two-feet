@@ -195,9 +195,7 @@ export class DebugOverlay {
     const board = frame.currentBoard;
     const v = board.linearVelocityMps;
     const speed = Math.hypot(v.x, v.y, v.z);
-    const state = board.grounded
-      ? `ground (${board.wheelsDown} wheels)`
-      : `air ${board.airtimeS.toFixed(2)}s`;
+    const state = board.grounded ? `ground (${board.wheelsDown} wheels)` : "air";
     const r = frame.debug.rotation;
     const rot =
       r === null

@@ -117,8 +117,7 @@ How the basic moves come out of the physics:
 - HUD:
   - one **foot pad widget per foot** that shows the stick position and whether
     that foot is attached
-  - a popup with the trick name
-  - an airtime indicator
+  - a popup with the trick name (no airtime readout anywhere)
 - **Debug overlay** (toggle with `F1`):
   - force and impulse vectors at the contact points
   - contact points

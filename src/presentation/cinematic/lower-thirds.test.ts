@@ -12,7 +12,7 @@ describe("video lower-thirds", () => {
     expect(cardOpacity(2, 0.2, 1, 0.5)).toBe(0);
   });
 
-  it("shows the landed trick with its airtime, and a clip title card with a counter", () => {
+  it("shows the landed trick (no airtime caption), and a clip title card with a counter", () => {
     const m = new LowerThirdsModel(CINEMATIC_CONFIG.lowerThird);
     m.startClip("Kickflip · 5-stair", 0, 6);
     expect(m.counter).toBe("01 / 06");
@@ -21,7 +21,7 @@ describe("video lower-thirds", () => {
     expect(m.opacity).toBe(0);
     m.onEvent({ type: "TrickLanded", name: "Kickflip", airtimeS: 0.8 } as DomainEvent);
     m.advance(0.3);
-    expect(m.current).toEqual({ text: "Kickflip", caption: "0.80 s air", tone: "trick" });
+    expect(m.current).toEqual({ text: "Kickflip", caption: "", tone: "trick" });
     expect(m.opacity).toBe(1);
     m.advance(10);
     expect(m.opacity).toBe(0);

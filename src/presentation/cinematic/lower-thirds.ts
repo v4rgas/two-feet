@@ -9,7 +9,7 @@ import type { CinematicConfig } from "./cinematic.config";
 
 export interface LowerThird {
   readonly text: string;
-  /** Small line under the name (the airtime), or "". */
+  /** Small line under the name, or "". */
   readonly caption: string;
   readonly tone: "trick" | "bail";
 }
@@ -50,7 +50,7 @@ export class LowerThirdsModel {
 
   onEvent(event: DomainEvent): void {
     if (event.type === "TrickLanded") {
-      this.show({ text: event.name, caption: `${event.airtimeS.toFixed(2)} s air`, tone: "trick" });
+      this.show({ text: event.name, caption: "", tone: "trick" });
     } else if (event.type === "RiderBailed") {
       this.show({ text: "bail", caption: "", tone: "bail" });
     }

@@ -33,52 +33,6 @@
   text-transform: lowercase;
 }
 
-/* ── Airtime, bottom centre ─────────────────────────────────────────── */
-.skate-airtime {
-  position: absolute;
-  left: 50%;
-  bottom: 40px;
-  width: 160px;
-  transform: translateX(-50%);
-  opacity: 0;
-  text-align: center;
-}
-
-.skate-airtime-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--concrete-600);
-}
-
-.skate-airtime-value {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 14px;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--ink);
-}
-
-.skate-airtime-bar {
-  margin-top: 6px;
-  height: 4px;
-  border-radius: 2px;
-  background: rgb(28 27 25 / 0.12);
-  overflow: hidden;
-}
-
-.skate-airtime-fill {
-  height: 100%;
-  width: 100%;
-  background: var(--ink);
-  transform-origin: left center;
-  transform: scaleX(0);
-}
-
 /* ── Stance label, bottom centre ────────────────────────────────────── */
 .skate-stance {
   position: absolute;
@@ -93,7 +47,7 @@
   color: var(--concrete-600);
 }
 
-/* ── Body spin indicator (Q / E), above the airtime readout ─────────── */
+/* ── Body spin indicator (Q / E), above the stance label ─────────── */
 .skate-spin {
   position: absolute;
   left: 50%;
@@ -240,7 +194,7 @@
   display: none;
 }
 
-/* ── Grind balance, above the airtime (M4) ──────────────────────────── */
+/* ── Grind balance, above the stance label (M4) ──────────────────────────── */
 .skate-balance {
   position: absolute;
   left: 50%;
