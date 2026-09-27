@@ -445,7 +445,94 @@ toward it:
   named as usual. The pop out keeps its trick name with " out". The popup
   shows the whole line on landing. Scoring and combos are M5.
 
-### Tunables (`rider.config.ts` → `grind` block)
+### Assists: human timing without changing the feel
+
+The line (kickflip → tailslide → hardflip out) works for a script but not for
+a human. Catch windows of ±0.03 s, a 10 cm approach tolerance and exact
+lock-in timing are far tighter than human reactions (±60–100 ms). The assists
+below widen **when** and **where** an input counts. They never change how the
+board moves while you ride, so pop height, spin rates, speeds, friction and
+the swipe sizes all stay the same.
+
+**Guardrails:**
+- Assists only act inside windows that already exist (catch, lock-on,
+  pop-out, flick). They never act during plain riding, and never create
+  thrust.
+- Everything is in one `assist` config block, with a global
+  `assistLevel`: `pro` = 0 (the current behaviour, which all existing tests
+  keep using), `normal` = the default for players, `easy`. It can be changed
+  in the tuning panel, and it's saved like the stance.
+- The HUD never shows "assist happened". It should feel like you did it.
+
+### 1. Input buffering (the biggest win)
+- **Catch buffer:** a `Space` pressed up to `catchBufferS` (normal ≈ 0.15 s)
+  *before* the board enters the catch cone is held and fires the moment it
+  enters. It replaces the `catchRetryS` lockout: an early press no longer
+  wastes the catch.
+- **Late catch grace:** a `Space` pressed up to `catchLateS` (≈ 0.06 s) after
+  touchdown still counts as caught, if the board is on its wheels and within
+  tilt.
+- **Stance-key grace:** the `↓`/`W` that picks 5-0 or tailslide versus
+  nosegrind or noseslide counts if it's held at any time within
+  `stanceKeyGraceS` (≈ 0.15 s) before or after the lock-in, not only at the
+  lock instant.
+- **Swipe grace:** a swipe that ends up to `swipeGraceS` (≈ 0.05 s) before the
+  pop (a rushed finger) is still applied to that pop.
+
+### 2. Lock-on magnetism
+- **Reach:** while airborne after a pop, if a grind edge lies ahead on the
+  predicted path within `magnetReachM` sideways (normal ≈ 0.25 m, easy ≈
+  0.4 m), a gentle sideways velocity nudge of at most `magnetMaxMps`
+  (≈ 0.35 m/s) steers the board's path onto the edge line. It only nudges
+  sideways; the speed along the path stays the same.
+- **Lip catch:** a board up to `lipCatchBelowM` (≈ 0.06 m) *below* the edge
+  top that is still rising, or level with it, is lifted onto it instead of
+  clipping the side. This covers pops that are a hair short, like our 0.45 m
+  pop against the 0.35 m hubba.
+- **Angle bands:** perpendicular `perpToleranceRad` widens from 0.61 to about
+  0.8 at normal, and parallel from 0.44 to about 0.55. The lock then snaps
+  the yaw to the stance, as it already does.
+- **Quarter-turn helper:** during `Q`/`E` in the air with a grind edge ahead,
+  the body spin eases to a stop at the nearest stance angle (0° or 90°
+  relative to the edge) when you release within ±`spinSnapRad` (≈ 0.35) of
+  it.
+
+### 3. Pop-out generosity
+- **Airtime floor:** a pop-out that starts a flip or shove gets just enough
+  extra vertical impulse so the predicted airtime is at least
+  `popOutMinAirS` (≈ turns × 0.36 s). The hardflip out then finishes from
+  anywhere on the hubba, not only halfway down. Plain pop-outs are
+  unchanged.
+- **Early exit window:** a pop-out load started up to `popOutBufferS`
+  (≈ 0.12 s) before the lock-in is kept, so you can be "already loading" as
+  you land in the slide.
+
+### 4. Balance
+- At normal, `balanceDriftPerS` is scaled by `balanceEase` (≈ 0.6) during the
+  first 1.0 s of a grind. That's enough to stay on a hubba-length slide with
+  no balance input. It never lasts longer than 1.0 s.
+
+### Acceptance
+- **Human-jitter test for the line (G4H):** run the G4 line 50 times with a
+  fixed seed per run, each run randomly perturbed:
+  - every key time ± 70 ms (uniform)
+  - every hold duration ± 40 ms
+  - spawn lateral offset ± 0.2 m
+  - spawn speed ± 0.3 m/s
+
+  Results needed:
+  - at **normal**: at least 80% land the full line name
+  - at **easy**: at least 95%
+  - at **pro** (all assists 0): at least 5%, i.e. still possible but hard
+- **Same test for the tricks alone** (kickflip down the stairs, ollie to
+  50-50 on the rail, 360 flip off the kicker): at least 90% at normal.
+- **No feel change:** every existing scenario (matrix, park, grinds,
+  names) passes at `pro` **and** at `normal`, and `montage:verify` passes.
+- **No thrust:** no assist raises horizontal speed except the pop-out's
+  vertical impulse and the nudge's sideways component, which is at most
+  0.35 m/s.
+
+## Tunables (`rider.config.ts` → `grind` block)
 | Key | Start value |
 |---|---|
 | `lockDistanceM` | 0.06 |
