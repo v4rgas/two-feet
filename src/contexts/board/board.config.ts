@@ -54,7 +54,7 @@ export const BOARD_CONFIG = deepFreeze({
      * Below this speed the rolling resistance fades out linearly (F = Crr·N·v/v₀), so a
      * board at rest does not jitter around zero, m/s.
      */
-    rollingResistanceFadeSpeedMps: 0.05,
+    rollingResistanceFadeSpeedMps: 0.005,
     /** Max sideways grip force per wheel = coeff · N (before the surface multiplier). */
     lateralGripCoeff: 1.1,
     /**

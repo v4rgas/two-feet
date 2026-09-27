@@ -33,6 +33,7 @@ export { FixedStepAccumulator } from "./time/fixed-step";
 export type {
   BoardPartId,
   FootId,
+  Kick,
   ObstacleId,
   Stance,
   SurfaceType,

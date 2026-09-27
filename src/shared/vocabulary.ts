@@ -13,6 +13,12 @@ export const FOOT_IDS: readonly FootId[] = Object.freeze(["front", "back"]);
 /** Regular = WASD drives the front foot; goofy = arrows drive the front foot. Owned by `input`. */
 export type Stance = "regular" | "goofy";
 
+/**
+ * A kicked end of the board, as the rider sees it: `tail` is the end under the back
+ * foot, `nose` the end under the front foot. An ollie pops the tail, a nollie the nose.
+ */
+export type Kick = "tail" | "nose";
+
 /** Physical surface category of a collider. Owned by `world`. M1 ships only `ground`. */
 export type SurfaceType = "ground" | "ramp" | "grindable" | "ledge";
 

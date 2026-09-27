@@ -8,6 +8,7 @@ const popped: DomainEvent = {
   tick: 1,
   timeS: 1 / 120,
   foot: "back",
+  kick: "tail",
   impulseNs: 3,
   pointWorldM: Vec3.ZERO,
 };

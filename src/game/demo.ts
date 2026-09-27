@@ -260,6 +260,7 @@ class DemoGame {
         type: "BoardPopped",
         ...meta,
         foot: "back",
+        kick: "tail",
         impulseNs: 4,
         pointWorldM: tail,
       });

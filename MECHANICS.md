@@ -132,7 +132,17 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 - **Physics:**
   - Set the yaw rate to reach 180° in `T·shoveCompleteFraction`.
   - `←` (heel side) = backside, `→` (toe side) = frontside.
-  - Yaw only, with no sideways push.
+  - **Scoop:** the pop foot scoops the kick down and around, so the board spins
+    tilted, not flat. The kick being scooped (the tail on an ollie) dips below
+    the spin plane, the other end rises, and the board leans slightly toward
+    the scoop side.
+    - Apply this as extra pitch and roll impulses at shove time, in the
+      board's frame.
+    - It should peak at about `shoveScoopPitchRad` (≈ 0.3 rad) and
+      `shoveScoopRollRad` (≈ 0.12 rad) mid-spin.
+    - The level assist (and later the catch) brings the board back flat, so it
+      is level again by the time it can be caught.
+  - There is no sideways push: the impulses are angular only.
 - **Combos:** a shove plus a kickflip in the same air is a varial kickflip,
   with no extra code.
 
@@ -217,6 +227,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `catchRollRad` / `catchYawRad` | 0.7 / 0.6 |
 | `catchAssist` | 0.8 |
 | `catchRetryS` | 0.15 |
+| `shoveScoopPitchRad` / `shoveScoopRollRad` | 0.3 / 0.12 |
 | `autoCatchOnRelease` | false |
 | `landTiltRad` | 0.5 |
 
@@ -231,7 +242,8 @@ These are all first guesses. The dev tuning panel must expose them live.
    clean landing.
 4. **Late kickflip:** `A` at 0.3 s. It under-rotates or bails, but never
    crashes.
-5. **Shove-it:** load, pop, `←` 0.05 s later, release, then `Space` near the end of the air. Yaw = π ± 0.3,
+5. **Shove-it scoop:** mid-spin |pitch| ≥ 0.2 rad, with the scooped kick lower; it's back within ±0.1 rad of level before the catch.
+5b. **Shove-it:** load, pop, `←` 0.05 s later, release, then `Space` near the end of the air. Yaw = π ± 0.3,
    clean landing. `→` spins the other way.
 6. **Varial:** `A` and `←` together. Roll ≈ 2π and yaw ≈ π.
 7. **Tail press:** hold `↓` alone for 3 s. Pitch ≈ `manualPitchRad`, the tail

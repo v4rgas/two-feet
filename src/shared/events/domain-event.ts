@@ -1,5 +1,5 @@
 import type { Vec3 } from "../math/vec3";
-import type { BoardPartId, FootId, ObstacleId, Stance, SurfaceType } from "../vocabulary";
+import type { BoardPartId, FootId, Kick, ObstacleId, Stance, SurfaceType } from "../vocabulary";
 
 /**
  * Domain events: the only way bounded contexts react to each other (REQUIREMENTS §2.2).
@@ -51,7 +51,10 @@ export interface RotationTotals {
 /** Emitted by `rider` when a pop gesture applies the pop impulse on the tail (or nose). */
 export interface BoardPopped extends EventMeta {
   readonly type: "BoardPopped";
+  /** The pop foot: `back` for an ollie, `front` for a nollie. */
   readonly foot: FootId;
+  /** The kick that popped: `tail` (ollie) or `nose` (nollie). */
+  readonly kick: Kick;
   /** Magnitude of the impulse applied, N·s. */
   readonly impulseNs: number;
   /** World point where it was applied, m. */
