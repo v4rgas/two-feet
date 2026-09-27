@@ -41,6 +41,7 @@ class FakeView implements ShellView {
   renderMenu(view: MenuViewModel): void {
     this.menu = view;
   }
+  renderTutorial(): void {}
 }
 
 class MemoryStance implements StanceRepository {
@@ -92,6 +93,7 @@ async function rig(mapId = "flat"): Promise<Rig> {
         tuning.toggles += 1;
       },
       checkpointToast: "checkpoint",
+      tutorial: GAME_CONFIG.tutorial,
     },
     { mapId },
   );

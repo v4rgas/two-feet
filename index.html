@@ -3,16 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Skate</title>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='6' width='14' height='4' rx='2' fill='%23c8553d'/%3E%3C/svg%3E"
+    <title>Skate — by v4rgas</title>
+    <meta name="author" content="Juan Vargas" />
+    <meta
+      name="description"
+      content="A physics skateboard game where each foot is its own set of keys. A game by v4rgas."
     />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Skate — by v4rgas" />
+    <meta
+      property="og:description"
+      content="A physics skateboard game where each foot is its own set of keys."
+    />
+    <meta property="og:image" content="/brand/v4rgas/penguin-og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Skate — by v4rgas" />
+    <meta
+      name="twitter:description"
+      content="A physics skateboard game where each foot is its own set of keys."
+    />
+    <meta name="twitter:image" content="/brand/v4rgas/penguin-og.png" />
+    <link rel="icon" type="image/png" href="/brand/v4rgas/favicon.png" />
+    <link rel="apple-touch-icon" href="/brand/v4rgas/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&family=Space+Mono&display=swap"
     />
     <style>
       html,
@@ -28,10 +45,42 @@
         height: 100vh;
         outline: none;
       }
+      /* Boot screen: the credit while Rapier and the textures load, then it fades out. */
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #000;
+        opacity: 1;
+      }
+      #boot.off {
+        opacity: 0;
+      }
+      #boot img {
+        width: 96px;
+        height: 96px;
+        image-rendering: pixelated;
+      }
+      #boot p {
+        margin: 0;
+        font-family: "Space Mono", ui-monospace, monospace;
+        font-size: 14px;
+        letter-spacing: 0.04em;
+        color: #9a9a9a;
+      }
     </style>
   </head>
   <body>
     <canvas id="game"></canvas>
+    <div id="boot" role="status" aria-label="Loading">
+      <img src="/brand/v4rgas/penguin.png" alt="" width="96" height="96" />
+      <p>a game by v4rgas</p>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

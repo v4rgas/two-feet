@@ -1,0 +1,74 @@
+/* The tutorial's prompt card (GAME.md "Tutorial", STYLE.md): top centre, calm. */
+.skate-tutorial {
+  position: fixed;
+  top: 22px;
+  left: 50%;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 14px 22px 16px;
+  border-radius: 14px;
+  background: rgb(233 230 223 / 0.92);
+  box-shadow: 0 10px 30px rgb(28 27 25 / 0.16);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  transform: translate(-50%, -8px);
+  opacity: 0;
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out;
+}
+
+.skate-tutorial[data-show="true"] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.skate-tutorial-progress {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--concrete-600);
+}
+
+.skate-tutorial-progress:empty {
+  display: none;
+}
+
+.skate-tutorial-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.skate-tutorial-keys {
+  justify-content: center;
+  font-size: 15px;
+}
+
+.skate-tutorial-keys:empty {
+  display: none;
+}
+
+.skate-tutorial-hint {
+  font-size: 13px;
+  color: var(--warn);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+
+.skate-tutorial-hint[data-show="true"] {
+  max-height: 3em;
+}
+
+.skate-tutorial-footnote {
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--concrete-600);
+}

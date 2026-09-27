@@ -3,7 +3,9 @@ import { KeyboardInputSource } from "../../contexts/input/infrastructure/keyboar
 import type { MapDefinition } from "../../contexts/world";
 import type { MenuIntent, MenuViewModel } from "../../presentation/menu/menu-view-model";
 import type { RenderFrame, SceneSetup } from "../../presentation/render-frame";
+import type { TutorialCardView } from "../../presentation/tutorial/tutorial-card-view-model";
 import type { Clock, DomainEvent } from "../../shared";
+import { Vec3 } from "../../shared";
 import type { Simulation, SimulationConfigs } from "../compose";
 import { composeSimulation } from "../compose";
 import type { MapRegistry } from "../maps/map-registry";
@@ -12,6 +14,9 @@ import { checkpointFrom } from "./checkpoint";
 import type { MenuAction, MenuContext, MenuInput, MenuState } from "./menu-model";
 import { CLOSED_MENU, menuReduce, menuView } from "./menu-model";
 import type { ShellRepository } from "./shell-repository";
+import type { TutorialState } from "./tutorial";
+import { TUTORIAL_START, tutorialOnEvent, tutorialOnFrame } from "./tutorial";
+import { tutorialCard } from "./tutorial-card";
 
 /*
  * THE GAME SHELL (GAME.md, ADR 0014): the application layer around one simulation. It owns
@@ -28,6 +33,8 @@ export interface ShellView {
   render(frame: RenderFrame): void;
   showToast(text: string): void;
   renderMenu(view: MenuViewModel): void;
+  /** The tutorial's prompt card, or null to hide it (outside the tutorial). */
+  renderTutorial(card: TutorialCardView | null): void;
 }
 
 /** The part of `window` (or a test's `EventTarget`) the shell listens on for keys. */
@@ -48,6 +55,8 @@ export interface ShellDeps {
   readonly onToggleTuning?: () => void;
   /** The checkpoint toast's text. */
   readonly checkpointToast: string;
+  /** The tutorial's thresholds (GAME_CONFIG.tutorial). */
+  readonly tutorial: { readonly pushDoneSpeedMps: number; readonly outroS: number };
 }
 
 /** Where the shell opens (GAME.md "First launch"): a map id from the URL wins. */
@@ -86,6 +95,8 @@ export class GameShell {
   private loadToken = 0;
   private events: DomainEvent[] = [];
   private unsubscribe: (() => void) | null = null;
+  /** The tutorial's progress while it runs (GAME.md "Tutorial"), else null. */
+  private tutorial_: TutorialState | null = null;
 
   private constructor(private readonly deps: ShellDeps) {
     this.input = new KeyboardInputSource(this.gameKeys, deps.configs.input.keys);
@@ -105,7 +116,9 @@ export class GameShell {
   /** Builds the shell and loads its first map. */
   static async create(deps: ShellDeps, start: ShellStart = {}): Promise<GameShell> {
     const shell = new GameShell(deps);
-    await shell.loadMap(shell.firstMap(start).id);
+    const fromUrl = start.mapId == null ? undefined : deps.maps.get(start.mapId);
+    if (fromUrl === undefined && !deps.storage.loadTutorialDone()) await shell.startTutorial();
+    else await shell.loadMap(shell.firstMap(start).id);
     return shell;
   }
 
@@ -131,6 +144,11 @@ export class GameShell {
     return this.menu;
   }
 
+  /** The tutorial's progress, or null outside it. */
+  get tutorial(): TutorialState | null {
+    return this.tutorial_;
+  }
+
   // ── Frame ──────────────────────────────────────────────────────────────
 
   /**
@@ -141,7 +159,7 @@ export class GameShell {
     const sim = this.sim;
     if (sim === null) return 0;
     const steps = this.paused ? 0 : sim.loop.advance(elapsedS);
-    this.handleEvents();
+    this.handleEvents(steps * this.deps.configs.game.loop.fixedStepS);
     this.deps.view.render(sim.loop.buildFrame());
     return steps;
   }
@@ -156,7 +174,8 @@ export class GameShell {
   /** C: sets the checkpoint if the rule allows it. Returns whether it did. */
   setCheckpoint(): boolean {
     const sim = this.sim;
-    if (sim === null || this.paused) return false;
+    // The tutorial always restarts at its spawn (GAME.md "Tutorial").
+    if (sim === null || this.paused || this.tutorial_ !== null) return false;
     const cp = checkpointFrom(sim.loop.board, sim.loop.rider);
     if (cp === null) return false;
     this.checkpoint_ = cp;
@@ -180,11 +199,23 @@ export class GameShell {
     this.menuInput(intent);
   }
 
+  /** Starts (or replays) the tutorial on the tutorial map. */
+  async startTutorial(): Promise<void> {
+    await this.loadMap(this.deps.maps.tutorialMap.id, true);
+  }
+
+  /** Ends the tutorial as done (completed or skipped) and opens the default map. */
+  async finishTutorial(): Promise<void> {
+    this.deps.storage.saveTutorialDone(true);
+    await this.loadMap(this.deps.maps.defaultMap.id);
+  }
+
   /**
    * Loads a map: builds a new simulation (physics world, bodies), then swaps it in and
-   * disposes the old one; the scene is rebuilt. Clears the checkpoint.
+   * disposes the old one; the scene is rebuilt. Clears the checkpoint. `tutorial` runs the
+   * tutorial on it; any other load ends a running tutorial (not as done).
    */
-  async loadMap(id: string): Promise<void> {
+  async loadMap(id: string, tutorial = false): Promise<void> {
     const map = this.deps.maps.get(id) ?? this.deps.maps.defaultMap;
     const token = ++this.loadToken;
     const level = map.createLevel();
@@ -206,9 +237,11 @@ export class GameShell {
     this.checkpoint_ = null;
     this.events = [];
     this.unsubscribe = sim.bus.subscribeAll((event) => this.events.push(event));
+    this.tutorial_ = tutorial ? TUTORIAL_START : null;
     this.deps.view.setup({ boardSpec: sim.spec, level });
-    this.deps.storage.saveLastMap(map.id);
+    if (!tutorial) this.deps.storage.saveLastMap(map.id);
     this.renderMenu();
+    this.renderTutorial();
   }
 
   /** Removes the listeners and frees the simulation. */
@@ -232,9 +265,30 @@ export class GameShell {
     return (last === null ? undefined : maps.get(last)) ?? maps.defaultMap;
   }
 
-  private handleEvents(): void {
-    if (this.events.length === 0) return;
+  /** Feeds the frame's events and the board's speed to the tutorial. */
+  private handleEvents(dtS: number): void {
+    const events = this.events;
     this.events = [];
+    const before = this.tutorial_;
+    const sim = this.sim;
+    if (before === null || sim === null) return;
+    let state = before;
+    for (const event of events) state = tutorialOnEvent(state, event);
+    const speed = Vec3.length(sim.loop.board.linearVelocityMps);
+    state = tutorialOnFrame(state, speed, dtS, this.deps.tutorial);
+    this.tutorial_ = state;
+    if (state.step === "done") {
+      void this.finishTutorial();
+      return;
+    }
+    if (state !== before) this.renderTutorial();
+  }
+
+  private renderTutorial(): void {
+    const stance = this.sim?.input.stance ?? "regular";
+    this.deps.view.renderTutorial(
+      this.tutorial_ === null ? null : tutorialCard(this.tutorial_, stance),
+    );
   }
 
   private menuContext(): MenuContext {
@@ -242,7 +296,7 @@ export class GameShell {
       maps: this.deps.maps.all,
       currentMapId: this.map?.id ?? null,
       stance: this.sim?.input.stance ?? "regular",
-      tutorialRunning: false,
+      tutorialRunning: this.tutorial_ !== null,
       hasCheckpoint: this.checkpoint_ !== null,
     };
   }
@@ -268,12 +322,16 @@ export class GameShell {
         break;
       case "setStance":
         this.sim?.input.setStance(action.stance);
+        this.renderTutorial(); // its keys follow the stance
         break;
       case "loadMap":
         void this.loadMap(action.id);
         break;
       case "startTutorial":
+        void this.startTutorial();
+        break;
       case "skipTutorial":
+        void this.finishTutorial();
         break;
     }
   }

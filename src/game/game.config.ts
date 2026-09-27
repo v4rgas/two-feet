@@ -31,6 +31,13 @@ export const GAME_CONFIG = deepFreeze({
     /** What the checkpoint toast says. */
     checkpointToast: "checkpoint",
   },
+  /** The first-launch tutorial (GAME.md "Tutorial"). */
+  tutorial: {
+    /** Step 1 (push) is done at this board speed, m/s. */
+    pushDoneSpeedMps: 3,
+    /** How long the "welcome to the Street Course" card stays before the course loads, s. */
+    outroS: 2,
+  },
   /** localStorage keys of settings that no longer exist, removed on boot. */
   obsoleteStorageKeys: ["skate.assistLevel"],
   debug: {

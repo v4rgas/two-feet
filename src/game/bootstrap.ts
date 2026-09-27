@@ -4,9 +4,11 @@ import { INPUT_CONFIG } from "../contexts/input";
 import { LocalStorageStanceRepository } from "../contexts/input/infrastructure/local-storage-stance-repository";
 import { RIDER_CONFIG } from "../contexts/rider";
 import { TRICKS_CONFIG } from "../contexts/tricks";
+import { dismissBootScreen } from "../presentation/boot/boot-screen";
 import { MenuView } from "../presentation/menu/menu-view";
 import { PRESENTATION_CONFIG } from "../presentation/presentation.config";
 import { ThreeRenderer } from "../presentation/three-renderer";
+import { TutorialCard } from "../presentation/tutorial/tutorial-card";
 import type { Clock } from "../shared";
 import type { SimulationConfigs } from "./compose";
 import { GAME_CONFIG } from "./game.config";
@@ -85,6 +87,7 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<DevHandle> {
   });
   const hudParent = canvas.parentElement ?? document.body;
   let shell: GameShell | null = null;
+  const tutorialCard = new TutorialCard(hudParent);
   const menu = new MenuView(hudParent, (intent) => shell?.onMenuIntent(intent), CREDIT);
   const tuning =
     dev !== null && tunables !== null
@@ -104,13 +107,16 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<DevHandle> {
         render: (frame) => renderer.render(frame),
         showToast: (text) => renderer.showToast(text),
         renderMenu: (view) => menu.render(view),
+        renderTutorial: (card) => tutorialCard.render(card),
       },
       ...(tuning === null ? {} : { onToggleTuning: () => void tuning.toggle() }),
       checkpointToast: configs.game.shell.checkpointToast,
+      tutorial: configs.game.tutorial,
     },
     { mapId: mapIdFromUrl(window.location.search) },
   );
   const game = shell;
+  dismissBootScreen();
 
   let last = performance.now();
   const frame = (now: number): void => {

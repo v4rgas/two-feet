@@ -10,5 +10,8 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     exclude: ["src/game/scenarios/human.scenario.test.ts"],
     environment: "node",
+    // Board-only Rapier scenarios take a few seconds each; under a full parallel run they
+    // can pass the 5 s default.
+    testTimeout: 20_000,
   },
 });
