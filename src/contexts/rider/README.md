@@ -65,6 +65,8 @@ travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md
   is left alone (no thrust). On a one-sided edge (ledge, hubba, coping) a grind coming
   in over the start locks just before its trucks reach the end face, and is held on the
   edge line extended back, lifted so its trailing wheel clears the top too (**entry**).
+  Rolling off its end, the lock holds on until the trailing inner wheel has cleared the
+  end, so the board leaves level (**exit**).
   Across a joint of a bar (a kink), the lock holds the chord
   under the board's two contacts instead, so the board eases onto the next run
   (`jointLeadS`, `jointClearM`; ADR 0009).

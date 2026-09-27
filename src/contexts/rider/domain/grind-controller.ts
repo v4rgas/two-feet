@@ -324,6 +324,32 @@ export class GrindController {
   }
 
   /**
+   * EXIT (one-sided edges): rolling off the end, the lock holds on (the edge line extended)
+   * until the trailing truck's inner wheel — the last one on the top face — has cleared the
+   * end by its radius. Let go earlier, the board would rest on that one wheel with its outer
+   * side over nothing, roll off it and land on its side. Held to the end, it leaves level and
+   * lands on four wheels. True while that wheel is still over the top.
+   */
+  private exiting(lock: Lock, board: BoardKinematics): boolean {
+    const { frame } = lock;
+    if (frame.edge.twoSided || isSlide(lock.kind)) return false;
+    const vAlong = Vec3.dot(board.linearVelocityMps, frame.u);
+    if (vAlong === 0) return false;
+    const dir = vAlong > 0 ? 1 : -1;
+    const { trucks, wheels } = this.deck;
+    let trailS = dir > 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+    for (const x of [-trucks.wheelbaseM / 2, trucks.wheelbaseM / 2]) {
+      const wheel = Transform.toWorldPoint(
+        board.transform,
+        Vec3.create(x, lock.pointLocal.y, lock.pointLocal.z),
+      );
+      const sWheel = Vec3.dot(Vec3.sub(wheel, frame.edge.startM), frame.u);
+      trailS = dir > 0 ? Math.min(trailS, sWheel) : Math.max(trailS, sWheel);
+    }
+    return dir > 0 ? trailS <= frame.lengthM + wheels.radiusM : trailS >= -wheels.radiusM;
+  }
+
+  /**
    * ENTRY LIFT: while the trailing truck's inner wheel has not yet passed an entry end face
    * (the start, or the end coming the other way) of a one-sided edge, the lock holds the
    * board this much higher, m, so that wheel clears the top too, not only the locked point
@@ -531,7 +557,7 @@ export class GrindController {
       if (this.continueOnto(lock, p, ctx)) {
         p = Transform.toWorldPoint(board.transform, lock.pointLocal);
         s = Vec3.dot(Vec3.sub(p, lock.frame.edge.startM), lock.frame.u);
-      } else {
+      } else if (!this.exiting(lock, board)) {
         this.release();
         return "rollOff";
       }

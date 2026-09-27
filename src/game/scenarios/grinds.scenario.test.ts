@@ -4,7 +4,7 @@ import { Level, levelGrindEdges } from "../../contexts/world";
 import { STREET_CONFIG } from "../../maps/street/street.config";
 import { createStreetCourseLevel } from "../../maps/street/street-course";
 import type { GrindEnded, GrindStarted } from "../../shared";
-import { Vec3 } from "../../shared";
+import { Transform, Vec3 } from "../../shared";
 import { stairsTailslideHardflip } from "../montage/clips/stairs";
 import type { ScenarioHarness, StepRecord } from "./scenario-harness";
 import { ScenarioHarness as Harness } from "./scenario-harness";
@@ -442,4 +442,80 @@ describe("grinds and slides (M4)", () => {
     },
     T,
   );
+});
+
+/**
+ * A grind along a one-sided edge rolled off its end, `down` = ↓ held (a 5-0). From 0.15 m
+ * beside the edge (on the side the board rides from), heading 0.03 rad toward it, 4.5 m/s,
+ * a full load `popBeforeM` before the edge's start.
+ */
+async function grindToTheEnd(
+  spawn: { x: number; y: number; z: number },
+  popAtXM: number,
+  down: boolean,
+): Promise<ScenarioHarness> {
+  const h = await streetAt(spawn.x, spawn.y, spawn.z, -0.03);
+  h.launch(4.5);
+  runUntilX(h, popAtXM, 0.34);
+  loadAndPop(h, 0.32);
+  h.foot("front", awayFrom("tail"), 0.37, 0.15);
+  if (down) h.foot("back", "down", 0.42, 2);
+  h.run(5);
+  return h;
+}
+
+/** Rolled off the end and landed clean: one lock, `rollOff`, no bail, four wheels, level. */
+function expectRolledOffClean(h: ScenarioHarness, kind: "fiftyFifty" | "fiveO", id: string): void {
+  const [start, ...more] = started(h);
+  expect(more).toEqual([]);
+  expect(start?.grind).toBe(kind);
+  expect(start?.obstacleId).toBe(id);
+  const [end] = ended(h);
+  expect(end?.exit).toBe("rollOff");
+  expect(bails(h)).toEqual([]);
+  expect(landed(h)).toEqual([start?.name]);
+  // Off the end it leaves level across (no roll: it would tip onto its side before) and
+  // lands on four wheels. Along, it may still carry the slope's pitch (the hubba).
+  const off = h.records.filter((r) => r.timeS >= (end?.timeS ?? 0) && !r.board.grounded);
+  expect(off.length).toBeGreaterThan(0);
+  for (const r of off) {
+    const across = Transform.toWorldDirection(r.board.transform, Vec3.UNIT_Z);
+    expect(Math.abs(across.y)).toBeLessThan(0.1);
+  }
+  expect(h.board.wheelsDown).toBe(4);
+  expect(h.tiltRad()).toBeLessThan(0.05);
+  expect(h.rider.front.contact).toBe("attached");
+  expect(h.rider.back.contact).toBe("attached");
+  expectSane(h);
+}
+
+describe("rolling off the end of a one-sided edge lands on four wheels (ADR 0009)", () => {
+  const nearEdgeZ = LEDGE.zM - LEDGE.depthM / 2;
+  const ledgeSpawn = { x: LEDGE_START_X - 5, y: 0, z: nearEdgeZ - 0.15 };
+  const hubbaSpawn = {
+    x: S.bigStairs.xM - 5,
+    y: S.bigStairs.stepCount * S.bigStairs.riseM,
+    z: S.bigStairs.zM + S.bigStairs.widthM / 2 - 0.15,
+  };
+  for (const down of [false, true]) {
+    const kind = down ? "fiveO" : "fiftyFifty";
+    const name = down ? "5-0" : "50-50";
+    it(
+      `a ${name} along the long ledge rolls off its end and lands clean`,
+      async () => {
+        const h = await grindToTheEnd(ledgeSpawn, LEDGE_START_X - 1.4, down);
+        expectRolledOffClean(h, kind, "long-ledge");
+        expect(h.board.transform.positionM.x).toBeGreaterThan(LEDGE_START_X + LEDGE.lengthM + 1);
+      },
+      T,
+    );
+    it(
+      `a ${name} down the 7-stair's +Z hubba rolls off its end and lands clean`,
+      async () => {
+        const h = await grindToTheEnd(hubbaSpawn, S.bigStairs.xM - 2.4, down);
+        expectRolledOffClean(h, kind, "big-stairs");
+      },
+      T,
+    );
+  }
 });

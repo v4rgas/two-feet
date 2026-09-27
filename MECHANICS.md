@@ -514,7 +514,9 @@ toward it:
   `A` + `→`, `Space`. The pop impulse is along the edge's outward normal
   plus up, so you leave the obstacle.
 - **Roll off the end:** reaching the segment's end releases the lock with
-  the current velocity, then you land as normal. A slide needs rotating back
+  the current velocity, then you land as normal. On a ledge (or any one-sided
+  edge) the lock waits until the last wheel on the top has cleared the end,
+  so the board leaves level and lands on four wheels (ADR 0009). A slide needs rotating back
   with `Q`/`E` or a pop out to land lined up, otherwise it lands sideways
   and bails.
 - **Fall off:** balance is lost, see above.

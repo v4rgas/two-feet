@@ -601,3 +601,42 @@ describe("El Toro, ledge starts: a 50-50 locks at the start of a 0.42 m ledge", 
     T,
   );
 });
+
+describe("El Toro, ledge ends: rolling off the planter ledge's end lands on four wheels", () => {
+  for (const down of [false, true]) {
+    const name = down ? "5-0" : "50-50";
+    it(
+      `a ${name} along the planter ledge rolls off its end, leaves level and lands clean`,
+      async () => {
+        if (PLANTER === undefined) throw new Error("no planter ledge");
+        const h = await riderAt(PLANTER.minXM - 5, PLANTER.minZM - 0.15, -0.03, 0);
+        h.launch(4.5);
+        runUntilX(h, PLANTER.minXM - 1.4, 0.34);
+        loadAndPop(h, 0.32);
+        h.foot("front", awayFrom("tail"), 0.37, 0.15);
+        if (down) h.foot("back", "down", 0.42, 1.3);
+        h.run(4);
+        const [start, ...more] = h.eventsOf("GrindStarted");
+        expect(more).toEqual([]);
+        expect(start?.grind).toBe(down ? "fiveO" : "fiftyFifty");
+        expect(start?.obstacleId).toBe("planter-ledge");
+        const [end] = h.eventsOf("GrindEnded");
+        expect(end?.exit).toBe("rollOff");
+        // Off the end: level across all the way down (it tipped onto its side before).
+        const off = h.records.filter((r) => r.timeS >= (end?.timeS ?? 0) && !r.board.grounded);
+        expect(off.length).toBeGreaterThan(0);
+        for (const r of off) {
+          const across = Transform.toWorldDirection(r.board.transform, Vec3.UNIT_Z);
+          expect(Math.abs(across.y)).toBeLessThan(0.1);
+        }
+        expect(h.eventsOf("TrickLanded").map((e) => e.name)).toEqual([start?.name]);
+        expect(bails(h)).toEqual([]);
+        expect(h.board.wheelsDown).toBe(4);
+        expect(feetOn(h)).toBe(true);
+        expect(h.board.transform.positionM.x).toBeGreaterThan(PLANTER.maxXM + 1);
+        expect(h.board.transform.positionM.y).toBeLessThan(0.1);
+      },
+      T,
+    );
+  }
+});

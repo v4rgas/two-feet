@@ -138,6 +138,17 @@ that G5 and the HUD are predictable.
 - **Roll off** the end: the lock lets go with the current velocity. The feet stay on
   (the board counts as caught), and the normal landing rules apply. A slide that rolls
   off lands sideways unless `Q`/`E` turns it back.
+
+  On a one-sided edge a grind rides its inner wheels on the top. The lock used to let go
+  as soon as the locked point (the board's middle, or the truck for a 5-0) passed the
+  end. With a 50-50, the trailing truck's inner wheel was then still on the top: the
+  board rested on that one wheel with its outer side over nothing, rolled off it
+  (≈ 3.3 rad/s) and landed on its side, a bail every time. So on a one-sided edge the lock
+  holds on past the end (the edge line extended, the stance PD still levelling it) until
+  that trailing inner wheel has cleared the end by its radius. It then lets go level and
+  lands on four wheels. That is about 0.05 s at 4 m/s, and it adds no thrust.
+  Scenarios: a 50-50 and a 5-0 off the end of the Street Course's long ledge, of the 7-stair
+  hubba and of El Toro's planter ledge.
 - **Fall off**: see Balance.
 - The trick controller skips the edge it just left in the airtime prediction. In the air,
   that prediction also looks for edges along the board's path (within
