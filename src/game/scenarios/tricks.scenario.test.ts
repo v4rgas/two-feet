@@ -204,6 +204,59 @@ describe("3–4. kickflip", () => {
   );
 });
 
+describe("12e–12f. heelflip, nollie heelflip, nollie kickflip", () => {
+  /** Flip from `kick` with the guide foot toward `edge`, optionally with the level key. */
+  async function flipRun(
+    stance: (typeof STANCES)[number],
+    kick: "tail" | "nose",
+    edge: "toe" | "heel",
+    withLevel: boolean,
+  ) {
+    const h = await track(rolling(1.3, { stance }));
+    const t0 = h.timeS;
+    loadAndPop(h, 0.2, kick);
+    const guide = guideFoot(kick);
+    h.foot(guide, edge === "toe" ? toe(stance) : heel(stance), 0.25, 0.1);
+    if (withLevel) h.foot(guide, awayFrom(kick), 0.25, 0.1);
+    h.run(0.3);
+    spaceWhenUpright(h, t0);
+    h.run(1.5);
+    return { h, air: airSummary(h, t0) };
+  }
+
+  for (const stance of STANCES) {
+    const kickflipSign = stance === "regular" ? -1 : 1;
+    for (const withLevel of [false, true]) {
+      it(
+        `${stance} heelflip (${withLevel ? "level + " : ""}guide foot → toe edge): one full roll opposite to the kickflip, clean`,
+        async () => {
+          const { h, air } = await flipRun(stance, "tail", "toe", withLevel);
+          expect(Math.abs(Math.abs(air.rollRad) - TAU)).toBeLessThan(0.3);
+          expect(Math.sign(air.rollRad)).toBe(-kickflipSign);
+          expect(air.bailed).toBe(false);
+          expect(h.board.wheelsDown).toBe(4);
+          expect(feetOn(h)).toBe(true);
+        },
+        T,
+      );
+    }
+    for (const edge of ["toe", "heel"] as const) {
+      it(
+        `${stance} nollie ${edge === "toe" ? "heelflip" : "kickflip"} (back foot → ${edge} edge): one full roll, clean`,
+        async () => {
+          const { h, air } = await flipRun(stance, "nose", edge, false);
+          expect(h.eventsOf("BoardPopped").map((e) => e.kick)).toEqual(["nose"]);
+          expect(Math.abs(Math.abs(air.rollRad) - TAU)).toBeLessThan(0.3);
+          expect(Math.sign(air.rollRad)).toBe(edge === "toe" ? -kickflipSign : kickflipSign);
+          expect(air.bailed).toBe(false);
+          expect(feetOn(h)).toBe(true);
+        },
+        T,
+      );
+    }
+  }
+});
+
 describe("5–6. shove-it and varial", () => {
   for (const [dir, label] of [
     ["heel", "backside"],

@@ -121,7 +121,7 @@ class BoardFrame {
  *   leaves the kick): a vertical impulse through the centre of mass for the target height
  *   plus the snap that lifts the other end; the first kick loaded wins;
  * - in the pop's windows: level (guide foot toward the far end: PD to level + height
- *   bonus), kickflip (guide foot to the heel edge: the roll rate that completes one turn
+ *   bonus), kickflip / heelflip (guide foot to the heel / toe edge: the roll rate that completes one turn
  *   over the predicted airtime), shove-it (pop foot sideways: yaw rate for 180°);
  * - catch (feet down in the air, inside the cone): a PD that kills the spin, levels the
  *   board and snaps the yaw to 0°/180°; outside the cone it is locked out `catchRetryS`;
@@ -486,8 +486,8 @@ export class TrickController implements FootForceModel {
       if (levelKey && !this.levelling && this.sincePopS <= tricks.levelWindowS) {
         this.startLevel(kick, mass, frame, out);
       }
-      if (guide.edge === -1 && !this.flipped && this.sincePopS <= tricks.flickWindowS) {
-        this.flip(kick, input.controls, mass, frame, out);
+      if (guide.edge !== 0 && !this.flipped && this.sincePopS <= tricks.flickWindowS) {
+        this.flip(kick, guide.edge, input.controls, mass, frame, out);
       }
       if (pop.edge !== 0 && !this.shoved && this.sincePopS <= tricks.shoveWindowS) {
         this.shove(kick, pop.edge, input.controls, mass, frame, out);
@@ -536,13 +536,15 @@ export class TrickController implements FootForceModel {
   }
 
   /**
-   * KICKFLIP: the roll rate that completes one turn in `flipCompleteFraction` of the
-   * predicted remaining airtime (capped at `maxFlipRateRadps`, so a late flick
-   * under-rotates). Flicking off the heel edge sends the heel edge down first: roll
-   * −toeSide about the board's nose axis (−X in regular), for an ollie and a nollie alike.
+   * KICKFLIP / HEELFLIP: the roll rate that completes one turn in `flipCompleteFraction`
+   * of the predicted remaining airtime (capped at `maxFlipRateRadps`, so a late flick
+   * under-rotates). The guide foot flicks off an edge and that edge goes down first:
+   * heel edge (kickflip) → roll −toeSide about the board's nose axis (−X in regular), toe
+   * edge (heelflip) → the opposite; for an ollie and a nollie alike.
    */
   private flip(
     kick: Kick,
+    edge: -1 | 1,
     controls: RiderControls,
     mass: BoardMassProperties,
     frame: BoardFrame,
@@ -555,7 +557,7 @@ export class TrickController implements FootForceModel {
     // The rider's toe side, expressed on the board's own Z axis (the board may be backwards).
     const boardSide = Transform.toWorldDirection(frame.board.transform, Vec3.UNIT_Z);
     const facing = Math.sign(Vec3.dot(boardSide, frame.riderSide)) || 1;
-    const target = -toeSideSign(controls.stance) * facing * rate;
+    const target = edge * toeSideSign(controls.stance) * facing * rate;
     const axis = frame.forward;
     const current = Vec3.dot(frame.board.angularVelocityRadps, axis);
     out.push(
