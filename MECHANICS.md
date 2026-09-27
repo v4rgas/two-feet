@@ -204,6 +204,30 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 - **Otherwise:** the bail rules in REQUIREMENTS §1.3.
 - **Landing assist:** it adds suspension damping and removes small bounce.
 
+### Bail: the board goes ragdoll
+The moment a bail is decided (whatever the reason: landing off-angle, upside
+down, uncaught, lost balance, feet off), the rider **lets go completely**:
+- **Every controller stops that same step and applies no force at all:**
+  - the catch and the catch buffer
+  - the spin settle and the flip/shove channels
+  - the level, follow-body and landing assists
+  - the lock-on and grind PDs, and the magnets
+  - push, press and steer
+- Any pending buffered input is dropped.
+- The board is a free Rapier rigid body. It tumbles, bounces and slides,
+  and interacts with the ground, stairs, rails and ramps until the reset.
+- **All keys do nothing until the reset,** including `Space`. There is no
+  push, no catch and no pop.
+- The feet detach and fall away with the rider, drawn semi-transparent and
+  easing down. They never pull or push the board.
+- **Before a bail is decided,** an attempted catch outside the cone applies
+  nothing. The feet stay off and nothing is "half-caught". Once a board is
+  bound to bail (for example, it touches down outside tolerance), no
+  controller may fight it.
+- The reset happens after `bailResetS` (1.5 s), or when the board comes to
+  rest, whichever is later, capped at 3 s.
+
+
 ## Body spin (`Q` / `E`): 180s, 360s, lining up
 
 `Q` turns the rider's body to the left (counter-clockwise seen from above) and `E`
@@ -663,6 +687,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 12b. **Body 360:** the same with `Q` held until about 2π. It lands rolling forward.
 12c. **Line-up:** in the air, `E` held briefly to about 90°, no catch, landing on flat ground. That's a bail (sideways), with no explosion.
 12d. **180 flip:** wind up with `E`, pop, kickflip `A`, keep `E` held, then `Space`. The board and the body both turn about π (the board's yaw relative to the body is about 0) and it's named "BS 180 Kickflip" in regular. With a shove added, the board's yaw relative to the body is about ±π.
+12h. **Ragdoll bail:** force a bail (an uncaught upside-down landing), then hammer `Space`, `A`, `↓` and `Q`/`E` during the bail. The rider applies zero force and zero impulse on every step until the reset (checked through the recorded forces). The board's motion matches a run with no input, bit for bit. The same holds for a grind fall-off bail.
 12g. **Q/E steer:** rolling at 3 m/s, holding `Q` for 1 s turns the travel direction left (CCW from above) by at least 30°. `E` turns it right, the same in goofy and fakie. Speed never rises, and the deck leans.
 12e. **Heelflip:** load, pop, `D` 0.05 s later, release, then `Space` near 2π. Roll = 2π ± 0.3 in the opposite direction to the kickflip, with a clean landing. Also `W`+`D`.
 12f. **Nollie heelflip:** hold `W` + `↑`, release `W`, `→` 0.05 s later, `Space`. Roll = 2π, heelflip direction, clean landing. Also nollie kickflip with `←`. Both stances.
