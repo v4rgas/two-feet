@@ -35,7 +35,7 @@ export type MontageConfig = typeof MONTAGE_CONFIG;
 /** An output format id (`&format=`). */
 export type VideoFormatId = keyof MontageConfig["record"]["formats"];
 
-/** The format with this id, or null. */
+/** True when `id` is an output format id. */
 export function isVideoFormatId(id: string, config: MontageConfig): id is VideoFormatId {
   return Object.hasOwn(config.record.formats, id);
 }

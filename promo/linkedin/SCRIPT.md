@@ -46,7 +46,7 @@ simulation time.
 | Action | Two shoes on the grip (green = front, blue = back). Pop at sim 1.4 s, then a **heelflip** (W + D). The penguin graphic on the underside turns toward the lens, then up, then round to the grip. Space catch, rolls on. |
 | Camera | **`deckShowcase`**: a close, low, long-lens orbit from the heel side (≈ 2.4 m → 1.6 m, eye 0.16 → 0.4 m above the board). It pushes in over 3.2 s and frames 1.5 m → 1.05 m of board width in any aspect. The long lens flattens the background, which reads as a shallow focus. |
 | Speed | 1× → 0.5× (sim 1.25 s) → **0.2×** through the flip (sim 1.52–1.98 s) → 1× |
-| Text | **TWO FEET** (big, caps) / *one board*, on from frame 1 (the hook), held ≈ 3.4 s, fades out as the deck flips |
+| Text | **TWO FEET** (big, caps, the deck-red bar under it) / *one board* (Space Mono), on from frame 1 (the hook), held ≈ 3.4 s, fades out as the deck flips |
 | Trick card | none (the title owns this shot) |
 | Out | 0.2 s dip to black |
 
@@ -67,7 +67,7 @@ simulation time.
 |---|---|
 | Where | El Toro: the 20-stair (3.3 m) from the upper quad |
 | Action | Rolling at 4.5 m/s, 9 m back, two pushes. A full load with → held (the 360 shove's pre-position). Pop at sim 1.4 s. W + A and ← together make a kickflip plus a backside 360 shove: the **tre flip**. Space as it comes round (sim 1.94 s). It rides the drop with the feet on, lands (sim 2.7 s) and rolls away toward the fence. |
-| Camera | `fisheyeFollow` across the quad → **cut** at the pop to a wide `fixedTripod` down in the courtyard (15, 0.7, 7.5). It zooms 62° → 46° over the whole air and holds on the roll-away. |
+| Camera | `fisheyeFollow` across the quad → **cut** at the pop to a `fixedTripod` in the courtyard, 11 m out on the +Z side (11, 1.2, 5.5). It frames the top of the set to the landing and zooms 38° → 27° over the air, so the rider stays readable in portrait. It holds while the rider rolls past the lens. (A first take from (15, 0.7, 7.5) at 62° → 46° left the rider too small in 4:5.) |
 | Speed | **0.33×** for the whole air (sim 1.42–2.7 s), 1× for the roll-away |
 | Text | Kicker: "20 stairs. Real physics." (1.8 s). Lower-third on landing: **"360 Flip"**, captioned EL TORO · 20 STAIRS. |
 | In / out | 0.2 s from black, 0.35 s to black |
@@ -77,7 +77,7 @@ simulation time.
 | | |
 |---|---|
 | Look | Full-frame black (v4rgas brand) |
-| Content | the v4rgas 32 × 32 pixel penguin (`public/sponsors/v4rgas/penguin.png`, nearest-neighbour, integer scale) · **TWO FEET** · "a game by v4rgas" (Space Mono) · **v4rgas.com** (Space Mono, `.com` muted) · a small line at the bottom: "physics-based · every trick is real input" |
+| Content | The intro's title card (STYLE.md "Wordmark") on the v4rgas black. **TWO FEET** (Inter 800, 0.04 em tracking), then a short `deck` bar, then "two feet. one board." (Space Mono). Next, the v4rgas 32 × 32 pixel penguin (`public/sponsors/v4rgas/penguin.png`, nearest-neighbour, integer scale) beside "a game by v4rgas". Then **v4rgas.com** (Space Mono, `.com` muted), and a small line at the bottom: "physics-based · every trick is real input". |
 | In | 0.35 s from black, then holds |
 | Brand | BipBop Labs appears only as its in-world banners (a sponsor), never on the card. The deck's penguin art stays on the deck only. |
 
