@@ -79,6 +79,12 @@ levels and flicks.
   the same spring as the sticks.
 - **Wind-up:** Q / E while loaded turn the shoulders up to `windUpMaxRad`. At the pop,
   the wind-up becomes the body's initial spin rate and also the board's yaw rate.
+- **Steer (on the ground, not loaded, not in a manual):** Q / E add a lean
+  (`stance.steerLeanFraction` 0.8 of a full lean, eased over `steerLeanResponseS` 0.12 s)
+  to the foot-key carve lean, clamped, so the trucks steer exactly as in a carve. The lean
+  goes to the right of the travel for E (the board curves toward its leaning side whichever
+  way it rolls), so Q is always a left turn seen from above, forward or fakie, both
+  stances. No yaw torque, no thrust (scenario 12g, `steer.scenario.test.ts`).
 - **Air spin:** the heading's rate eases toward ±`bodySpinRateRadps` (14) at
   `bodySpinAccelRadps2` (90), and back to 0 on release. At full speed that stops in about
   1.1 rad.

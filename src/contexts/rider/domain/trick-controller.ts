@@ -209,6 +209,8 @@ export class TrickController implements FootForceModel {
   private releasedBefore = false;
   private landAssistLeftS = 0;
   private pushCooldownS = 0;
+  /** The Q / E steer's lean (rider frame, + = toward +Z), eased (see `steer`). */
+  private steerLean = 0;
   /** Space held from the air (the catch) does not push after landing until released. */
   private pushLocked = false;
   /** Ground height below the board this step (world y, m), for the airtime prediction. */
@@ -240,6 +242,7 @@ export class TrickController implements FootForceModel {
     this.landAssistLeftS = 0;
     this.pushCooldownS = 0;
     this.pushLocked = false;
+    this.steerLean = 0;
     this.grind.reset();
     this.airStart = null;
     for (const id of FOOT_IDS) {
@@ -486,6 +489,7 @@ export class TrickController implements FootForceModel {
     const popped = this.loadAndPop(input, keys, frame, out);
     if (popped !== null) return popped;
     const pressKick = this.loadKick === null ? this.pressKick(keys) : null;
+    this.steer(input, frame, pressKick !== null);
     this.stance(input, frame, pressKick, out);
     if (pressKick !== null) {
       this.manual(pressKick, input.rider.headingRad, input.mass, frame, out);
@@ -563,7 +567,9 @@ export class TrickController implements FootForceModel {
     out: FootForce[],
   ): void {
     const { stance } = this.config;
-    const lean = this.loadKick !== null ? 0 : carveLean(controls, rider, stance.carveMinStickX);
+    // The foot keys' carve lean plus the Q / E steer, clamped to a full lean.
+    const carve = carveLean(controls, rider, stance.carveMinStickX);
+    const lean = this.loadKick !== null ? 0 : Math.max(-1, Math.min(1, carve + this.steerLean));
     // Weight acts into the ground the wheels roll on (−mean wheel normal): straight down on
     // the flat — also in a manual, where the deck's own −Y would thrust — and into the
     // slope on a bank or a wall, where world down would brake the light board.
@@ -583,6 +589,40 @@ export class TrickController implements FootForceModel {
       const newtons = stance.standingPressN + Math.abs(lean) * stance.carveLeanN;
       out.push(forceAt(id, "press", Vec3.scale(down, newtons), point));
     }
+  }
+
+  /**
+   * STEERING (MECHANICS.md "Body spin": Q / E on the ground, not loaded, not in a manual):
+   * Q turns the travel left (counter-clockwise from above), E right, in both stances and
+   * riding fakie. Through the SAME lean → truck steer path as carving: it eases a lean
+   * target of ±`steerLeanFraction` in over `steerLeanResponseS` (added to the carve lean in
+   * `stance`). The board curves toward the side it leans on whichever way it rolls, so the
+   * lean goes to the right of the TRAVEL (fakie: the rider's left) for a right turn. No yaw
+   * torque, no thrust.
+   */
+  private steer(
+    { controls, board, dtS }: FootForceInput,
+    frame: BoardFrame,
+    pressed: boolean,
+  ): void {
+    const { steerLeanFraction, steerLeanResponseS } = this.config.stance;
+    const turn = this.loadKick === null && !pressed ? (controls.spin ?? 0) : 0;
+    let target = 0;
+    if (turn !== 0) {
+      // The travel: the board's horizontal velocity, or the rider's front when slow.
+      const v = Vec3.create(board.linearVelocityMps.x, 0, board.linearVelocityMps.z);
+      const travel =
+        Vec3.length(v) > this.config.torso.headingTravelMinSpeedMps
+          ? Vec3.normalize(v)
+          : frame.riderForward;
+      // Right of the travel seen from above (+X travel → +Z, screen right).
+      const right = Vec3.cross(travel, Vec3.UNIT_Y);
+      const side = Math.sign(Vec3.dot(right, frame.riderSide)) || 1;
+      // E (spin +1) turns right: lean to the right of the travel.
+      target = turn * side * steerLeanFraction;
+    }
+    const step = (steerLeanFraction / Math.max(1e-3, steerLeanResponseS)) * dtS;
+    this.steerLean += Math.max(-step, Math.min(step, target - this.steerLean));
   }
 
   /**
@@ -724,6 +764,7 @@ export class TrickController implements FootForceModel {
 
   private air(input: FootForceInput, keys: Keys, frame: BoardFrame, out: FootForce[]): void {
     const { tricks } = this.config;
+    this.steerLean = 0;
     const { mass, dtS } = input;
     const kick = this.popKick;
     if (kick !== null && !this.caught) {

@@ -34,6 +34,9 @@ travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md
 - **Body follow**: in the air the feet keep the board's yaw under the body, unless a
   shove runs.
 - **Wind-up**: Q / E while loaded. At the pop it becomes the body's and the board's spin.
+- **Steer**: Q / E on the ground, not loaded and not in a manual: a lean (`steerLeanFraction`
+  of a full lean, eased over `steerLeanResponseS`) added to the carve lean, so the trucks
+  turn the travel left (Q) or right (E), forward or fakie, in both stances. No yaw torque.
 - **Catch** ([ADR 0011](../../../docs/adr/0011-catch-feet-not-magic.md)): Space in the air,
   inside the cone (roll, pitch, yaw near 0/180 of the heading, and |ω| < 14 rad/s). Feet,
   not magic: a torque-limited correction (≤ 60 rad/s², ≤ 0.35 rad per axis), eased in

@@ -38,6 +38,13 @@ export const RIDER_CONFIG = deepFreeze({
     /** Extra weight per foot at full lean, at the foot's (clamped) sideways spot, N. */
     carveLeanN: 80,
     /**
+     * Q / E STEER on the ground (not loaded, not in a manual): a lean of this fraction of a
+     * full lean, eased in and out over `steerLeanResponseS`, s, added to the carve lean —
+     * the same lean → truck steer path. Q turns the travel left, E right.
+     */
+    steerLeanFraction: 0.8,
+    steerLeanResponseS: 0.12,
+    /**
      * Press forces act at most this far off the centre line, m — inside the wheel line
      * (axle track / 2 = 0.09 m), so leaning loads the edge wheels without tipping the board
      * (the rider's mass, which would keep it down, is not simulated).
