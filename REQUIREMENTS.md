@@ -46,8 +46,9 @@ How the basic moves come out of the physics:
 
 | Move | Input gesture | What the physics does |
 |---|---|---|
-| **Pop** | Back foot: hold down, then release quickly | Downward impulse on the tail. The tail hits the ground, and the board pivots up on the rear axle. |
-| **Ollie** | Pop, then front foot slides up toward the nose | Friction force at the front foot drags the nose up and levels the board. |
+| **Pop** | Back foot: a quick **tap** down (press and release within about 0.18 s) | Downward impulse on the tail. The tail hits the ground, and the board pivots up on the rear axle. Only from wheels-down. |
+| **Tail press** | Back foot: **hold** down (longer than a tap) | Presses the tail onto the ground and holds it there (it never pushes through). Releasing after a hold does not pop. |
+| **Ollie** | Tap down to pop, then front foot slides up toward the nose | Friction force at the front foot drags the nose up and levels the board. |
 | **Kickflip / heelflip** | Pop, then front foot flicks off the toe or heel edge | Off-axis impulse at the deck edge. Torque around the board's long axis. |
 | **Shuvit** | Back foot sweeps sideways while popping | Tangential force at the tail. Torque around the vertical axis. |
 | **Catch** | Both sticks return to neutral while airborne | Feet reattach when they are near the deck. Contact constraints damp the spin. |
