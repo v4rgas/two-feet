@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { KeyValueStorage } from "./local-storage-shell-repository";
 import { LocalStorageShellRepository } from "./local-storage-shell-repository";
 
-const KEYS = { tutorialDoneKey: "skate.tutorialDone", lastMapKey: "skate.lastMap" };
+const KEYS = {
+  tutorialDoneKey: "skate.tutorialDone",
+  lastMapKey: "skate.lastMap",
+  introSeenKey: "twofeet.introSeen",
+};
 
 class MapStorage implements KeyValueStorage {
   readonly data = new Map<string, string>();
@@ -25,6 +29,18 @@ describe("LocalStorageShellRepository", () => {
     expect(storage.data.get("skate.tutorialDone")).toBe("true");
     expect(repo.loadTutorialDone()).toBe(true);
     expect(repo.loadLastMap()).toBe("flat");
+  });
+
+  it("round-trips the intro flag under twofeet.introSeen", () => {
+    const storage = new MapStorage();
+    const repo = new LocalStorageShellRepository(KEYS, () => storage);
+    expect(repo.loadIntroSeen()).toBe(false);
+    repo.saveIntroSeen(true);
+    expect(storage.data.get("twofeet.introSeen")).toBe("true");
+    expect(repo.loadIntroSeen()).toBe(true);
+    const none = new LocalStorageShellRepository(KEYS, () => null);
+    none.saveIntroSeen(true);
+    expect(none.loadIntroSeen()).toBe(false);
   });
 
   it("no storage, or storage that throws: nothing remembered, nothing thrown", () => {

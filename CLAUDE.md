@@ -1,14 +1,15 @@
-# Skate
+# Two Feet
 
-A physics-based browser skate game where each foot is controlled separately.
+A physics-based browser skate game where each foot is controlled separately (two feet, one
+key cluster per foot; and two feet ≈ 0.61 m, the drop in the opening cinematic).
 
 **Read before changing anything:**
 - [`REQUIREMENTS.md`](REQUIREMENTS.md) covers the game rules, the DDD bounded
   contexts, the layer rules, the loop order, and the conventions.
 - [`MECHANICS.md`](MECHANICS.md) is the trick mechanics spec (assisted physics). It overrides
   REQUIREMENTS §1.2 and ADR 0004 where they conflict.
-- [`GAME.md`](GAME.md) covers the game shell: tutorial, maps (`src/maps/<id>/`), the menu, and
-  restart/checkpoint.
+- [`GAME.md`](GAME.md) covers the game shell: the intro, tutorial, maps (`src/maps/<id>/`), the
+  menu, and restart/checkpoint.
 - [`STYLE.md`](STYLE.md) covers visuals, the HUD, the camera, and the palette.
 
 Rules that matter most:

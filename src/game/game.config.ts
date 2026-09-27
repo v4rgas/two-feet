@@ -28,6 +28,8 @@ export const GAME_CONFIG = deepFreeze({
     tutorialDoneKey: "skate.tutorialDone",
     /** localStorage: the id of the last map played. */
     lastMapKey: "skate.lastMap",
+    /** localStorage: "true" once the opening cinematic has played or been skipped. */
+    introSeenKey: "twofeet.introSeen",
     /** What the checkpoint toast says. */
     checkpointToast: "checkpoint",
   },

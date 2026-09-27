@@ -123,4 +123,27 @@ describe("menu model", () => {
       expect(regular.map((r) => r.label)).toContain(label);
     }
   });
+
+  it("with an intro: an Intro row before Controls plays it; Back from Controls lands on Controls", () => {
+    const c = { ...ctx, hasIntro: true };
+    const opened = play([{ type: "toggle" }], c);
+    expect(labels(opened.state, c)).toEqual([
+      "Resume",
+      "Maps",
+      "Restart",
+      "Clear checkpoint",
+      "Stance",
+      "Tutorial",
+      "Intro",
+      "Controls",
+    ]);
+    const view = menuView(opened.state, c);
+    expect(view.title).toBe("TWO FEET");
+    expect(view.subtitle).toBe("paused");
+    const intro = play([{ type: "toggle" }, { type: "activate", index: 6 }], c);
+    expect(intro.state.open).toBe(false);
+    expect(intro.actions).toEqual([{ type: "playIntro" }]);
+    const back = play([{ type: "toggle" }, { type: "activate", index: 7 }, { type: "back" }], c);
+    expect(labels(back.state, c)[back.state.index]).toBe("Controls");
+  });
 });
