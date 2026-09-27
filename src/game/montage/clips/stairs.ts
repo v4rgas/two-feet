@@ -4,8 +4,9 @@ import { KeyTimeline } from "../timeline";
 /*
  * The 5-stair (park spawn: the top platform, 6.8 m behind the nosing, facing the drop).
  * Three pushes reach ≈ 3.7 m/s; the pop at 2.75 s is ≈ 0.3 m before the nosing. The drop
- * makes the air ≈ 0.8 s; the flip is caught once it has turned (catch window ≈ 3.16–3.23 s,
- * found with `findCatchTimeS`; later, the flip goes on into a double).
+ * makes the air ≈ 0.8 s; the flip is caught at the end of its turn (the catch is feet, not
+ * magic: ADR 0011). Windows (`findCatchTimeS` + a scan of the Space time): kickflip ≈
+ * 3.25–3.37 s, varial heelflip ≈ 3.25–3.28 s.
  */
 
 const POP_S = 2.75;
@@ -18,7 +19,7 @@ function pushAndPop(k: KeyTimeline): KeyTimeline {
     .loadAndPop("tail", POP_S - 0.22, POP_S);
 }
 
-/** Kickflip down the 5-stair: W + A just after the pop, Space once the flip has turned. */
+/** Kickflip down the 5-stair: W + A just after the pop, Space as the flip settles. */
 export const kickflipStairs: MontageClip = {
   id: "kickflip-stairs",
   title: "Kickflip · 5-stair",
@@ -28,7 +29,7 @@ export const kickflipStairs: MontageClip = {
   keys: pushAndPop(new KeyTimeline("regular"))
     .level("tail", POP_S + 0.05)
     .flick("tail", "heel", POP_S + 0.05, 0.08)
-    .catch(3.27)
+    .catch(3.31)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "fisheyeFollow" } },
@@ -58,7 +59,7 @@ export const varialHeelflipStairs: MontageClip = {
     .level("tail", POP_S + 0.05)
     .flick("tail", "toe", POP_S + 0.05, 0.08)
     .sweep("tail", "toe", POP_S + 0.05, 0.08)
-    .catch(3.27)
+    .catch(3.26)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "follow" } },

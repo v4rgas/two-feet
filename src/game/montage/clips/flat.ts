@@ -7,7 +7,7 @@ const ROLLING_IN = { xM: 0, yM: 0, zM: 0, headingRad: 0, speedMps: 4 } as const;
 
 /**
  * Nollie heelflip on flat: load W + ↑, pop by releasing W at 1.02 s, ↓ + → (the back foot
- * levels and flicks off the toe edge), Space once the flip has turned (window ≈ 1.42–1.46 s).
+ * levels and flicks off the toe edge), Space once the flip has turned (lands with Space anywhere in ≈ 1.32–1.56 s).
  */
 export const nollieHeelflipFlat: MontageClip = {
   id: "nollie-heelflip-flat",
@@ -33,7 +33,8 @@ export const nollieHeelflipFlat: MontageClip = {
 /**
  * BS 180 kickflip (regular: E is clockwise = backside): E held from before the load
  * (the wind-up) until 1.2 s, so the easing-out body spin stops near π; W + A after the pop;
- * Space once both the flip and the 180 are done (window ≈ 1.41–1.47 s). Lands fakie.
+ * Space once both the flip and the 180 are done (lands with Space in ≈ 1.37–1.61 s). Lands
+ * fakie.
  */
 export const bs180KickflipFlat: MontageClip = {
   id: "bs-180-kickflip-flat",

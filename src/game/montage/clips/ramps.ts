@@ -9,9 +9,10 @@ const hp = park.halfpipe;
 
 /**
  * 360 flip off the kicker: rolling in at 4.5 m/s from 6 m before it, the pop at 1.74 s is
- * at the lip (earlier, the pop lands back on the kicker's slope); W + A flick and a held ←
- * (a 360 backside sweep, ≥ 0.12 s); Space once the flip and the 360 are done (window
- * ≈ 2.26–2.30 s).
+ * at the lip (earlier, the pop lands back on the kicker's slope); W + A flick, and the 360
+ * backside sweep as an edge-to-edge swipe (→ held with the load from 1.58 s, ← at 1.79 s:
+ * MECHANICS "Swipe size"); Space as flip and 360 settle together (lands with Space in
+ * ≈ 2.19–2.43 s).
  */
 export const treFlipKicker: MontageClip = {
   id: "tre-flip-kicker",
