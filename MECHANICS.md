@@ -50,6 +50,7 @@ stances. With the follow camera behind the board, screen right is the board's
 | Back foot → heel side (backside shove) | `←` | `D` |
 | Back foot → toe side (frontside shove) | `→` | `A` |
 | Push (ground) / catch (air) | `Space` | `Space` |
+| Body spin left / right (wind-up on the ground, spin in the air) | `Q` / `E` | `Q` / `E` |
 
 The rest of this document uses regular-stance keys.
 
@@ -177,6 +178,51 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 - **Otherwise:** the bail rules in REQUIREMENTS §1.3.
 - **Landing assist:** it adds suspension damping and removes small bounce.
 
+## Body spin (`Q` / `E`): 180s, 360s, lining up
+
+`Q` turns the rider's body to the left (counter-clockwise seen from above) and `E`
+turns it to the right. This is for body varials (180, 360) and for turning the
+board to line up with a rail or ledge, which grinds (M4) will use. The keys
+are the same in both stances. Frontside or backside is only a naming question
+for the recognizer, based on stance.
+
+- **Wind-up (on the ground):**
+  - Holding `Q`/`E` while loaded winds up the shoulders. This is visual:
+    the torso turns up to `windUpMaxRad` (≈ 0.6 rad).
+  - At the pop, the stored wind-up becomes an initial spin rate,
+    `windUpSpinRadps × windUpFraction`.
+  - Otherwise `Q`/`E` do nothing on the ground. Carving stays on the foot keys.
+- **Spin (in the air):**
+  - Holding `Q`/`E` speeds the rider's heading up toward
+    `±bodySpinRateRadps` (≈ 9 rad/s, a 360 in about 0.7 s with the wind-up),
+    with ease-in and ease-out (`bodySpinAccelRadps2`).
+  - Releasing the key eases the spin back to 0, so you can stop at any angle.
+  - The rider heading is **no longer frozen in the air** while `Q`/`E` are
+    held. It only changes by this body spin, never by board yaw.
+- **The board follows the body only through the feet:**
+  - While at least one foot is attached, a yaw PD pulls the board's yaw toward
+    the rider heading (plus any shove offset). The whole setup turns together.
+  - With both feet off, for example during a flip, the board keeps its own yaw
+    and the body spins alone. That is how a body varial can end with the board
+    not lined up.
+  - The catch snaps the board's yaw to the nearest 0° or 180° of the **rider**
+    heading, not of the old travel direction.
+- **Landing:**
+  - The direction of travel doesn't change. What matters is how the board
+    lines up with it.
+  - Board yaw within ±`landYawToleranceRad` (≈ 0.35 rad) of the direction of
+    travel: rolls forward.
+  - Within that tolerance of 180°: rolls **fakie** (backwards). The rider
+    heading keeps the body angle it spun to, so after a 180 the rider now rides
+    fakie or switch.
+  - Otherwise the board is too sideways to roll: that's a bail. It becomes a
+    powerslide later.
+  - While a grindable obstacle is under the board, this check is skipped. That
+    is the M4 hook for a boardslide: line up about 90° with `Q`/`E`, land on
+    the rail.
+- **No thrust:** the body spin only changes yaw. It never adds horizontal
+  momentum.
+
 ## Nollie: the same mechanic, mirrored
 
 Everything above also works from the nose, with the two feet swapping jobs.
@@ -231,6 +277,9 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `catchRollRad` / `catchYawRad` | 0.7 / 0.6 |
 | `catchAssist` | 0.8 |
 | `catchRetryS` | 0.15 |
+| `bodySpinRateRadps` / `bodySpinAccelRadps2` | 9 / 40 |
+| `windUpMaxRad` / `windUpSpinRadps` | 0.6 / 4 |
+| `landYawToleranceRad` | 0.35 |
 | `shoveScoopPitchRad` / `shoveScoopRollRad` | 0.3 / 0.12 |
 | `autoCatchOnRelease` | false |
 | `landTiltRad` | 0.5 |
@@ -259,4 +308,8 @@ These are all first guesses. The dev tuning panel must expose them live.
 9b. **No pop from the manual:** hold `↓` alone for 1 s and release. There is no pop.
 10. **Nollie:** scenarios 1, 3 and 5 mirrored from the nose (`W`+`↑`, release `W`, `↓` / `←` / `A`, `Space`) give the same results, with pitch mirrored.
 11. **Nose press:** hold `W` alone for 3 s. Pitch ≈ −`manualPitchRad`, the nose stays above −2 mm, and releasing does not pop.
-12. **Idle:** 10 s with no input. No drift and no bail.
+12a. **Body 180:** load while holding `E`, pop, `W`, keep holding `E` until the rider has turned about π, `Space`. It lands rolling fakie on 4 wheels, rider heading Δ ≈ π, with no speed gained.
+12b. **Body 360:** the same with `Q` held until about 2π. It lands rolling forward.
+12c. **Line-up:** in the air, `E` held briefly to about 90°, no catch, landing on flat ground. That's a bail (sideways), with no explosion.
+12d. **Flip + body spin:** a kickflip with `Q` held, where the board keeps its own yaw while both feet are off. A catch near the end re-aligns it.
+13. **Idle:** 10 s with no input. No drift and no bail.
