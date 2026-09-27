@@ -106,6 +106,11 @@ export interface HandrailParams {
   /** True: the rail runs down the middle of the stairs (axis on z = 0), not beside them. */
   readonly centered?: boolean;
   /**
+   * True: a mirror-image handrail on the +Z side too (a rail down each side of the
+   * stairs, like El Toro's). Ignored when `centered`.
+   */
+  readonly bothSides?: boolean;
+  /**
    * How far the bar runs on back past the top nosing, horizontally, m (default: twice
    * `railPostInsetM`). Its top post stands `railPostInsetM` in from that end. A low rail
    * wants 0: back over the landing it would stand taller above the platform than at the

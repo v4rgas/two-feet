@@ -1,149 +1,118 @@
 import type { Obstacle } from "../../contexts/world";
 import { groundObstacle, Level, ObstacleShape, stairsHeightM } from "../../contexts/world";
-import { deepFreeze, degToRad, Quat, Transform, Vec3 } from "../../shared";
+import { Quat, Transform, Vec3 } from "../../shared";
+import type { Block, ElToroParams, Rect } from "./el-toro.config";
+import { EL_TORO } from "./el-toro.config";
+
+export type { Block, ElToroParams, Rect } from "./el-toro.config";
+export { EL_TORO } from "./el-toro.config";
 
 /*
- * EL TORO: the 20-stair with a handrail (El Toro High School, Lake Forest, CA), a big-drop
- * challenge map. Built only from the world context's obstacle kinds; its parameters live
- * here, in the map's folder (GAME.md "Maps"). No school logo or branding: plain concrete.
+ * EL TORO: the 20-stair (El Toro High School, Lake Forest, CA), a big-drop challenge map
+ * set in a school: an upper quad framed by one-storey classroom blocks, with a covered
+ * walkway and lunch tables; the 20-stair (a handrail down each side) into a lower
+ * courtyard with a long roll-out; a 10° walkway ramp back up along the north retaining
+ * wall; and the smaller spots a real campus has (a 4-stair off a lower terrace, a planter
+ * ledge, a curb). Built only from the world context's obstacle kinds; the parameters are
+ * in `el-toro.config.ts`, the research and the choices in DESIGN.md.
  *
- * Layout (world metres, the drop goes toward +X):
- * - The STAIRS: 20 × (0.165 rise, 0.30 run) = a 3.30 m drop over 6 m, 4 m wide, top nosing
- *   on x = 0, foot at x = 6. The handrail runs down the −Z side, 0.38 m above the nosings.
- * - The PLAZA on top: one funbox (a single convex piece, so there is no seam anywhere on
- *   it: ADR 0008), 18 m deep (x ∈ [−18, 0]) and 9 m wide (z ∈ [−3.5, 5.5]), its top
- *   `plazaAboveStairsM` above the stairs' own platform, which it buries: the stairs'
- *   platform edges lie ≥ `seamBuryM` under it, so the lip is the plaza's edge and the first
- *   drop is 0.195 m instead of 0.165 m. Walls on +X (the drop) and −Z; long 10° banks on
- *   −X (the roll-up from behind: arrive already facing the stairs) and +Z (the flank), so R
- *   is not the only way back up. A low planter ledge runs along the top on the −Z side (the
- *   push lane down the middle stays clear), a planter guards the drop edge beside the stairs.
- * - The LANDING: flat ground, ≥ 20 m of clear roll-out past the foot, framed by low
- *   concrete walls and planters (plain ledges, STYLE.md).
- * - SPAWN: on the plaza, 14 m behind the nosing, in the middle of the stairs, facing them.
+ * Seams (ADR 0008): the quad and the terrace are each ONE funbox piece that buries its
+ * stair set's platform 3 cm under its top, and the ramp's landing buries the quad's edge
+ * 3 cm under it, so no riding surface ever meets another flush.
  */
-export const EL_TORO = deepFreeze({
-  /** The ground slab under the map. */
-  ground: { halfSizeM: 100, thicknessM: 1 },
-  stairs: {
-    /** Top nosing (the stairs' local origin). */
-    xM: 0,
-    zM: 0,
-    stepCount: 20,
-    riseM: 0.165,
-    runM: 0.3,
-    widthM: 4,
-    /** The stairs' own platform: buried under the plaza, so only a stub. */
-    topDepthM: 0.3,
-    handrail: {
-      /**
-       * Top of the bar above each nosing, measured VERTICALLY (how a handrail is measured),
-       * m: grindable with the ≈ 0.45 m pop. The shape's `heightM` is square to the nosings.
-       */
-      aboveNosingsM: 0.38,
-      barRadiusM: 0.024,
-      offsetM: 0.3,
-      /**
-       * It starts right at the top nosing (a bar reaching back over the plaza would stand
-       * higher than the pop beside the approach) and ends 0.15 m past the foot, in the air.
-       */
-      topOverhangM: 0.05,
-      bottomOverhangM: 0.15,
-    },
-  },
-  plaza: {
-    /** Flat top from x = −lengthM to the top nosing (x = 0). */
-    lengthM: 18,
-    minZM: -3.5,
-    maxZM: 5.5,
-    /**
-     * The plaza's top is this far above the stairs' platform (which it buries), m. Must
-     * exceed `WORLD_CONFIG.geometry.seamBuryM` (2.5 cm) so the stairs' platform edges are
-     * no ghost seams under the wheels (ADR 0008).
-     */
-    aboveStairsM: 0.03,
-    bankAngleRad: degToRad(10),
-    edgeChamferM: 0.03,
-  },
-  spawn: {
-    /** Run-up behind the top nosing, m. */
-    runUpM: 14,
-    zM: 0,
-    headingRad: 0,
-  },
-  /** Low planter ledge along the top, on the −Z side of the push lane (grindable edges). */
-  topPlanter: { xM: -9.5, zM: -2.95, lengthM: 11, depthM: 0.6, heightM: 0.4, edgeChamferM: 0.03 },
-  /** Planter along the drop edge beside the stairs (+Z): it keeps you off the 3.3 m wall. */
-  edgePlanter: {
-    xM: -0.55,
-    zM: 3.95,
-    lengthM: 2.9,
-    depthM: 0.8,
-    heightM: 0.45,
-    edgeChamferM: 0.03,
-  },
-  /** Campus surroundings at the bottom: low walls and planters (plain concrete ledges). */
-  bottom: [
-    {
-      id: "end-wall",
-      name: "Low wall",
-      xM: 36,
-      zM: 1,
-      lengthM: 22,
-      depthM: 0.4,
-      heightM: 0.55,
-      alongZ: true,
-    },
-    {
-      id: "planter-south",
-      name: "Planter",
-      xM: 20,
-      zM: -8,
-      lengthM: 18,
-      depthM: 1.2,
-      heightM: 0.45,
-      alongZ: false,
-    },
-    {
-      id: "planter-north",
-      name: "Planter",
-      xM: 22,
-      zM: 12,
-      lengthM: 12,
-      depthM: 1.2,
-      heightM: 0.45,
-      alongZ: false,
-    },
-    {
-      id: "bench-wall",
-      name: "Low wall",
-      xM: 13,
-      zM: -5.5,
-      lengthM: 5,
-      depthM: 0.45,
-      heightM: 0.45,
-      alongZ: false,
-    },
-  ],
-  bottomChamferM: 0.03,
-});
-
-/** El Toro's parameters (deeply readonly). */
-export type ElToroParams = typeof EL_TORO;
 
 /** Pose at (x, y, z), turned `headingRad` about world +Y. */
 function placed(xM: number, yM: number, zM: number, headingRad = 0): Transform {
   return Transform.create(Vec3.create(xM, yM, zM), Quat.fromAxisAngle(Vec3.UNIT_Y, headingRad));
 }
 
-/** Height of the plaza's top above the ground, m. */
+const midX = (r: Rect): number => (r.minXM + r.maxXM) / 2;
+const midZ = (r: Rect): number => (r.minZM + r.maxZM) / 2;
+
+/** Height of the upper quad's top above the ground, m. */
 export function elToroPlazaHeightM(p: ElToroParams = EL_TORO): number {
   return p.stairs.stepCount * p.stairs.riseM + p.plaza.aboveStairsM;
 }
 
+/** Height of the lower terrace's top above the ground, m. */
+export function elToroTerraceHeightM(p: ElToroParams = EL_TORO): number {
+  const s = p.terrace.stairs;
+  return s.stepCount * s.riseM + p.terrace.aboveStairsM;
+}
+
+/** A plain concrete block standing on `yM`: a ledge kind (chamfered, grindable top edges). */
+function block(b: Block, yM: number, chamferM: number): Obstacle {
+  // A ledge runs along its local X; the long side of the block picks the turn.
+  const lengthX = b.maxXM - b.minXM;
+  const depthZ = b.maxZM - b.minZM;
+  const alongZ = depthZ > lengthX;
+  return {
+    id: b.id,
+    name: b.name,
+    surface: "ledge",
+    transform: placed(midX(b), yM, midZ(b), alongZ ? Math.PI / 2 : 0),
+    shape: ObstacleShape.ledge({
+      lengthM: alongZ ? depthZ : lengthX,
+      depthM: alongZ ? lengthX : depthZ,
+      heightM: b.heightM,
+      edgeChamferM: chamferM,
+    }),
+  };
+}
+
+/** The lunch tables: per set, a table between two benches. */
+function lunchBlocks(p: ElToroParams): Block[] {
+  const l = p.lunch;
+  const out: Block[] = [];
+  l.sets.forEach((set, i) => {
+    const x0 = set.xM - l.lengthM / 2;
+    const x1 = set.xM + l.lengthM / 2;
+    const n = i + 1;
+    const slab = (id: string, name: string, zM: number, depthM: number, heightM: number) => ({
+      id,
+      name,
+      minXM: x0,
+      maxXM: x1,
+      minZM: zM - depthM / 2,
+      maxZM: zM + depthM / 2,
+      heightM,
+    });
+    out.push(
+      slab(`lunch-table-${n}`, "Lunch table", set.zM, l.table.depthM, l.table.heightM),
+      slab(`lunch-bench-${n}a`, "Bench", set.zM - l.bench.offsetM, l.bench.depthM, l.bench.heightM),
+      slab(`lunch-bench-${n}b`, "Bench", set.zM + l.bench.offsetM, l.bench.depthM, l.bench.heightM),
+    );
+  });
+  return out;
+}
+
+/** The covered walkway's posts and roof (blocks on the quad; the roof floats on them). */
+function walkwayBlocks(p: ElToroParams, quadY: number): { block: Block; yM: number }[] {
+  const w = p.walkway;
+  const half = w.postSizeM / 2;
+  const posts = w.postXsM.map((x, i) => ({
+    block: {
+      id: `walkway-post-${i + 1}`,
+      name: "Walkway post",
+      minXM: x - half,
+      maxXM: x + half,
+      minZM: w.postZM - half,
+      maxZM: w.postZM + half,
+      heightM: w.roofUnderM,
+    },
+    yM: quadY,
+  }));
+  return [
+    ...posts,
+    {
+      block: { id: "walkway-roof", name: "Walkway roof", ...w.roof, heightM: w.roofThicknessM },
+      yM: quadY + w.roofUnderM,
+    },
+  ];
+}
+
 /** Builds the El Toro level (`?map=el-toro`). */
 export function createElToroLevel(p: ElToroParams = EL_TORO): Level {
-  const ground = [groundObstacle(p.ground)];
   const s = p.stairs;
   const rail = s.handrail;
   const stairs = ObstacleShape.stairs({
@@ -158,40 +127,25 @@ export function createElToroLevel(p: ElToroParams = EL_TORO): Level {
       offsetM: rail.offsetM,
       topOverhangM: rail.topOverhangM,
       bottomOverhangM: rail.bottomOverhangM,
+      bothSides: rail.bothSides,
     },
   });
-  const plazaY = stairsHeightM(stairs) + p.plaza.aboveStairsM;
+  const quadY = stairsHeightM(stairs) + p.plaza.aboveStairsM;
   const pl = p.plaza;
-  const plazaWidth = pl.maxZM - pl.minZM;
-  const ledge = (
-    id: string,
-    name: string,
-    l: {
-      readonly xM: number;
-      readonly zM: number;
-      readonly lengthM: number;
-      readonly depthM: number;
-      readonly heightM: number;
-    },
-    yM: number,
-    chamferM: number,
-    alongZ: boolean,
-  ): Obstacle => ({
-    id,
-    name,
-    surface: "ledge",
-    // A ledge runs along its local X; turned 90° it runs along world Z.
-    transform: placed(l.xM, yM, l.zM, alongZ ? Math.PI / 2 : 0),
-    shape: ObstacleShape.ledge({
-      lengthM: l.lengthM,
-      depthM: l.depthM,
-      heightM: l.heightM,
-      edgeChamferM: chamferM,
-    }),
+  const ramp = p.adaRamp;
+  const rampW = ramp.landing.maxZM - ramp.landing.minZM;
+  const t = p.terrace;
+  const smallStairs = ObstacleShape.stairs({
+    stepCount: t.stairs.stepCount,
+    riseM: t.stairs.riseM,
+    runM: t.stairs.runM,
+    widthM: t.maxZM - t.minZM,
+    topDepthM: t.stairs.topDepthM,
   });
+  const terraceY = stairsHeightM(smallStairs) + t.aboveStairsM;
 
   const obstacles: Obstacle[] = [
-    ...ground,
+    groundObstacle(p.ground),
     {
       id: "stairs",
       name: `${s.stepCount}-stair`,
@@ -201,21 +155,68 @@ export function createElToroLevel(p: ElToroParams = EL_TORO): Level {
     },
     {
       id: "plaza",
-      name: "Plaza",
+      name: "Upper quad",
       surface: "ground",
-      transform: placed(s.xM - pl.lengthM / 2, 0, s.zM + (pl.minZM + pl.maxZM) / 2),
+      transform: placed(midX(pl), 0, midZ(pl)),
       shape: ObstacleShape.funbox({
-        topLengthM: pl.lengthM,
-        topWidthM: plazaWidth,
-        heightM: plazaY,
-        bankAngleRad: pl.bankAngleRad,
-        sides: { plusX: "wall", minusX: "bank", plusZ: "bank", minusZ: "wall" },
+        topLengthM: pl.maxXM - pl.minXM,
+        topWidthM: pl.maxZM - pl.minZM,
+        heightM: quadY,
+        // Only the bank angle's value is unused: every side is a wall.
+        bankAngleRad: ramp.angleRad,
+        sides: { plusX: "wall", minusX: "wall", plusZ: "wall", minusZ: "wall" },
         edgeChamferM: pl.edgeChamferM,
       }),
     },
-    ledge("top-planter", "Planter ledge", p.topPlanter, plazaY, p.topPlanter.edgeChamferM, false),
-    ledge("edge-planter", "Planter", p.edgePlanter, plazaY, p.edgePlanter.edgeChamferM, true),
-    ...p.bottom.map((b) => ledge(b.id, b.name, b, 0, p.bottomChamferM, b.alongZ)),
+    {
+      id: "ada-ramp",
+      name: "Walkway ramp",
+      surface: "ground",
+      transform: placed(midX(ramp.landing), 0, midZ(ramp.landing)),
+      shape: ObstacleShape.funbox({
+        topLengthM: ramp.landing.maxXM - ramp.landing.minXM,
+        topWidthM: rampW,
+        heightM: quadY + ramp.aboveQuadM,
+        bankAngleRad: ramp.angleRad,
+        sides: { plusX: "bank", minusX: "wall", plusZ: "wall", minusZ: "wall" },
+        edgeChamferM: ramp.edgeChamferM,
+        bankRail: {
+          side: "plusX",
+          zM: rampW / 2 - ramp.rail.insetM,
+          flatM: ramp.rail.flatM,
+          heightM: ramp.rail.heightM,
+          barRadiusM: ramp.rail.barRadiusM,
+        },
+      }),
+    },
+    {
+      id: "terrace",
+      name: "Lower terrace",
+      surface: "ground",
+      transform: placed(midX(t), 0, midZ(t)),
+      shape: ObstacleShape.funbox({
+        topLengthM: t.maxXM - t.minXM,
+        topWidthM: t.maxZM - t.minZM,
+        heightM: terraceY,
+        bankAngleRad: t.bankAngleRad,
+        sides: { plusX: "bank", minusX: "wall", plusZ: "bank", minusZ: "wall" },
+        edgeChamferM: t.edgeChamferM,
+      }),
+    },
+    {
+      // Down toward −X off the terrace's west edge: turned half a turn.
+      id: "small-stairs",
+      name: `${t.stairs.stepCount}-stair`,
+      surface: "ground",
+      transform: placed(t.minXM, 0, midZ(t), Math.PI),
+      shape: smallStairs,
+    },
+    ...p.buildings.map((b) => block(b, 0, p.chamferM)),
+    ...walkwayBlocks(p, quadY).map(({ block: b, yM }) => block(b, yM, p.chamferM)),
+    ...p.quad.map((b) => block(b, quadY, p.chamferM)),
+    ...lunchBlocks(p).map((b) => block(b, quadY, p.chamferM)),
+    ...p.courtyard.map((b) => block(b, 0, b.id === "curb" ? p.curbChamferM : p.chamferM)),
+    ...p.fence.map((b) => block(b, 0, p.chamferM)),
   ];
 
   return Level.create({
@@ -223,7 +224,7 @@ export function createElToroLevel(p: ElToroParams = EL_TORO): Level {
     name: "El Toro",
     obstacles,
     spawn: {
-      positionM: Vec3.create(s.xM - p.spawn.runUpM, plazaY, s.zM + p.spawn.zM),
+      positionM: Vec3.create(s.xM - p.spawn.runUpM, quadY, s.zM + p.spawn.zM),
       headingRad: p.spawn.headingRad,
     },
   });

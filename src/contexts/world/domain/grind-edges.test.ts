@@ -236,6 +236,25 @@ describe("grind edges", () => {
     expect(rail?.endM.y).toBeGreaterThan(0.2);
   });
 
+  it("stairs: `bothSides` mirrors the handrail edge to the +Z side", () => {
+    const { hubba: _hubba, ...bare } = STAIRS;
+    const shape = ObstacleShape.stairs({
+      ...bare,
+      handrail: { ...STAIRS.handrail, bothSides: true },
+    });
+    const edges = obstacleGrindEdges(obstacle(shape));
+    const minus = edges.find((e) => e.id === "o:handrail");
+    const plus = edges.find((e) => e.id === "o:handrail-plus-z");
+    if (minus === undefined || plus === undefined) throw new Error("missing a handrail edge");
+    expect(edges).toHaveLength(2);
+    expect(plus.twoSided).toBe(true);
+    expect(plus.outwardNormal.z).toBeCloseTo(1);
+    expect(plus.startM.z).toBeCloseTo(-minus.startM.z, 9);
+    expect(plus.startM.x).toBeCloseTo(minus.startM.x, 9);
+    expect(plus.startM.y).toBeCloseTo(minus.startM.y, 9);
+    expect(plus.endM.y).toBeCloseTo(minus.endM.y, 9);
+  });
+
   it("stairs without a hubba or handrail, banks, kickers and boxes have no edges", () => {
     expect(
       obstacleGrindEdges(

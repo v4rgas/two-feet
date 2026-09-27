@@ -152,6 +152,17 @@ function stairsEdges(shape: StairsShape, config: GeometryConfig): LocalEdge[] {
       twoSided: true,
       halfWidthM: r,
     });
+    if (shape.handrail.bothSides === true && shape.handrail.centered !== true) {
+      out.push({
+        name: "handrail-plus-z",
+        surface: "grindable",
+        startM: onSlope(railRange.startXM / cosA, rh, -z),
+        endM: onSlope(railRange.endXM / cosA, rh, -z),
+        outwardNormal: PLUS_Z,
+        twoSided: true,
+        halfWidthM: r,
+      });
+    }
   }
   return out;
 }
