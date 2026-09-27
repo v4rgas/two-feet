@@ -37,7 +37,7 @@ built from these kinds.
   `tutorial`. `isMapDefinition(value)` recognises one (the game's registry uses it). It is
   here, not in `src/game`, so a map folder depends only on this context's public API.
 - The shipped maps: `src/maps/street/` (the Street Course, the default: a contest plaza
-  with a 7-stair and hubbas, rails, ledges, a funbox, banks and quarter pipes; its layout
+  with a 7-stair and hubbas, rails, ledges, a funbox, banks and an east quarter pipe; its layout
   and parameters in `street.config.ts`, described in `street-course.ts`) and
   `src/maps/flat/` (flat ground, where the tutorial runs).
 

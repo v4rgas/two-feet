@@ -612,8 +612,8 @@ the swipe sizes all stay the same.
   0.35 m/s.
 - **Status:** implemented in [ADR 0012](docs/adr/0012-assists.md), which has the
   tunables per level and the measured rates (`pnpm test:human`). The lines now
-  run on the Street Course (the park was removed, GAME.md; ADR 0014): G4H 28 %,
-  7-stair kickflip 98 %, flat-bar 50-50 76 %, euro-gap 360 flip 84 %. G4H is still
+  run on the Street Course (the park was removed, GAME.md; ADR 0014): G4H 30 %,
+  7-stair kickflip 98 %, flat-bar 50-50 78 %, euro-gap 360 flip 84 %. G4H is still
   below the target. The limit is the along-path pop-time window, which the assists
   (sideways and in time only) cannot widen. The hubba's flat top reaches 0.9 m back
   onto the landing.

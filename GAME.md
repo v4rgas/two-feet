@@ -52,7 +52,7 @@ done in the physics, not after a timer.
   - `el-toro`: El Toro, the 20-stair with a handrail. A big-drop challenge map.
 - **The old park is removed.** That's `skatepark.ts`, `?level=park`, and its
   config. Its tests and montage clips are ported to the Street Course, which
-  has a hubba stair set, rails, ledges, banks and quarter pipes. The
+  has a hubba stair set, rails, ledges, banks and a quarter pipe. The
   obstacle *kinds* stay in the world domain, because maps are built from
   them.
 - `?level=<id>` / `?map=<id>` still pick a map directly, for dev and links.
