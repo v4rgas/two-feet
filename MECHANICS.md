@@ -196,17 +196,18 @@ for the recognizer, based on stance.
   - Otherwise `Q`/`E` do nothing on the ground. Carving stays on the foot keys.
 - **Spin (in the air):**
   - Holding `Q`/`E` speeds the rider's heading up toward
-    `±bodySpinRateRadps` (≈ 9 rad/s, a 360 in about 0.7 s with the wind-up),
+    `±bodySpinRateRadps` (≈ 14 rad/s, a 360 in about 0.5 s with the wind-up),
     with ease-in and ease-out (`bodySpinAccelRadps2`).
   - Releasing the key eases the spin back to 0, so you can stop at any angle.
   - The rider heading is **no longer frozen in the air** while `Q`/`E` are
     held. It only changes by this body spin, never by board yaw.
-- **The board follows the body only through the feet:**
-  - While at least one foot is attached, a yaw PD pulls the board's yaw toward
-    the rider heading (plus any shove offset). The whole setup turns together.
-  - With both feet off, for example during a flip, the board keeps its own yaw
-    and the body spins alone. That is how a body varial can end with the board
-    not lined up.
+- **The board follows the body through the feet:**
+  - On the ground, or in the air when **no flip and no shove channel is
+    running**, the feet steer the board's yaw toward the rider heading,
+    toward the nearest 0° or 180° of it, with a yaw PD. A plain ollie with
+    `E` is a 180 or 360 where the board turns with you.
+  - While a flip or shove channel is running, the feet are busy, so the board
+    keeps its own yaw and the body spins alone (a body varial).
   - The catch snaps the board's yaw to the nearest 0° or 180° of the **rider**
     heading, not of the old travel direction.
 - **Landing:**
@@ -216,7 +217,9 @@ for the recognizer, based on stance.
     travel: rolls forward.
   - Within that tolerance of 180°: rolls **fakie** (backwards). The rider
     heading keeps the body angle it spun to, so after a 180 the rider now rides
-    fakie or switch.
+    fakie: moving backwards, same stance. Switch, meaning the other stance
+    moving forward, isn't reachable yet and is left for later (ground
+    kickturns or reverts).
   - Otherwise the board is too sideways to roll: that's a bail. It becomes a
     powerslide later.
   - While a grindable obstacle is under the board, this check is skipped. That
@@ -340,7 +343,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `catchAssist` | 0.8 |
 | `catchRetryS` | 0.15 |
 | `doubleFlickHoldS` / `shove360HoldS` | 0.12 / 0.12 |
-| `bodySpinRateRadps` / `bodySpinAccelRadps2` | 9 / 40 |
+| `bodySpinRateRadps` / `bodySpinAccelRadps2` | 14 / 90 (a 360 in about 0.5 s with a full wind-up) |
 | `windUpMaxRad` / `windUpSpinRadps` | 0.6 / 4 |
 | `landYawToleranceRad` | 0.35 |
 | `shoveScoopPitchRad` / `shoveScoopRollRad` | 0.3 / 0.12 |
