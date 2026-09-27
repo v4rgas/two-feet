@@ -276,13 +276,59 @@ the same board, and the recognizer (tricks context) names the result.
 | Channel | Input (regular, tail pop; nose pop uses the mirrored roles) | Options |
 |---|---|---|
 | **Kick** | which end popped | tail (ollie family), nose (nollie family) |
-| **Flip** (guide foot, flick window) | heel-edge flick / toe-edge flick | none, kickflip, heelflip. **Double**: the flick key held ≥ `doubleFlickHoldS` (≈ 0.12 s) targets 2 turns (4π) instead of 1. |
-| **Shove** (pop foot, shove window) | BS / FS sweep | none, 180 shove. **360 shove**: the sweep key held ≥ `shove360HoldS` (≈ 0.12 s) targets 2π instead of π. |
+| **Flip** (guide foot, flick window) | a sideways **swipe** of the guide foot (see *Swipe size*) | none, kickflip, heelflip. Swipe from the middle = 1 turn. Swipe from the **opposite edge across the whole board** = double (2 turns). |
+| **Shove** (pop foot, shove window) | a sideways **swipe** of the pop foot | none, 180 shove (swipe from the middle), **360 shove** (swipe from the opposite side across, e.g. `↓`+`→` → `↓`+`←`). |
 | **Body** (`Q` / `E`) | spin left / right | none, or any angle (180, 360, …) |
 
 Riding direction (forward / fakie) and stance (regular / switch) aren't
 inputs. They are the **state at the pop**, and the recognizer uses them as
 prefixes.
+
+### Swipe size: how big the flick or scoop is (replaces holding a key)
+The size of a trick comes from **how far the foot travels sideways**, not from
+how long a key is held.
+- **Measuring a swipe:** `x` is the foot's sideways stick value, from −1
+  (heel edge) to +1 (toe edge). A swipe **starts** where the foot was, at the
+  opposite extreme it reached in the last `swipeLookbackS` (≈ 0.3 s), which
+  may be before the pop. It **ends** when `x` reaches the far side
+  (|x| ≥ `swipeEndMin`, ≈ 0.8). Travel = |x_end − x_start|, anywhere from 0
+  to 2.
+- **One unit or two:**
+  - Travel ≥ `swipeMinTravel` (≈ 0.7) triggers the trick: 1 turn (flip) or
+    a half turn (shove).
+  - Travel ≥ `swipeDoubleTravel` (≈ 1.6) doubles it: a double flip, or a 360
+    shove.
+- **Direction** is the direction of the swipe. For the guide foot, toward
+  the heel edge is a kickflip and toward the toe edge is a heelflip. For the
+  pop foot, BS or FS as before.
+- **Letting go of a key is not a swipe.** Releasing `D` only drops `x` to 0,
+  which doesn't reach the far side, so it never flips.
+- **Pre-positioning:** a foot held toward an edge before the pop (for
+  example `S` + `D` during the load) sets up a double. Holding it does
+  nothing by itself: carving is off while loaded, and a held position isn't
+  a swipe.
+- **Regular-stance examples:**
+
+  | Trick | Keys |
+  |---|---|
+  | Kickflip | pop, then tap `A` |
+  | Double kickflip | load with `S`+`D` held, pop, then swipe to `A` (let go of `D`, press `A`) |
+  | Heelflip | pop, then `D` |
+  | Double heelflip | load with `S`+`A`, pop, then swipe to `D` |
+  | BS shove-it | pop, then `←` |
+  | 360 shove | load with `↓`+`→` (`S` held too), pop by releasing `↓` while holding `→`, then swipe to `←` |
+  | FS 360 shove | load with `↓`+`←`, pop, swipe to `→` |
+
+  Nollie mirrors these with the roles swapped.
+- **Spin speed (slower, it was too fast):** the rate is set so the flip or
+  shove takes most of the air, not a snap:
+  - rate = turns · 2π / (T_remaining · `flipCompleteFraction`)
+    (`flipCompleteFraction` ≈ 0.92)
+  - capped at turns × `maxFlipRatePerTurnRadps` (≈ 16 rad/s per turn)
+  - shoves are capped at halfTurns × `maxShoveRatePerHalfTurnRadps`
+    (≈ 9 rad/s per half turn)
+  - A single kickflip on a normal pop takes about 0.4 s, and you can see it
+    turn. A late swipe under-rotates, as before.
 
 ### Nollie keys (regular)
 The nose-pop version of every row, with pop foot = front and guide foot =
@@ -439,13 +485,13 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `levelWindowS` / `flickWindowS` / `shoveWindowS` | 0.35 / 0.35 / 0.20 |
 | `levelAssist` | 0.8 |
 | `levelHeightBonus` | 0.25 |
-| `flipCompleteFraction` | 0.85 |
+| `flipCompleteFraction` | 0.92 |
 | `shoveCompleteFraction` | 0.85 |
-| `maxFlipRateRadps` | 30 |
+| `maxFlipRatePerTurnRadps` / `maxShoveRatePerHalfTurnRadps` | 16 / 9 |
 | `catchRollRad` / `catchYawRad` | 0.7 / 0.6 |
 | `catchAssist` | 0.8 |
 | `catchRetryS` | 0.15 |
-| `doubleFlickHoldS` / `shove360HoldS` | 0.12 / 0.12 |
+| `swipeLookbackS` / `swipeEndMin` / `swipeMinTravel` / `swipeDoubleTravel` | 0.3 / 0.8 / 0.7 / 1.6 |
 | `bodySpinRateRadps` / `bodySpinAccelRadps2` | 14 / 90 (a 360 in about 0.5 s with a full wind-up) |
 | `windUpMaxRad` / `windUpSpinRadps` | 0.6 / 4 |
 | `landYawToleranceRad` | 0.35 |
