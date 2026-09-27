@@ -36,7 +36,9 @@ export type BailReason =
   /** The board landed with its grip tape facing down. */
   | "upsideDown"
   /** The board landed too far off level (tilt beyond threshold). */
-  | "offAngle";
+  | "offAngle"
+  /** A trick's flip, shove or body spin ended too far from a whole turn (tricks only). */
+  | "underRotated";
 
 /** Rotation accumulated around the board's local axes during an air session (rad, signed). */
 export interface RotationTotals {
@@ -111,8 +113,10 @@ export interface TrickLanded extends EventMeta {
 /** Emitted by `tricks` when an air session ends in a failed landing. */
 export interface TrickBailed extends EventMeta {
   readonly type: "TrickBailed";
-  /** The trick that was being attempted, if the rotation matched one; otherwise null. */
+  /** The trick that was being attempted (the closest match), or null if unknown. */
   readonly trickId: string | null;
+  /** Display name of that closest trick, e.g. "Kickflip"; null if unknown. */
+  readonly name: string | null;
   readonly reason: BailReason;
   readonly rotation: RotationTotals;
   readonly airtimeS: number;

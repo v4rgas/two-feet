@@ -5,12 +5,13 @@ import type { InputConfig, InputSource, StanceRepository } from "../contexts/inp
 import { DefaultInputSystem } from "../contexts/input";
 import type { RiderConfig } from "../contexts/rider";
 import { DefaultRiderSystem } from "../contexts/rider";
+import type { TricksConfig } from "../contexts/tricks";
+import { DefaultTricksSystem, TRICKS_CONFIG } from "../contexts/tricks";
 import type { Level } from "../contexts/world";
 import type { Clock } from "../shared";
 import { InMemoryEventBus, Quat, Transform, Vec3 } from "../shared";
 import type { GameConfig } from "./game.config";
 import { GameLoop } from "./loop";
-import { StubTricksSystem } from "./stubs";
 
 /** Configs the simulation reads. In dev these are the tunable clones (live lil-gui edits). */
 export interface SimulationConfigs {
@@ -18,6 +19,8 @@ export interface SimulationConfigs {
   readonly rider: RiderConfig;
   readonly input: InputConfig;
   readonly game: GameConfig;
+  /** Defaults to `TRICKS_CONFIG`. */
+  readonly tricks?: TricksConfig;
 }
 
 export interface SimulationDeps {
@@ -38,6 +41,7 @@ export interface Simulation {
   readonly board: PhysicsBoardSystem;
   readonly input: DefaultInputSystem;
   readonly rider: DefaultRiderSystem;
+  readonly tricks: DefaultTricksSystem;
 }
 
 /**
@@ -69,12 +73,16 @@ export async function composeSimulation(deps: SimulationDeps): Promise<Simulatio
     config: configs.rider,
     board: board.snapshot,
   });
-  // TODO(tricks, M2): TrickRecognizer subscribed to `bus`.
-  const tricks = new StubTricksSystem();
+  const tricks = new DefaultTricksSystem({
+    bus,
+    config: configs.tricks ?? TRICKS_CONFIG,
+    rider,
+    stance: input,
+  });
 
   const loop = new GameLoop(
     { input, rider, board, physics, tricks, bus, clock: deps.clock, spawn },
     configs.game,
   );
-  return { loop, bus, spec, spawn, physics, board, input, rider };
+  return { loop, bus, spec, spawn, physics, board, input, rider, tricks };
 }

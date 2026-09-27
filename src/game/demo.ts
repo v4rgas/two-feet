@@ -308,6 +308,7 @@ class DemoGame {
           type: "TrickBailed",
           ...meta,
           trickId: null,
+          name: null,
           reason: "upsideDown",
           rotation,
           airtimeS: DEMO.airS,
@@ -411,7 +412,9 @@ class DemoGame {
           startedAtS: timeS - s.airtimeS,
           airtimeS: s.airtimeS,
           popped: true,
+          kick: "tail",
           rotation: s.rotation,
+          bodyRad: 0,
           detachedFeet: s.frontDetached ? ["front"] : [],
         };
     const events = this.events;

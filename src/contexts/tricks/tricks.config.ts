@@ -1,110 +1,94 @@
-import { deepFreeze, degToRad, TAU } from "../../shared";
-import type { TrickDefinition } from "./domain/trick-definition";
-import { AngleRange } from "./domain/trick-definition";
-
-/** How far a rotation may be off the ideal value and still count, rad. */
-const TOL = degToRad(50);
-/** Rotation small enough to count as "none", rad. */
-const NONE = AngleRange.around(0, degToRad(45));
-const HALF = Math.PI;
+import { deepFreeze } from "../../shared";
+import type { TrickTable } from "./domain/trick-definition";
 
 /**
- * Every tunable constant of the `tricks` context, including the trick table
- * (REQUIREMENTS §1.5, §2.5). Rotations are stance-normalised (see tricks README).
+ * Every tunable constant of the `tricks` context (REQUIREMENTS §2.5). Rotations are
+ * rider-normalised (ADR 0007). The name table is data too, but not a tunable: see
+ * `TRICK_TABLE` below.
  */
 export const TRICKS_CONFIG = deepFreeze({
-  landing: {
-    /** Max angle between board up and world up for a clean landing, rad. */
-    maxTiltRad: degToRad(35),
+  session: {
     /** A pop counts for the air session if it happened at most this long before takeoff, s. */
     popToTakeoffWindowS: 0.25,
-    /** Both feet must be attached within this time after touchdown, s. */
-    catchWindowS: 0.2,
+    /** Popped airs shorter than this are hops, not tricks: no outcome, s. */
+    minAirtimeS: 0.15,
+    /** Rolling backwards (vs the rider heading) faster than this at the pop = fakie, m/s. */
+    fakieMinSpeedMps: 0.3,
+    /**
+     * The board's long axis must be at least this horizontal (|xz| of the unit axis) for its
+     * heading to count toward the shove; steeper steps are skipped.
+     */
+    minHorizontalAxis: 0.2,
   },
-  definitions: [
-    {
-      id: "ollie",
-      name: "Ollie",
-      rollRad: NONE,
-      yawRad: NONE,
-      requiresPop: true,
-      minAirtimeS: 0.15,
-      priority: 0,
-    },
-    {
-      id: "kickflip",
-      name: "Kickflip",
-      rollRad: AngleRange.around(TAU, TOL),
-      yawRad: NONE,
-      requiresPop: true,
-      minAirtimeS: 0.2,
-      priority: 10,
-    },
-    {
-      id: "heelflip",
-      name: "Heelflip",
-      rollRad: AngleRange.around(-TAU, TOL),
-      yawRad: NONE,
-      requiresPop: true,
-      minAirtimeS: 0.2,
-      priority: 10,
-    },
-    {
-      id: "double-kickflip",
-      name: "Double Kickflip",
-      rollRad: AngleRange.around(2 * TAU, TOL),
-      yawRad: NONE,
-      requiresPop: true,
-      minAirtimeS: 0.3,
-      priority: 20,
-    },
-    {
-      id: "bs-pop-shuvit",
-      name: "Pop Shuvit",
-      rollRad: NONE,
-      yawRad: AngleRange.around(HALF, TOL),
-      requiresPop: true,
-      minAirtimeS: 0.15,
-      priority: 10,
-    },
-    {
-      id: "fs-pop-shuvit",
-      name: "Frontside Pop Shuvit",
-      rollRad: NONE,
-      yawRad: AngleRange.around(-HALF, TOL),
-      requiresPop: true,
-      minAirtimeS: 0.15,
-      priority: 10,
-    },
-    {
-      id: "360-shuvit",
-      name: "360 Shuvit",
-      rollRad: NONE,
-      yawRad: AngleRange.around(TAU, TOL),
-      requiresPop: true,
-      minAirtimeS: 0.25,
-      priority: 15,
-    },
-    {
-      id: "varial-kickflip",
-      name: "Varial Kickflip",
-      rollRad: AngleRange.around(TAU, TOL),
-      yawRad: AngleRange.around(HALF, TOL),
-      requiresPop: true,
-      minAirtimeS: 0.25,
-      priority: 20,
-    },
-    {
-      id: "varial-heelflip",
-      name: "Varial Heelflip",
-      rollRad: AngleRange.around(-TAU, TOL),
-      yawRad: AngleRange.around(-HALF, TOL),
-      requiresPop: true,
-      minAirtimeS: 0.25,
-      priority: 20,
-    },
-  ] satisfies TrickDefinition[],
+  /**
+   * How far each channel may end from a whole step and still count as completed, rad
+   * (flip: a multiple of 2π; shove and body: a multiple of π). Beyond: `TrickBailed`
+   * ("underRotated") with the closest name.
+   */
+  tolerances: {
+    flipRad: 0.6,
+    shoveRad: 0.6,
+    bodyRad: 0.6,
+  },
+  landing: {
+    /** Max angle between board up and world up at touchdown for a clean landing, rad. */
+    maxTiltRad: 0.5,
+    /** Wheels that must be down (at touchdown or within `settleWindowS`) for a clean landing. */
+    minWheels: 4,
+    /** Both feet must be attached by this long after touchdown (the catch), s. */
+    catchWindowS: 0.2,
+    /** The board must reach `minWheels` by this long after touchdown, s. */
+    settleWindowS: 0.3,
+  },
 });
 
 /** Type of the tricks config (deeply readonly). */
 export type TricksConfig = typeof TRICKS_CONFIG;
+
+/**
+ * MECHANICS.md "Names the recognizer must produce", as data. Flip units are full turns
+ * (+ = kickflip), shove and body units half turns (+ = backside). A flip × shove pair
+ * without an entry in `tricks` (a "—" cell) gets the generic `<flip> + <shove>` name.
+ */
+export const TRICK_TABLE: TrickTable = deepFreeze<TrickTable>({
+  flips: [
+    { id: "none", name: "", units: 0 },
+    { id: "kickflip", name: "Kickflip", units: 1 },
+    { id: "heelflip", name: "Heelflip", units: -1 },
+    { id: "double-kickflip", name: "Double Kickflip", units: 2 },
+    { id: "double-heelflip", name: "Double Heelflip", units: -2 },
+  ],
+  shoves: [
+    { id: "none", name: "", units: 0 },
+    { id: "bs", name: "BS Shove-it", units: 1 },
+    { id: "fs", name: "FS Shove-it", units: -1 },
+    { id: "bs360", name: "360 Shove-it", units: 2 },
+    { id: "fs360", name: "FS 360 Shove-it", units: -2 },
+  ],
+  bodies: [
+    { id: "none", name: "", units: 0 },
+    { id: "bs180", name: "BS 180", units: 1 },
+    { id: "fs180", name: "FS 180", units: -1 },
+    { id: "bs360", name: "360", units: 2 },
+    { id: "fs360", name: "360", units: -2 },
+  ],
+  tricks: [
+    { id: "ollie", name: "Ollie", flip: "none", shove: "none", omitWith: ["nollie", "body"] },
+    { id: "bs-pop-shove-it", name: "BS Pop Shove-it", flip: "none", shove: "bs" },
+    { id: "fs-pop-shove-it", name: "FS Pop Shove-it", flip: "none", shove: "fs" },
+    { id: "360-shove-it", name: "360 Shove-it", flip: "none", shove: "bs360" },
+    { id: "fs-360-shove-it", name: "FS 360 Shove-it", flip: "none", shove: "fs360" },
+    { id: "kickflip", name: "Kickflip", flip: "kickflip", shove: "none" },
+    { id: "varial-kickflip", name: "Varial Kickflip", flip: "kickflip", shove: "bs" },
+    { id: "hardflip", name: "Hardflip", flip: "kickflip", shove: "fs" },
+    { id: "tre-flip", name: "360 Flip", flip: "kickflip", shove: "bs360" },
+    { id: "heelflip", name: "Heelflip", flip: "heelflip", shove: "none" },
+    { id: "inward-heelflip", name: "Inward Heelflip", flip: "heelflip", shove: "bs" },
+    { id: "varial-heelflip", name: "Varial Heelflip", flip: "heelflip", shove: "fs" },
+    { id: "laser-flip", name: "Laser Flip", flip: "heelflip", shove: "fs360" },
+    { id: "double-kickflip", name: "Double Kickflip", flip: "double-kickflip", shove: "none" },
+    { id: "double-heelflip", name: "Double Heelflip", flip: "double-heelflip", shove: "none" },
+  ],
+  prefixes: { switch: "Switch", fakie: "Fakie", nollie: "Nollie" },
+  genericJoiner: " + ",
+});

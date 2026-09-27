@@ -4,9 +4,15 @@
  * VO drifts away from what a consumer's domain expects. No runtime code.
  */
 import type { BoardSnapshot, BoardSpec, StaticColliderDesc } from "../contexts/board";
-import type { IntentFrame } from "../contexts/input";
-import type { BoardKinematics, DeckGeometry, RiderControls } from "../contexts/rider";
-import type { MotionSample } from "../contexts/tricks";
+import type { InputSystem, IntentFrame } from "../contexts/input";
+import type {
+  BoardKinematics,
+  DeckGeometry,
+  RiderControls,
+  RiderState,
+  RiderSystem,
+} from "../contexts/rider";
+import type { DefaultTricksSystemDeps, MotionSample, RiderPose } from "../contexts/tricks";
 import type { Obstacle } from "../contexts/world";
 
 type Assert<T extends true> = T;
@@ -17,5 +23,8 @@ export type StructuralContractChecks = [
   Assert<Extends<BoardSnapshot, BoardKinematics>>,
   Assert<Extends<BoardSpec, DeckGeometry>>,
   Assert<Extends<BoardSnapshot, MotionSample>>,
+  Assert<Extends<RiderState, RiderPose>>,
+  Assert<Extends<RiderSystem, DefaultTricksSystemDeps["rider"]>>,
+  Assert<Extends<InputSystem, DefaultTricksSystemDeps["stance"]>>,
   Assert<Extends<Obstacle, StaticColliderDesc>>,
 ];

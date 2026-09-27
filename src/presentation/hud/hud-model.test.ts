@@ -29,6 +29,7 @@ const trickBailed: DomainEvent = {
   tick: 1,
   timeS: 0,
   trickId: null,
+  name: null,
   reason: "upsideDown",
   rotation: ROTATION,
   airtimeS: 0.5,
@@ -64,6 +65,10 @@ describe("popup", () => {
   it("maps events to messages", () => {
     expect(popupForEvent(landed)).toEqual({ text: "Kickflip", tone: "trick" });
     expect(popupForEvent(trickBailed)).toEqual({ text: "bail", tone: "bail" });
+    expect(popupForEvent({ ...trickBailed, trickId: "kickflip", name: "Kickflip" })).toEqual({
+      text: "Kickflip · bail",
+      tone: "bail",
+    });
     expect(popupForEvent(riderBailed)?.tone).toBe("bail");
     expect(
       popupForEvent({ type: "BoardLeftGround", tick: 0, timeS: 0, velocityMps: Vec3.ZERO }),
@@ -76,6 +81,11 @@ describe("popup", () => {
     popup.advance(0.3);
     popup.onEvent(riderBailed);
     expect(popup.ageS).toBeCloseTo(0.3);
+    popup.onEvent({ ...trickBailed, trickId: "kickflip", name: "Kickflip" });
+    expect(popup.message?.text).toBe("Kickflip · bail");
+    expect(popup.ageS).toBeCloseTo(0.3);
+    popup.onEvent(riderBailed);
+    expect(popup.message?.text).toBe("Kickflip · bail");
     popup.onEvent(landed);
     expect(popup.message?.text).toBe("Kickflip");
     expect(popup.ageS).toBe(0);
