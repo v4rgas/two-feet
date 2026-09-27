@@ -14,6 +14,20 @@ const PAD_GAP = 14;
 export interface VideoHudOptions {
   /** Draw the foot pads (`&pads`). */
   readonly pads: boolean;
+  /** A quiet line in the bottom-right corner for the whole clip (the intro's skip hint). */
+  readonly hint?: string;
+  /** The wordmark card (the intro), shown once `LowerThirdsModel.cueTitleCard` is called. */
+  readonly titleCard?: TitleCardContent;
+}
+
+/** The intro's title card (STYLE.md "Wordmark"). */
+export interface TitleCardContent {
+  /** The wordmark, e.g. "TWO FEET". */
+  readonly title: string;
+  readonly tagline: string;
+  readonly credit: string;
+  /** The pixel penguin beside the credit, drawn with crisp pixels (null = none). */
+  readonly icon: CanvasImageSource | null;
 }
 
 /**
@@ -93,6 +107,8 @@ export class VideoHud {
     const u = h / REF_HEIGHT;
     this.drawTitle(ctx, u);
     this.drawLowerThird(ctx, u, h);
+    this.drawTitleCard(ctx, u, w, h);
+    this.drawHint(ctx, u, w, h);
     if (this.options.pads) this.drawPads(ctx, u, w, h);
     if (this.fade > 0) {
       ctx.globalAlpha = this.fade;
@@ -125,6 +141,76 @@ export class VideoHud {
     ctx.font = `700 ${22 * u}px Inter, system-ui, sans-serif`;
     ctx.fillStyle = p.concrete100;
     shadowText(ctx, this.model.title, x, y + 22 * u, u);
+    ctx.restore();
+  }
+
+  /** The wordmark card: centred a little above the middle, over the roll-away. */
+  private drawTitleCard(ctx: CanvasRenderingContext2D, u: number, w: number, h: number): void {
+    const card = this.options.titleCard;
+    const opacity = this.model.titleCardOpacity;
+    if (card === undefined || opacity <= 0) return;
+    const p = this.presentation.palette;
+    const cx = w / 2;
+    const rise = (1 - opacity) ** 2 * 14 * u;
+    const top = h * 0.24 + rise;
+    const titleSize = 96 * u;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    // A soft ink band behind the card, so light type reads over the pale plaza and sky.
+    const bandTop = top - 40 * u;
+    const bandH = titleSize + 190 * u;
+    const band = ctx.createLinearGradient(0, bandTop, 0, bandTop + bandH);
+    band.addColorStop(0, hexWithAlpha(p.ink, 0));
+    band.addColorStop(0.5, hexWithAlpha(p.ink, 0.42));
+    band.addColorStop(1, hexWithAlpha(p.ink, 0));
+    ctx.fillStyle = band;
+    ctx.fillRect(0, bandTop, w, bandH);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    // The wordmark: Inter 800, caps, a little tracking.
+    ctx.font = `800 ${titleSize}px Inter, system-ui, sans-serif`;
+    setLetterSpacing(ctx, titleSize * 0.04);
+    ctx.fillStyle = p.concrete100;
+    shadowText(ctx, card.title, cx, top + titleSize * 0.8, u);
+    setLetterSpacing(ctx, 0);
+    // The accent: a short bar in the deck colour, like the lower-thirds' edge.
+    const barY = top + titleSize * 0.8 + 20 * u;
+    ctx.fillStyle = p.deck;
+    ctx.fillRect(cx - 28 * u, barY, 56 * u, 5 * u);
+    // The pun, in the credit face.
+    const taglineY = barY + 39 * u;
+    ctx.font = `400 ${20 * u}px "Space Mono", ui-monospace, monospace`;
+    ctx.fillStyle = p.concrete100;
+    shadowText(ctx, card.tagline, cx, taglineY, u);
+    // The credit, with the pixel penguin (crisp nearest-neighbour pixels).
+    ctx.font = `400 ${14 * u}px "Space Mono", ui-monospace, monospace`;
+    const iconSize = card.icon === null ? 0 : 24 * u;
+    const spacing = card.icon === null ? 0 : 10 * u;
+    const rowW = iconSize + spacing + ctx.measureText(card.credit).width;
+    const rowY = taglineY + 40 * u;
+    const left = cx - rowW / 2;
+    if (card.icon !== null) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(card.icon, left, rowY - iconSize * 0.8, iconSize, iconSize);
+    }
+    ctx.textAlign = "left";
+    ctx.globalAlpha = opacity * 0.85;
+    shadowText(ctx, card.credit, left + iconSize + spacing, rowY, u);
+    ctx.restore();
+  }
+
+  /** The hint line, bottom-right, quiet. */
+  private drawHint(ctx: CanvasRenderingContext2D, u: number, w: number, h: number): void {
+    const hint = this.options.hint;
+    if (hint === undefined || hint === "") return;
+    ctx.save();
+    // Ink, quiet: the plaza and the sky are both pale, so dark type reads on either.
+    ctx.globalAlpha = 0.55;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = `400 ${13 * u}px "Space Mono", ui-monospace, monospace`;
+    ctx.fillStyle = this.presentation.palette.ink;
+    ctx.fillText(hint, w - MARGIN * 0.6 * u, h - MARGIN * 0.6 * u);
     ctx.restore();
   }
 
@@ -215,6 +301,11 @@ function shadowText(
   ctx.shadowOffsetY = 1 * u;
   ctx.fillText(text, x, y);
   ctx.shadowColor = "transparent";
+}
+
+/** `ctx.letterSpacing` where the browser has it, px. */
+function setLetterSpacing(ctx: CanvasRenderingContext2D, px: number): void {
+  if ("letterSpacing" in ctx) ctx.letterSpacing = `${px}px`;
 }
 
 function roundRect(

@@ -1,4 +1,4 @@
-# Skate — Trick Mechanics
+# Two Feet — Trick Mechanics
 
 This defines how the feet make tricks. It **replaces** the gesture rules in
 [`REQUIREMENTS.md` §1.2](REQUIREMENTS.md#12-controls) and ADR 0004 wherever

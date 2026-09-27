@@ -20,7 +20,11 @@ function browserStorage(): KeyValueStorage | null {
  */
 export class LocalStorageShellRepository implements ShellRepository {
   constructor(
-    private readonly keys: { readonly tutorialDoneKey: string; readonly lastMapKey: string },
+    private readonly keys: {
+      readonly tutorialDoneKey: string;
+      readonly lastMapKey: string;
+      readonly introSeenKey: string;
+    },
     private readonly storage: () => KeyValueStorage | null = browserStorage,
   ) {}
 
@@ -38,6 +42,14 @@ export class LocalStorageShellRepository implements ShellRepository {
 
   saveLastMap(id: string): void {
     this.write(this.keys.lastMapKey, id);
+  }
+
+  loadIntroSeen(): boolean {
+    return this.read(this.keys.introSeenKey) === "true";
+  }
+
+  saveIntroSeen(seen: boolean): void {
+    this.write(this.keys.introSeenKey, String(seen));
   }
 
   private read(key: string): string | null {

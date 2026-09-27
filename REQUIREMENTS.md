@@ -1,4 +1,4 @@
-# Skate — Requirements
+# Two Feet — Requirements
 
 A browser skateboarding game where **each foot is controlled separately**:
 one foot with `WASD`, the other with the arrow keys. There are no trick buttons.

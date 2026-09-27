@@ -24,6 +24,8 @@ export interface ControlRowView {
 export interface MenuViewModel {
   readonly open: boolean;
   readonly title: string;
+  /** A small line under the title (the main screen: "paused"). */
+  readonly subtitle?: string;
   readonly items: readonly MenuItemView[];
   /** The controls reference (only on the controls screen). */
   readonly controls?: readonly ControlRowView[];

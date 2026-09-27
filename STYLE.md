@@ -1,4 +1,4 @@
-# Skate — Style Guide
+# Two Feet — Style Guide
 
 How the game looks, feels, and sounds. The code conventions are in
 [`REQUIREMENTS.md` §2](REQUIREMENTS.md#2-code-requirements).
@@ -17,6 +17,28 @@ What we want the game to feel like:
 - **Readable.** From the board alone you can always tell what your feet are
   doing.
 - **Calm.** No neon, no particle spam, no screen shake unless you bail.
+
+## Wordmark
+
+The game is **Two Feet**. One treatment per context, nothing else:
+
+| Where | Treatment |
+|---|---|
+| Title card (the intro), the Esc menu's main title | **TWO FEET**: caps, Inter 800, letter-spacing 0.04 em. On video it is `concrete-100` with a soft ink shadow, a short `deck` bar under it; in the menu it is `ink` |
+| Credit lines (boot screen, menu footer, tutorial outro, the intro's tagline) | **two feet** lowercase, in Space Mono: "two feet — a game by v4rgas" |
+| Prose, page titles and docs | "Two Feet" (`<title>Two Feet — by v4rgas</title>`) |
+
+- The pun is the point, stated once: "two feet. one board." (one key cluster
+  per foot) and "0.61 m" (two feet is the euro gap's drop). Never more
+  tagline than that.
+- The v4rgas pixel penguin sits beside the credit, always with crisp
+  nearest-neighbour pixels.
+- **The intro's title card** (`VideoHud`'s title card, drawn on the video
+  canvas): centred a little above the middle, fading and rising in ≈ 0.35 s
+  after the landing, over the roll-away until the fade to black, on a soft
+  horizontal `ink` band (≤ 42 %, fading out at its edges) so the light type
+  reads over the pale plaza. The quiet hint "any key to skip" sits in the
+  bottom-right corner (Space Mono, 55 % `ink`) for the whole intro.
 
 ## Palette
 

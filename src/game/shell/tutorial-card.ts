@@ -7,7 +7,7 @@ import { TUTORIAL_STEPS, tutorialHintVisible } from "./tutorial";
 /** The words of the outro card (GAME.md "Tutorial") and its credit. */
 export const TUTORIAL_OUTRO = {
   title: "Nice. Welcome to the Street Course.",
-  footnote: "a game by v4rgas",
+  footnote: "two feet — a game by v4rgas",
 } as const;
 
 /** The prompt card for a tutorial state, keys and hints in the current stance. */

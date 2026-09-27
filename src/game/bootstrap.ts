@@ -5,6 +5,7 @@ import { LocalStorageStanceRepository } from "../contexts/input/infrastructure/l
 import { RIDER_CONFIG } from "../contexts/rider";
 import { TRICKS_CONFIG } from "../contexts/tricks";
 import { dismissBootScreen } from "../presentation/boot/boot-screen";
+import { CINEMATIC_CONFIG } from "../presentation/cinematic/cinematic.config";
 import { MenuView } from "../presentation/menu/menu-view";
 import { PRESENTATION_CONFIG } from "../presentation/presentation.config";
 import { ThreeRenderer } from "../presentation/three-renderer";
@@ -12,6 +13,9 @@ import { TutorialCard } from "../presentation/tutorial/tutorial-card";
 import type { Clock } from "../shared";
 import type { SimulationConfigs } from "./compose";
 import { GAME_CONFIG } from "./game.config";
+import { CinematicIntro } from "./intro/cinematic-intro";
+import { INTRO_CONFIG } from "./intro/intro.config";
+import { INTRO_CLIP } from "./intro/intro-clip";
 import { MAPS } from "./maps/maps";
 import { GameShell } from "./shell/game-shell";
 import { LocalStorageShellRepository } from "./shell/local-storage-shell-repository";
@@ -39,9 +43,9 @@ function forgetObsoleteSettings(keys: readonly string[]): void {
 /** Browser wall clock (the `Clock` port's production adapter). */
 const performanceClock: Clock = { nowS: () => performance.now() / 1000 };
 
-/** The credit in the menu footer. */
+/** The credit in the menu footer (STYLE.md "Wordmark": lowercase in credit lines). */
 const CREDIT = {
-  text: "made by v4rgas",
+  text: "two feet — a game by v4rgas",
   linkText: "v4rgas.com",
   href: "https://v4rgas.com",
   iconSrc: `${import.meta.env.BASE_URL}sponsors/v4rgas/penguin.png`,
@@ -81,14 +85,23 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<DevHandle> {
   };
   forgetObsoleteSettings(configs.game.obsoleteStorageKeys);
 
-  const renderer = new ThreeRenderer({
-    canvas,
-    config: tunables?.presentation ?? PRESENTATION_CONFIG,
-  });
+  const presentation = tunables?.presentation ?? PRESENTATION_CONFIG;
+  const renderer = new ThreeRenderer({ canvas, config: presentation });
   const hudParent = canvas.parentElement ?? document.body;
   let shell: GameShell | null = null;
   const tutorialCard = new TutorialCard(hudParent);
   const menu = new MenuView(hudParent, (intent) => shell?.onMenuIntent(intent), CREDIT);
+  // The opening cinematic (GAME.md "Intro"): one real-input clip on this renderer.
+  const intro = new CinematicIntro({
+    renderer,
+    canvas,
+    parent: hudParent,
+    clip: INTRO_CLIP,
+    config: INTRO_CONFIG,
+    presentation,
+    cinematic: CINEMATIC_CONFIG,
+    baseUrl: import.meta.env.BASE_URL,
+  });
   const tuning =
     dev !== null && tunables !== null
       ? new dev.TuningToggle(() => dev.installDevTuningPanel(tunables))
@@ -112,6 +125,7 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<DevHandle> {
       ...(tuning === null ? {} : { onToggleTuning: () => void tuning.toggle() }),
       checkpointToast: configs.game.shell.checkpointToast,
       tutorial: configs.game.tutorial,
+      intro,
     },
     { mapId: mapIdFromUrl(window.location.search) },
   );

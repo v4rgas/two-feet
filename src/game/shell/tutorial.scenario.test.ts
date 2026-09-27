@@ -200,7 +200,7 @@ describe("tutorial (full loop, real keys)", () => {
       g.until(() => g.step() !== "kickflip", 2);
       expect(g.step()).toBe("outro");
       expect(g.view.card?.title).toBe("Nice. Welcome to the Street Course.");
-      expect(g.view.card?.footnote).toBe("a game by v4rgas");
+      expect(g.view.card?.footnote).toBe("two feet — a game by v4rgas");
 
       // 4. ≈ 2 s later: the Street Course, the tutorial done.
       g.run(1.5);

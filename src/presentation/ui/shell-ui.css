@@ -89,6 +89,24 @@
   color: var(--concrete-600);
 }
 
+/* The main screen's title is the wordmark (STYLE.md "Wordmark"), "paused" under it. */
+.skate-menu-title[data-wordmark="true"] {
+  margin-bottom: 2px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.skate-menu-subtitle {
+  margin: 0 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--concrete-600);
+}
+
 .skate-menu-list {
   list-style: none;
   margin: 0;
