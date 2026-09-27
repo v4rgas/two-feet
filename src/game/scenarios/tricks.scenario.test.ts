@@ -79,12 +79,12 @@ describe("1. ollie", () => {
 
 describe("load and pop", () => {
   it(
-    "releasing D before ↓ still pops (the order of letting go does not matter)",
+    "releasing S before ↓ still pops (the order of letting go does not matter)",
     async () => {
       const h = await track(rolling(1.3));
       const t0 = h.timeS;
       h.foot("back", "down", 0, 0.22);
-      h.foot("front", toe(h.stance), 0.02, 0.15);
+      h.foot("front", "down", 0.02, 0.15);
       h.foot("front", "up", 0.27, 0.15);
       catchAt(h, 0.47);
       h.run(1.5);
@@ -116,7 +116,7 @@ describe("ollie goes straight (↓ + set never leans or steers)", () => {
         const t0 = h.timeS;
         const start = h.board.transform.positionM;
         const heading0 = h.headingRad();
-        // ↓ down, D 0.02 s later, both held 0.2 s, release ↓ (D still held), W 0.05 s later.
+        // ↓ down, S 0.02 s later, both held 0.2 s, release ↓ (S still held), W 0.05 s later.
         loadAndPop(h, 0.22);
         h.foot("front", "up", 0.27, 0.15);
         catchAt(h, 0.47);
@@ -334,7 +334,7 @@ describe("5. shove-it scoop", () => {
 describe("10. nollie (mirrored from the nose)", () => {
   for (const stance of STANCES) {
     it(
-      `${stance} nollie: W + set, release W, ↓ levels, Space → clean, ≥ 0.25 m, tail rises`,
+      `${stance} nollie: W + ↑, release W, ↓ levels, Space → clean, ≥ 0.25 m, tail rises`,
       async () => {
         const h = await track(rolling(1.3, { stance }));
         const t0 = h.timeS;

@@ -56,7 +56,7 @@ export const RIDER_CONFIG = deepFreeze({
     /** Both sticks within this radius in the air = "all foot keys released" (catch). */
     releasedRadius: 0.35,
 
-    /** ↓ + set (front foot to the toe edge) held together at least this long loads a pop, s. */
+    /** ↓ + set (front foot toward the tail: S) held together at least this long loads a pop, s. */
     loadMinS: 0.05,
     /** Loading longer than this adds nothing, s. */
     loadMaxS: 0.3,

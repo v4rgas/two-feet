@@ -9,6 +9,7 @@ import {
   nextTrailIntensity,
   PopupModel,
   padLayout,
+  stanceLabel,
 } from "./hud-model";
 
 /** Travel of the stick dot from the pad centre at full deflection, px. */
@@ -136,6 +137,8 @@ export class Hud {
   private readonly airtime: HTMLDivElement;
   private readonly airtimeValue: HTMLSpanElement;
   private readonly airtimeFill: HTMLDivElement;
+  private readonly stance: HTMLDivElement;
+  private lastStance = "";
   private readonly popupModel: PopupModel;
   private readonly airtimeModel: AirtimeModel;
   private layout: PadLayout | null = null;
@@ -162,6 +165,8 @@ export class Hud {
     const bar = el("div", "skate-airtime-bar", this.airtime);
     this.airtimeFill = el("div", "skate-airtime-fill", bar);
 
+    this.stance = el("div", "skate-stance", this.root);
+
     this.leftPad = new FootPad(this.root, "left", config);
     this.rightPad = new FootPad(this.root, "right", config);
     this.popupModel = new PopupModel(config.hud);
@@ -170,6 +175,11 @@ export class Hud {
 
   update(frame: RenderFrame, dtS: number): void {
     this.layout = padLayout(frame.stance);
+    if (frame.stance !== this.lastStance) {
+      this.lastStance = frame.stance;
+      this.stance.textContent = stanceLabel(frame.stance);
+      this.stance.dataset.stance = frame.stance;
+    }
     this.leftPad.update(frame, this.layout.left, dtS);
     this.rightPad.update(frame, this.layout.right, dtS);
     this.updatePopup(frame, dtS);

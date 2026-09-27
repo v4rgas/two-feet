@@ -70,8 +70,9 @@ function setup() {
   return { body, bus, events, system, step };
 }
 
+/** Regular ollie: hold ↓ + S (both feet toward the tail), release ↓. */
 function popOllie(step: (f: IntentFrame, g?: boolean) => void): void {
-  for (let i = 0; i < 12; i += 1) step(intents({ x: 1 }, { y: -1 }));
+  for (let i = 0; i < 12; i += 1) step(intents({ y: -1 }, { y: -1 }));
   step(intents({}, { y: 0 }));
 }
 

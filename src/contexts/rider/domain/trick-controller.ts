@@ -117,7 +117,7 @@ class BoardFrame {
  *
  * - rolling: standing weight and carving lean at the feet, the push;
  * - press (pop foot on its kick alone): a capped PD toward ±`manualPitchRad`;
- * - load (pop foot on its kick + guide foot set to the toe edge) and pop (pop foot
+ * - load (pop foot on its kick + guide foot set toward that kick) and pop (pop foot
  *   leaves the kick): a vertical impulse through the centre of mass for the target height
  *   plus the snap that lifts the other end; the first kick loaded wins;
  * - in the pop's windows: level (guide foot toward the far end: PD to level + height
@@ -239,9 +239,12 @@ export class TrickController implements FootForceModel {
     return keys[popFootOf(kick)].along * kickSign(kick) < this.config.tricks.popReleaseStick;
   }
 
-  /** The guide foot is set on the toe edge. */
+  /**
+   * The guide foot is set: slid back toward the popping kick, like both feet crouching
+   * over it (S for an ollie in regular, ↑ for a nollie).
+   */
   private isSet(keys: Keys, kick: Kick): boolean {
-    return keys[guideFootOf(kick)].edge === 1;
+    return keys[guideFootOf(kick)].along * kickSign(kick) >= this.config.tricks.keyDownStick;
   }
 
   // ── on the ground ─────────────────────────────────────────────────────────
@@ -249,9 +252,10 @@ export class TrickController implements FootForceModel {
   /**
    * Rolling, press, load and pop. Returns the kick when the pop fires.
    *
-   * LOAD: pop foot on its kick + guide foot set (↓ + D) together. Once loaded it stays
-   * loaded while the pop foot holds its kick (letting go of the set does not matter).
-   * POP: the pop foot leaves the kick while loaded — release ↓, D still held or not.
+   * LOAD: pop foot on its kick + guide foot set toward the same kick (↓ + S) together.
+   * Once loaded it stays loaded while the pop foot holds its kick (letting go of the set
+   * does not matter). POP: the pop foot leaves the kick while loaded — release ↓, S still
+   * held or not.
    */
   private ground(
     input: FootForceInput,
@@ -315,7 +319,7 @@ export class TrickController implements FootForceModel {
   /**
    * Standing weight at each attached foot, plus carving lean when both sticks lean to the
    * same edge (not while loading). Straight down (world), ON THE CENTRE LINE unless carving:
-   * where a foot stands sideways (the "set" foot at the toe edge, a lean) is visual only,
+   * where a foot stands sideways (a lean) is visual only,
    * so a load never leans or steers the board. The carve lean shifts the weight toward the
    * leaning edge, inside the wheel line, so the board leans on its trucks but never tips.
    * In a press the guide foot carries no weight (the knee lifts).

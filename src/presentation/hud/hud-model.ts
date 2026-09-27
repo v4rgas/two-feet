@@ -31,6 +31,11 @@ export function padLayout(stance: Stance): PadLayout {
   return LAYOUTS[stance];
 }
 
+/** Stance label: the stance and its ollie keys (MECHANICS.md), so the active one is obvious. */
+export function stanceLabel(stance: Stance): string {
+  return stance === "regular" ? "regular · ollie ↓+S, let go ↓" : "goofy · ollie S+↓, let go S";
+}
+
 /** True when the pad should show the "holding the tail" ring. */
 export function isPressingTail(foot: FootId, stickY: number, config: HudConfig): boolean {
   return foot === "back" && stickY <= config.tailRingStickY;

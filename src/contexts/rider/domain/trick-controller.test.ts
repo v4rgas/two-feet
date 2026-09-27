@@ -53,13 +53,13 @@ function horizontalThrust(forces: readonly FootForce[]): number {
   return Math.hypot(sum.x, sum.z);
 }
 
-/** Hold ↓ + D, release ↓ with D still held (the ollie set-up); returns the pop step. */
+/** Hold ↓ + S, release ↓ with S still held (the ollie set-up); returns the pop step. */
 function ollie(
   step: (s: Sticks, b?: BoardKinematics) => FootForceOutput,
   loadSteps = 12,
 ): FootForceOutput {
-  steps(step, { by: -1, fx: 1 }, loadSteps);
-  return step({ fx: 1 });
+  steps(step, { by: -1, fy: -1 }, loadSteps);
+  return step({ fy: -1 });
 }
 
 describe("TrickController — rolling", () => {
@@ -119,7 +119,7 @@ describe("TrickController — press, load, arm, pop", () => {
     expect(step({ by: 0 }).popped).toBeNull();
   });
 
-  it("hold ↓ + D, release ↓ pops: vertical impulse through the COM and a nose-up snap", () => {
+  it("hold ↓ + S, release ↓ pops: vertical impulse through the COM and a nose-up snap", () => {
     const { step } = setup();
     const out = ollie(step);
     expect(out.popped).toBe("tail");
@@ -138,26 +138,26 @@ describe("TrickController — press, load, arm, pop", () => {
     expect(Math.abs(snap.impulseNms.x) + Math.abs(snap.impulseNms.y)).toBeLessThan(1e-9);
   });
 
-  it("letting go of D first still pops on ↓; a too-short load does not", () => {
+  it("letting go of S first still pops on ↓; a too-short load does not", () => {
     const early = setup();
-    steps(early.step, { by: -1, fx: 1 }, 12);
+    steps(early.step, { by: -1, fy: -1 }, 12);
     steps(early.step, { by: -1 }, 20);
     expect(early.step({}).popped).toBe("tail");
     const short = setup();
-    steps(short.step, { by: -1, fx: 1 }, 2);
+    steps(short.step, { by: -1, fy: -1 }, 2);
     expect(short.step({}).popped).toBeNull();
   });
 
   it("no pop off the wheels", () => {
     const { step } = setup();
-    steps(step, { by: -1, fx: 1 }, 12, board({ grounded: false }));
+    steps(step, { by: -1, fy: -1 }, 12, board({ grounded: false }));
     expect(step({}, board({ grounded: false })).popped).toBeNull();
   });
 
-  it("nollie: hold W + →, release W pops the nose with a tail-up snap", () => {
+  it("nollie: hold W + ↑, release W pops the nose with a tail-up snap", () => {
     const { step } = setup();
-    steps(step, { fy: 1, bx: 1 }, 12);
-    const out = step({ bx: 1 });
+    steps(step, { fy: 1, by: 1 }, 12);
+    const out = step({ by: 1 });
     expect(out.popped).toBe("nose");
     const snap = out.forces.find((f) => f.label === "pop" && f.kind === "angularImpulse");
     if (snap?.kind !== "angularImpulse") throw new Error("no snap");
@@ -187,7 +187,7 @@ describe("TrickController — in the air", () => {
       ["goofy", 1, 1],
     ] as const) {
       const { step, lift } = setup();
-      ollie((s, b) => step({ ...s, stance, fx: (s.fx ?? 0) * (stance === "goofy" ? -1 : 1) }, b));
+      ollie((s, b) => step({ ...s, stance }, b));
       lift();
       const out = step({ fx: heel, stance }, air);
       const flick = out.forces.find((f) => f.label === "flick" && f.kind === "angularImpulse");
