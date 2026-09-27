@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { BoardSpec } from "../contexts/board";
 import { FollowCameraRig } from "./camera/follow-camera-rig";
+import type { CameraPose } from "./cinematic/shots";
 import { DebugOverlay } from "./debug/debug-overlay";
 import { Hud } from "./hud/hud";
 import { createPose, interpolateTransformInto } from "./math/pose-interpolation";
@@ -59,6 +60,9 @@ export class ThreeRenderer implements Renderer {
   private wheelSpinRadps = 0;
   private flashAgeS = Number.POSITIVE_INFINITY;
   private hasRendered = false;
+  // Montage hooks (src/game/montage): a cinematic camera pose and a fixed frame time.
+  private cameraOverride: CameraPose | null = null;
+  private frameDtOverrideS: number | null = null;
   private readonly onResize = (): void => this.resize();
 
   constructor(options: ThreeRendererOptions) {
@@ -143,7 +147,8 @@ export class ThreeRenderer implements Renderer {
   render(frame: RenderFrame): void {
     const nowMs = performance.now();
     const dtS =
-      this.lastTimeMs === null ? 0 : Math.min(MAX_FRAME_DT_S, (nowMs - this.lastTimeMs) / 1000);
+      this.frameDtOverrideS ??
+      (this.lastTimeMs === null ? 0 : Math.min(MAX_FRAME_DT_S, (nowMs - this.lastTimeMs) / 1000));
     this.lastTimeMs = nowMs;
 
     this.handleEvents(frame);
@@ -164,10 +169,13 @@ export class ThreeRenderer implements Renderer {
       dtS,
       riderHeadingRad,
     );
-    this.camera.position.set(this.rig.eye[0], this.rig.eye[1], this.rig.eye[2]);
-    this.camera.lookAt(this.rig.target[0], this.rig.target[1], this.rig.target[2]);
-    if (Math.abs(this.camera.fov - this.rig.fovDeg) > 1e-3) {
-      this.camera.fov = this.rig.fovDeg;
+    const eye = this.cameraOverride?.eye ?? this.rig.eye;
+    const look = this.cameraOverride?.target ?? this.rig.target;
+    const fovDeg = this.cameraOverride?.fovDeg ?? this.rig.fovDeg;
+    this.camera.position.set(eye[0], eye[1], eye[2]);
+    this.camera.lookAt(look[0], look[1], look[2]);
+    if (Math.abs(this.camera.fov - fovDeg) > 1e-3) {
+      this.camera.fov = fovDeg;
       this.camera.updateProjectionMatrix();
     }
     this.sky.position.copy(this.camera.position);
@@ -192,6 +200,21 @@ export class ThreeRenderer implements Renderer {
     this.debug.update(frame, dtS);
     this.hud.update(frame, dtS);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Montage hook: draw the next frames from this camera pose instead of the follow rig
+   * (null = back to the follow rig), and advance time-based effects by exactly `dtS` per
+   * frame instead of the wall clock (null = wall clock), for deterministic recording.
+   */
+  setMontageOverrides(cameraPose: CameraPose | null, frameDtS: number | null): void {
+    this.cameraOverride = cameraPose;
+    this.frameDtOverrideS = frameDtS;
+  }
+
+  /** The WebGL canvas (the montage recorder composites it with the video HUD). */
+  get domElement(): HTMLCanvasElement {
+    return this.canvas;
   }
 
   /** Debug overlay toggle (also bound to F1). */

@@ -5,3 +5,4 @@ coverage/
 .vite/
 .DS_Store
 .claude/worktrees/
+recordings/

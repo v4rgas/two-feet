@@ -11,6 +11,8 @@ export type {
   RawInputSample,
   StanceRepository,
 } from "./domain/input-source";
+export type { KeyPress, KeyScriptEvent } from "./domain/key-script";
+export { keyEventsFromPresses, keyScriptEndS } from "./domain/key-script";
 export type { StickTuning } from "./domain/spring-virtual-stick";
 export { SpringVirtualStick } from "./domain/spring-virtual-stick";
 export { clusterForFoot, footForCluster } from "./domain/stance";

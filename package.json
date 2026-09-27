@@ -10,6 +10,7 @@
     "lint": "biome check . && depcruise src --config .dependency-cruiser.cjs",
     "format": "biome check --write .",
     "test": "vitest run",
+    "montage:verify": "vitest run --config vitest.montage.config.ts",
     "preview": "vite preview"
   },
   "dependencies": {
