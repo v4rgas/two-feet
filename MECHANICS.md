@@ -47,6 +47,7 @@ stances. With the follow camera behind the board, screen right is the board's
 | Front foot → nose | `W` | `↑` |
 | Front foot → back toward the tail ("set") | `S` | `↓` |
 | Front foot → heel edge (kickflip) | `A` | `→` |
+| Front foot → toe edge (heelflip) | `D` | `←` |
 | Back foot → heel side (backside shove) | `←` | `D` |
 | Back foot → toe side (frontside shove) | `→` | `A` |
 | Push (ground) / catch (air) | `Space` | `Space` |
@@ -127,8 +128,9 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
   - Direction: flicking toward the heel edge = kickflip.
 - **Timing:** a late flick either makes the cap bind (under-rotation) or lands
   mid-flip, and that's a bail.
-- **Later:** heelflip, `W`+`D` after a pop, is reserved for M2 and uses the
-  same code with the opposite direction.
+- **Heelflip:** the same code with the opposite direction. Press `D` or `W`+`D`
+  inside the flick window, flicking toward the toe edge. The roll direction is
+  the opposite of a kickflip.
 
 ### Shove-it
 - **Gesture:** press `←` or `→` inside the shove window. The back foot sweeps
@@ -241,6 +243,7 @@ The mechanic is written in terms of two roles:
 | Pop | release `↓` | release `W` |
 | Level | `W` (guide foot → nose) | `↓` (guide foot → tail) |
 | Kickflip | `A` / `W`+`A` | `←` / `↓`+`←` (guide foot → heel edge) |
+| Heelflip | `D` / `W`+`D` | `→` / `↓`+`→` (guide foot → toe edge) |
 | Shove-it (BS / FS) | `←` / `→` | `A` / `D` (pop foot sweeps) |
 | Press (manual) | hold `↓` alone, no WASD: tail press | hold `W` alone, no arrows: nose press |
 
@@ -312,4 +315,6 @@ These are all first guesses. The dev tuning panel must expose them live.
 12b. **Body 360:** the same with `Q` held until about 2π. It lands rolling forward.
 12c. **Line-up:** in the air, `E` held briefly to about 90°, no catch, landing on flat ground. That's a bail (sideways), with no explosion.
 12d. **Flip + body spin:** a kickflip with `Q` held, where the board keeps its own yaw while both feet are off. A catch near the end re-aligns it.
+12e. **Heelflip:** load, pop, `D` 0.05 s later, release, then `Space` near 2π. Roll = 2π ± 0.3 in the opposite direction to the kickflip, with a clean landing. Also `W`+`D`.
+12f. **Nollie heelflip:** hold `W` + `↑`, release `W`, `→` 0.05 s later, `Space`. Roll = 2π, heelflip direction, clean landing. Also nollie kickflip with `←`. Both stances.
 13. **Idle:** 10 s with no input. No drift and no bail.
