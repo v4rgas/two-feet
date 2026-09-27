@@ -1,5 +1,6 @@
 import type { ObstacleId, Vec3 } from "../../../shared";
 import type { Obstacle } from "./obstacle";
+import { ObstacleShape } from "./obstacle";
 
 /** Where the board starts (value object). */
 export interface Spawn {
@@ -17,13 +18,22 @@ export interface Level {
   readonly spawn: Spawn;
 }
 
-/** Creates a level. Throws if obstacle ids are not unique or the heading is not finite. */
+/**
+ * Creates a level. Throws if obstacle ids are not unique, a shape's parameters are
+ * invalid, or the heading is not finite.
+ */
 function create(input: Level): Level {
   const seen = new Set<ObstacleId>();
   for (const obstacle of input.obstacles) {
     if (seen.has(obstacle.id))
       throw new Error(`Level "${input.id}": duplicate obstacle id "${obstacle.id}"`);
     seen.add(obstacle.id);
+    try {
+      ObstacleShape.validate(obstacle.shape);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new RangeError(`Level "${input.id}": obstacle "${obstacle.id}": ${reason}`);
+    }
   }
   if (!Number.isFinite(input.spawn.headingRad)) {
     throw new RangeError(`Level "${input.id}": spawn heading must be finite`);

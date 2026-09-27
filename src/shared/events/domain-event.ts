@@ -79,6 +79,13 @@ export interface BoardLanded extends EventMeta {
   readonly velocityMps: Vec3;
   /** Dot product of the board's local +Y with world +Y at touchdown (1 = flat, <0 = upside down). */
   readonly upDot: number;
+  /**
+   * Dot product of the board's local +Y with the normal of the surface it landed on (the
+   * mean normal of the touching wheels; 1 = flush with the surface). On flat ground it
+   * equals `upDot`; on a ramp or bank it is what "landed level" means (M3). Optional so
+   * older producers and test fakes stay valid; consumers fall back to `upDot`.
+   */
+  readonly surfaceUpDot?: number;
   /** Number of wheels touching at touchdown. */
   readonly wheelsDown: number;
 }

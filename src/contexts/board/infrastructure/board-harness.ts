@@ -4,6 +4,7 @@ import { PhysicsBoardSystem } from "../application/physics-board-system";
 import type { BoardConfig } from "../board.config";
 import { BOARD_CONFIG } from "../board.config";
 import { BoardSpec } from "../domain/board-spec";
+import type { StaticColliderDesc } from "../domain/physics-world";
 import { RapierPhysicsWorld } from "./rapier-physics-world";
 
 /** Fixed step used by the game (REQUIREMENTS §1.4). */
@@ -28,7 +29,13 @@ export class BoardHarness {
   }
 
   static async create(
-    options: { config?: BoardConfig; spawn?: Transform; heightAboveRestM?: number } = {},
+    options: {
+      config?: BoardConfig;
+      spawn?: Transform;
+      heightAboveRestM?: number;
+      /** Extra static geometry on top of the flat ground (ramps, rails…). */
+      obstacles?: readonly StaticColliderDesc[];
+    } = {},
   ): Promise<BoardHarness> {
     const config = options.config ?? BOARD_CONFIG;
     const spec = BoardSpec.create(config.spec);
@@ -39,6 +46,7 @@ export class BoardHarness {
       transform: T.create(Vec3.create(0, -0.5, 0), Quat.IDENTITY),
       shape: { kind: "box", halfExtentsM: Vec3.create(100, 0.5, 100) },
     });
+    for (const obstacle of options.obstacles ?? []) physics.addStaticCollider(obstacle);
     const spawn =
       options.spawn ??
       T.create(

@@ -50,14 +50,28 @@ export interface RigidBodyHandle {
   resetTo(transform: Transform, linearVelocityMps?: Vec3, angularVelocityRadps?: Vec3): void;
 }
 
-/** Geometry of a static collider, in its own local frame. */
-export type ColliderShape =
-  | { readonly kind: "box"; readonly halfExtentsM: Vec3 }
-  | { readonly kind: "convexHull"; readonly pointsM: readonly Vec3[] };
+/** One convex part of a compound static collider, with its own surface type. */
+export interface ColliderPart {
+  readonly surface: SurfaceType;
+  /** Points whose convex hull is the part, m (the collider's local frame). */
+  readonly pointsM: readonly Vec3[];
+}
 
 /**
- * Static world geometry to add to the physics world. A `world` `Obstacle` is
- * structurally a `StaticColliderDesc`, so the composition root passes obstacles as-is.
+ * Geometry of a static collider, in its own local frame. `compound` is a set of convex
+ * hulls (ramps, rails, stairs: ADR 0008); each part reports its own surface in contacts,
+ * so the coping of a quarter pipe is `grindable` while its transition is `ramp`.
+ */
+export type ColliderShape =
+  | { readonly kind: "box"; readonly halfExtentsM: Vec3 }
+  | { readonly kind: "convexHull"; readonly pointsM: readonly Vec3[] }
+  | { readonly kind: "compound"; readonly parts: readonly ColliderPart[] };
+
+/**
+ * Static world geometry to add to the physics world. The `world` context's
+ * `obstacleCollider(obstacle)` is structurally a `StaticColliderDesc`, so the composition
+ * root passes it as-is. `surface` applies to `box` and `convexHull`; compound parts
+ * carry their own.
  */
 export interface StaticColliderDesc {
   readonly id: ObstacleId;

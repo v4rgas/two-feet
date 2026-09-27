@@ -16,6 +16,7 @@ export { FakeRigidBodyHandle } from "./domain/fake-rigid-body";
 export type {
   BoardBody,
   BoardContact,
+  ColliderPart,
   ColliderShape,
   PhysicsWorld,
   Ray,

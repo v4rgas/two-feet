@@ -13,7 +13,7 @@ import type {
   RiderSystem,
 } from "../contexts/rider";
 import type { DefaultTricksSystemDeps, MotionSample, RiderPose } from "../contexts/tricks";
-import type { Obstacle } from "../contexts/world";
+import type { ObstacleColliderDesc } from "../contexts/world";
 
 type Assert<T extends true> = T;
 type Extends<A, B> = [A] extends [B] ? true : false;
@@ -26,5 +26,5 @@ export type StructuralContractChecks = [
   Assert<Extends<RiderState, RiderPose>>,
   Assert<Extends<RiderSystem, DefaultTricksSystemDeps["rider"]>>,
   Assert<Extends<InputSystem, DefaultTricksSystemDeps["stance"]>>,
-  Assert<Extends<Obstacle, StaticColliderDesc>>,
+  Assert<Extends<ObstacleColliderDesc, StaticColliderDesc>>,
 ];
