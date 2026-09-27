@@ -87,6 +87,7 @@ export class ClipRun {
       inputSource: input,
       stanceRepository: new FixedStanceRepository(clip.stance),
       clock: new ManualClock(),
+      assistLevel: clip.assistLevel ?? "pro",
     });
     const speed = clip.spawn?.speedMps ?? 0;
     if (speed !== 0) {

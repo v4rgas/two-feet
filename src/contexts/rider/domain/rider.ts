@@ -73,6 +73,8 @@ export class Rider {
   /** A pop out of a slide turns the body back this much more (rad, signed). */
   private realignLeftRad = 0;
   private popOutTurnRad = 0;
+  /** SPIN SNAP (assists): the heading a released body spin eases to a stop at, or null. */
+  private snapHeadingRad: number | null = null;
   private grind: RiderGrind | null = null;
   private lastGrindExit: GrindExit | null = null;
   private bailed = false;
@@ -175,6 +177,14 @@ export class Rider {
     return [];
   }
 
+  /**
+   * SPIN SNAP (MECHANICS.md "Assists" 2): the trick model's stance angle to a grind edge
+   * ahead for a released body spin to stop at, or null. Applied in the air only.
+   */
+  snapSpinTo(headingRad: number | null): void {
+    this.snapHeadingRad = headingRad;
+  }
+
   /** Loop step 5: moves the torso and feet and checks for a bail. */
   update(
     controls: RiderControls,
@@ -256,6 +266,7 @@ export class Rider {
     this.bodySpinRateRadps = 0;
     this.realignLeftRad = 0;
     this.popOutTurnRad = 0;
+    this.snapHeadingRad = null;
     this.grind = null;
     this.lastGrindExit = null;
     this.torsoPositionM = this.torsoTarget(board);
@@ -422,17 +433,25 @@ export class Rider {
    * 0, so the rider can stop at any angle. The only way the heading changes in the air.
    */
   private spinBody(controls: RiderControls, dtS: number): void {
-    const { bodySpinRateRadps, bodySpinAccelRadps2 } = this.config.tricks;
+    const { bodySpinRateRadps } = this.config.tricks;
+    let accel = this.config.tricks.bodySpinAccelRadps2;
     // Q (spin −1) turns left: counter-clockwise seen from above = +heading.
     let wanted = -(controls.spin ?? 0) * bodySpinRateRadps;
+    const snap = this.snapHeadingRad;
+    if (snap !== null && this.realignLeftRad === 0) {
+      // Released near a stance angle to the edge ahead: ease to a stop exactly on it.
+      accel *= this.config.assist.spinSnapAccelScale;
+      const error = wrapPi(snap - this.headingRad);
+      wanted =
+        Math.sign(error) * Math.min(bodySpinRateRadps, Math.sqrt(2 * accel * Math.abs(error)));
+    }
     // Out of a slide: turn back toward the travel, easing to a stop on the quarter turn.
     const left = this.realignLeftRad;
     if (left !== 0) {
       wanted +=
-        Math.sign(left) *
-        Math.min(bodySpinRateRadps, Math.sqrt(2 * bodySpinAccelRadps2 * Math.abs(left)));
+        Math.sign(left) * Math.min(bodySpinRateRadps, Math.sqrt(2 * accel * Math.abs(left)));
     }
-    const step = bodySpinAccelRadps2 * dtS;
+    const step = accel * dtS;
     const change = Math.max(-step, Math.min(step, wanted - this.bodySpinRateRadps));
     this.bodySpinRateRadps += change;
     const turn = this.bodySpinRateRadps * dtS;

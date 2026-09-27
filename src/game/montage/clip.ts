@@ -1,4 +1,5 @@
 import type { KeyPress, Stance } from "../../contexts/input";
+import type { AssistLevel } from "../../contexts/rider";
 import type { ShotSegment } from "../../presentation/cinematic/cinematic-director";
 
 /*
@@ -57,6 +58,8 @@ export interface MontageClip {
   readonly shots: readonly ShotSegment[];
   readonly slowMotion?: readonly SlowMotion[];
   readonly expect: ClipExpectation;
+  /** The assist level it is filmed at (ADR 0012). Absent: `pro` (no assists). */
+  readonly assistLevel?: AssistLevel;
   /**
    * Set when the clip cannot land yet because of a missing game feature or a rider
    * limitation: the reason. `montage:verify` reports it and skips the assertion; the

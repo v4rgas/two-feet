@@ -8,9 +8,10 @@ const park = WORLD_CONFIG.park;
 
 /**
  * 50-50 on the flat rail (scenario G1): rolling at 4 m/s from 7 m before its middle, 0.15 m
- * to its side and angled 0.03 rad onto it; full-load pop at 0.94 s, W; the lock-on
- * (nothing held: a 50-50, backside — the rail was on the heel side) is at ≈ 1.35 s, it
- * grinds to the end and rolls off (the feet stay on) at ≈ 2.53 s and lands ≈ 2.84 s.
+ * to its side and angled 0.03 rad onto it; full-load pop at 0.96 s (pops from ≈ 0.84 to
+ * ≈ 1.1 s lock on: the middle of the window, ADR 0012), W; the lock-on (nothing held: a
+ * 50-50, backside — the rail was on the heel side) is near the rail's start, it grinds to
+ * the end and rolls off (the feet stay on), then lands.
  */
 export const railFiftyFifty: MontageClip = {
   id: "rail-fifty-fifty",
@@ -19,7 +20,7 @@ export const railFiftyFifty: MontageClip = {
   stance: "regular",
   spawn: { xM: park.rail.xM - 7, yM: 0, zM: park.rail.zM + 0.15, headingRad: 0.03, speedMps: 4 },
   durationS: 3.6,
-  keys: new KeyTimeline("regular").loadAndPop("tail", 0.62, 0.94).level("tail", 0.99).build(),
+  keys: new KeyTimeline("regular").loadAndPop("tail", 0.6, 0.96).level("tail", 1.01).build(),
   shots: [
     { fromS: 0, shot: { kind: "lowSide", side: "left", distanceM: 2.4, leadM: 0.8 } },
     { fromS: 2.2, blendS: 0.5, shot: { kind: "follow" } },

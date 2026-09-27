@@ -31,9 +31,15 @@ export function padLayout(stance: Stance): PadLayout {
   return LAYOUTS[stance];
 }
 
-/** Stance label: the stance and its ollie keys (MECHANICS.md), so the active one is obvious. */
-export function stanceLabel(stance: Stance): string {
-  return stance === "regular" ? "regular · ollie ↓+S, let go ↓" : "goofy · ollie S+↓, let go S";
+/**
+ * Stance label: the stance, the assist level (discreetly, ADR 0012: F2 cycles it) and the
+ * stance's ollie keys (MECHANICS.md), so the active one is obvious.
+ */
+export function stanceLabel(stance: Stance, assistLevel?: string): string {
+  const level = assistLevel === undefined ? "" : ` · ${assistLevel}`;
+  return stance === "regular"
+    ? `regular${level} · ollie ↓+S, let go ↓`
+    : `goofy${level} · ollie S+↓, let go S`;
 }
 
 /**

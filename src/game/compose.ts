@@ -3,7 +3,7 @@ import { BoardSpec, PhysicsBoardSystem } from "../contexts/board";
 import { RapierPhysicsWorld } from "../contexts/board/infrastructure/rapier-physics-world";
 import type { InputConfig, InputSource, StanceRepository } from "../contexts/input";
 import { DefaultInputSystem } from "../contexts/input";
-import type { RiderConfig } from "../contexts/rider";
+import type { AssistLevel, RiderConfig } from "../contexts/rider";
 import { DefaultRiderSystem } from "../contexts/rider";
 import type { TricksConfig } from "../contexts/tricks";
 import { DefaultTricksSystem, TRICKS_CONFIG } from "../contexts/tricks";
@@ -30,6 +30,8 @@ export interface SimulationDeps {
   readonly inputSource: InputSource;
   readonly stanceRepository: StanceRepository;
   readonly clock: Clock;
+  /** The assist level to start at (ADR 0012). Absent: `pro` (no assists: tests, clips). */
+  readonly assistLevel?: AssistLevel;
 }
 
 /** Everything `composeSimulation` built (the harness and the renderer need some of it). */
@@ -81,6 +83,7 @@ export async function composeSimulation(deps: SimulationDeps): Promise<Simulatio
       )?.pointWorldM.y ?? null,
     grindEdgesNear: (pointWorldM, radiusM) =>
       grindEdgesNear(edges, pointWorldM, radiusM).map((hit) => hit.edge),
+    ...(deps.assistLevel === undefined ? {} : { assistLevel: deps.assistLevel }),
   });
   const tricks = new DefaultTricksSystem({
     bus,

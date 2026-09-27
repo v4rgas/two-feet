@@ -125,36 +125,38 @@ async function slideOntoLedge(
 }
 
 /**
- * G4, the stairs line, as a key timeline from the clip start (regular stance). The board
- * starts on the stairs' platform at (−5, 0.8, 1.42) — 0.33 m inside the hubba's steel
- * edge (z = 1.75) — facing +X at 3.5 m/s:
- * - 0.56 ↓ + 0.58 S: load; release ↓ at 0.88: the pop (full load) at x ≈ −1.97;
- * - 0.93 W + A: kickflip with the level (its height bonus is needed to clear the hubba);
- * - 0.98 ↓ held until 1.53: the tail press that picks the TAILSLIDE at the lock;
- * - 1.13 Q for 0.14 s: a frontside quarter turn, so the tail swings over the hubba;
- * - 1.35 Space: the catch, once the (slower, ADR 0010) flip has turned; the lock-on is at
- *   ≈ 1.39 s on the hubba's flat top;
- * - 1.38 S, then ↓ released at 1.53: the pop out (load ↓ + S, release ↓) on the flat top
- *   (later, the air left is too short to catch a hardflip that settles, ADR 0011);
- * - 1.57 W + A + → (0.08 s): hardflip (kickflip + frontside shove) with the level (the
- *   capped catch cannot level the hubba's pitch alone); the body turns back a quarter on
- *   its own to line up with the travel;
- * - 2.11 Space: the catch (window ≈ 2.08–2.14 s); it lands past the stairs.
+ * G4, the stairs line, as a key timeline from the clip start (regular stance), timed the
+ * way a person would (ADR 0012: the middle of each window, full load, 0.12 s taps; the
+ * human-jitter test G4H plays it perturbed). The board starts on the stairs' platform at
+ * (−5, 0.8, 1.38) — 0.37 m inside the hubba's steel edge (z = 1.75) — facing +X at 3.5 m/s:
+ * - 0.35 ↓ + 0.37 S: load; release ↓ at 0.8: the pop (full load) at x ≈ −2.3 (it locks for
+ *   pops from ≈ 0.68 to ≈ 0.92 s: the hubba's flat top reaches 0.9 m back);
+ * - 0.85 W + A: kickflip with the level (its height bonus is needed to clear the hubba);
+ * - 1.05 ↓ held until 1.5: the tail press that picks the TAILSLIDE at the lock;
+ * - 1.05 Q for 0.14 s: a frontside quarter turn, so the tail swings over the hubba;
+ * - 1.3 Space: the catch; the lock-on is at ≈ 1.33 s on the hubba's flat top;
+ * - 1.25 S, then ↓ released at 1.5: the pop out (load ↓ + S, release ↓);
+ * - 1.54 W + A + → (0.12 s): hardflip (kickflip + frontside shove) with the level; the body
+ *   turns back a quarter on its own to line up with the travel;
+ * - 2.09 Space: the catch (pro window ≈ 2.06–2.12 s); it lands past the stairs.
  */
-const G4_SPAWN = { xM: -5, yM: 0.8, zM: 1.42, headingRad: 0, speedMps: 3.5 } as const;
+const G4_SPAWN = { xM: -5, yM: 0.8, zM: 1.38, headingRad: 0, speedMps: 3.5 } as const;
+/** When the pop out's load starts (S) and when ↓ is released (the pop out), s. */
+const G4_POP_OUT_LOAD_S = 1.25;
+const G4_POP_OUT_S = 1.5;
 const G4_KEYS: readonly KeyPress[] = [
-  { code: "ArrowDown", atS: 0.56, holdS: 0.32 },
-  { code: "KeyS", atS: 0.58, holdS: 0.37 },
-  { code: "KeyW", atS: 0.93, holdS: 0.1 },
-  { code: "KeyA", atS: 0.93, holdS: 0.08 },
-  { code: "ArrowDown", atS: 0.98, holdS: 0.55 },
-  { code: "KeyQ", atS: 1.13, holdS: 0.14 },
-  { code: "Space", atS: 1.35, holdS: 0.1 },
-  { code: "KeyS", atS: 1.38, holdS: 0.19 },
-  { code: "KeyW", atS: 1.57, holdS: 0.1 },
-  { code: "KeyA", atS: 1.57, holdS: 0.08 },
-  { code: "ArrowRight", atS: 1.57, holdS: 0.08 },
-  { code: "Space", atS: 2.11, holdS: 0.1 },
+  { code: "ArrowDown", atS: 0.35, holdS: 0.45 },
+  { code: "KeyS", atS: 0.37, holdS: 0.5 },
+  { code: "KeyW", atS: 0.85, holdS: 0.1 },
+  { code: "KeyA", atS: 0.85, holdS: 0.12 },
+  { code: "ArrowDown", atS: 1.05, holdS: 0.45 },
+  { code: "KeyQ", atS: 1.05, holdS: 0.14 },
+  { code: "Space", atS: 1.3, holdS: 0.1 },
+  { code: "KeyS", atS: 1.25, holdS: 0.29 },
+  { code: "KeyW", atS: 1.54, holdS: 0.1 },
+  { code: "KeyA", atS: 1.54, holdS: 0.12 },
+  { code: "ArrowRight", atS: 1.54, holdS: 0.12 },
+  { code: "Space", atS: 2.09, holdS: 0.1 },
 ];
 const G4_NAME = "Kickflip → FS Tailslide → Hardflip out";
 
@@ -237,7 +239,7 @@ describe("grinds and slides (M4)", () => {
       expect(started(h)[0]?.obstacleId).toBe("stairs");
       const [end] = ended(h);
       expect(end?.exit).toBe("popOut");
-      expect(end?.durationS).toBeGreaterThan(0.15);
+      expect(end?.durationS).toBeGreaterThan(0.1);
       expect(landed(h)).toEqual([G4_NAME]);
       expect(bails(h)).toEqual([]);
       expect(h.board.wheelsDown).toBe(4);
@@ -278,12 +280,16 @@ describe("grinds and slides (M4)", () => {
     "G4 swipe out: → pre-positioned during the pop out's load, then ← (edge to edge) → a 360 shove out",
     async () => {
       // G4 up to the pop out, where the hardflip's W + A + → becomes the 360's swipe: →
-      // held with the load (S at 1.38) through the pop (↓ released at 1.53), then ← across.
+      // held with the load (S) through the pop (↓ released), then ← across.
       const h = await playG4(
         [
-          ...G4_KEYS.filter((k) => k.atS < 1.5),
-          { code: "ArrowRight", atS: 1.38, holdS: 0.19 },
-          { code: "ArrowLeft", atS: 1.57, holdS: 0.14 },
+          ...G4_KEYS.filter((k) => k.atS < G4_POP_OUT_S),
+          {
+            code: "ArrowRight",
+            atS: G4_POP_OUT_LOAD_S,
+            holdS: G4_POP_OUT_S + 0.04 - G4_POP_OUT_LOAD_S,
+          },
+          { code: "ArrowLeft", atS: G4_POP_OUT_S + 0.04, holdS: 0.14 },
         ],
         3,
       );
@@ -364,7 +370,7 @@ describe("grinds and slides (M4)", () => {
         expect(along(b, u) - along(a, u)).toBeLessThanOrEqual(1e-3);
       }
       // The G4 tailslide without the pop out: it slides on down the hubba's slope.
-      const g4 = await playG4(G4_KEYS.filter((k) => k.atS < 1.38));
+      const g4 = await playG4(G4_KEYS.filter((k) => k.atS < G4_POP_OUT_LOAD_S));
       const d = Vec3.normalize(Vec3.sub(hubba.endM, hubba.startM));
       const gravityPerStep = 9.81 * -d.y * (1 / 120);
       const onSlope = lockedSteps(g4).filter((r) => r.board.transform.positionM.x > 0.25);

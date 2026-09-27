@@ -1,6 +1,6 @@
 import type { FootId, GrindExit, Kick } from "../../../shared";
 import { FOOT_IDS, Quat, Transform, Vec3 } from "../../../shared";
-import type { RiderConfig } from "../rider.config";
+import type { AssistTuning, RiderConfig } from "../rider.config";
 import {
   axisErrorRad,
   boardForward,
@@ -224,11 +224,52 @@ export class TrickController implements FootForceModel {
   /** The obstacle this air left a grind on: not a landing for the airtime prediction. */
   private leftObstacleId: string | null = null;
 
+  // ── assists (MECHANICS.md "Assists", ADR 0012) ──────────────────────────────
+  /** The active level's tunables, resolved each step (all 0 at `pro`). */
+  private assist: AssistTuning;
+  /**
+   * CATCH BUFFER: time left for a held Space to see the board enter the cone, s; once it
+   * has (`catchArmed`), it waits there for the best moment.
+   */
+  private catchRequestS = 0;
+  private catchArmed = false;
+  /** Time since the last touchdown from the air (LATE CATCH), s. */
+  private sinceTouchdownS = Number.POSITIVE_INFINITY;
+  /**
+   * STANCE-KEY GRACE: controller time each press (tail ↓ / nose W) was last held — held at
+   * least `stanceKeyMinHoldS`, so the level (a W tap) is not a nose press — and when its
+   * current hold began, s.
+   */
+  private readonly pressHeldAtS: Record<Kick, number> = {
+    tail: Number.NEGATIVE_INFINITY,
+    nose: Number.NEGATIVE_INFINITY,
+  };
+  private readonly pressFromS: Record<Kick, number | null> = { tail: null, nose: null };
+  /** Controller time of the last lock-in, s (a press just after it still picks the stance). */
+  private lockedAtS = Number.NEGATIVE_INFINITY;
+  /** POP-OUT BUFFER: a load held in the air before a lock-in: its kick and time held, s. */
+  private airLoadKick: Kick | null = null;
+  private airLoadS = 0;
+  /** This air began with a pop out of a grind, and its airtime floor has been applied. */
+  private poppedOut = false;
+  private floorDone = false;
+  /** MAGNETISM: the net sideways velocity the magnet has added this air (horizontal), m/s. */
+  private magnetMps: Vec3 = Vec3.ZERO;
+  /** SPIN SNAP: the heading a released body spin is easing to a stop at, or null. */
+  private snapHeadingRad: number | null = null;
+  /**
+   * SWIPE GRACE: how long each foot's sideways stick has been back near the middle, s. A
+   * swipe that ended just before the pop counts once its foot is back (a rushed finger);
+   * a position still held there may be a pre-position for a swipe across (a 360).
+   */
+  private readonly graceBackS: Record<FootId, number> = { front: 0, back: 0 };
+
   constructor(
     private readonly deck: DeckGeometry,
     private readonly config: RiderConfig,
   ) {
     this.grind = new GrindController(deck, config);
+    this.assist = config.assist.pro;
     this.swipes = { front: new SwipeTracker(config.tricks), back: new SwipeTracker(config.tricks) };
   }
 
@@ -250,10 +291,15 @@ export class TrickController implements FootForceModel {
       this.lastSwipe[id] = null;
     }
     this.clockS = 0;
+    this.sinceTouchdownS = Number.POSITIVE_INFINITY;
+    this.pressHeldAtS.tail = Number.NEGATIVE_INFINITY;
+    this.pressHeldAtS.nose = Number.NEGATIVE_INFINITY;
+    this.lockedAtS = Number.NEGATIVE_INFINITY;
   }
 
   computeForces(input: FootForceInput): FootForceOutput {
     const { controls, rider, board, dtS } = input;
+    this.assist = this.config.assist[input.assistLevel ?? "pro"];
     this.groundYM = input.groundBelowYM ?? 0;
     this.edges = input.edgesNear ?? [];
     this.grind.tick(dtS);
@@ -270,6 +316,19 @@ export class TrickController implements FootForceModel {
     this.pushCooldownS = Math.max(0, this.pushCooldownS - dtS);
     this.catchLockS = Math.max(0, this.catchLockS - dtS);
     this.sincePopS += dtS;
+    this.sinceTouchdownS += dtS;
+    for (const kick of KICKS) {
+      if (!this.onKick(keys, kick)) this.pressFromS[kick] = null;
+      else {
+        this.pressFromS[kick] ??= this.clockS;
+        const from = this.pressFromS[kick];
+        // The pop foot back on its own kick after the pop (↓ for the tailslide) is a stance
+        // key at once; the other kick's press (W is also the level) must be held a while.
+        const minS = kick === this.popKick ? 0 : this.config.assist.stanceKeyMinHoldS;
+        const afterPop = this.sincePopS >= this.config.assist.stanceKeyAfterPopS;
+        if (this.clockS - from >= minS - 1e-9 && afterPop) this.pressHeldAtS[kick] = this.clockS;
+      }
+    }
 
     const grounded = board.grounded;
     if (!grounded && controls.feetDown) this.pushLocked = true;
@@ -292,6 +351,7 @@ export class TrickController implements FootForceModel {
     }
     if (grounded && !this.wasGrounded) {
       this.landAssistLeftS = this.config.tricks.landAssistS;
+      this.sinceTouchdownS = 0;
       this.endAir();
     }
     if (!grounded && (this.wasGrounded || this.airStart === null)) {
@@ -307,15 +367,29 @@ export class TrickController implements FootForceModel {
     let popped: Kick | null = null;
     let caught = false;
     if (grounded) {
+      // LATE CATCH (assists): Space just after touchdown is the catch, not a push.
+      if (feetDownPressed && this.sinceTouchdownS <= this.assist.catchLateS) {
+        this.pushLocked = true;
+        caught = this.lateCatch(rider, board);
+      }
       popped = this.ground(input, keys, frame, out);
       if (this.landAssistLeftS > 0) this.landAssist(input.mass, frame, out);
     } else {
       this.air(input, keys, frame, out);
-      // A catch attempt: Space pressed (or, in easy mode, every foot key let go). An
-      // assist's catch buffer (Space held until the board enters the cone) plugs in here,
-      // asking `catchConeMiss` each step.
+      this.trackAirLoad(keys, dtS);
+      // A catch attempt: Space pressed (or, in easy mode, every foot key let go). With the
+      // CATCH BUFFER (assists) the press is held and fires at the best moment in the cone.
       const attempt = feetDownPressed || (this.config.tricks.autoCatchOnRelease && releasedNow);
-      if (attempt && !this.caught) caught = this.tryCatch(rider, frame);
+      if (attempt && !this.caught) {
+        if (this.assist.catchBufferS > 0) {
+          this.catchRequestS = this.assist.catchBufferS;
+          this.catchArmed = false;
+        } else caught = this.tryCatch(rider, frame);
+      }
+      if (!this.caught && (this.catchRequestS > 0 || this.catchArmed)) {
+        caught = this.bufferedCatch(input, frame);
+      }
+      this.catchRequestS = Math.max(0, this.catchRequestS - dtS);
       if (caught) this.catchRise(input, out);
       if (this.caught) {
         this.caughtS += dtS;
@@ -324,7 +398,14 @@ export class TrickController implements FootForceModel {
         }
       }
     }
-    return { forces: out, popped, caught, loading: this.loadKick !== null, grind: null };
+    return {
+      forces: out,
+      popped,
+      caught,
+      loading: this.loadKick !== null,
+      grind: null,
+      spinSnapHeadingRad: grounded ? null : this.spinSnap(input, frame),
+    };
   }
 
   // ── grinds and slides ─────────────────────────────────────────────────────
@@ -334,16 +415,26 @@ export class TrickController implements FootForceModel {
     const locked = this.grind.tryLock({
       board: input.board,
       edges: this.edges,
-      tailHeld: this.onKick(keys, "tail"),
-      noseHeld: this.onKick(keys, "nose"),
+      tailHeld: this.pressHeld(keys, "tail"),
+      noseHeld: this.pressHeld(keys, "nose"),
       facing: Vec3.dot(frame.forward, frame.riderForward) >= 0 ? 1 : -1,
       toe: toeSideSign(input.controls.stance),
       airStart: this.airStart,
+      assist: this.assist,
     });
     if (locked) {
       // The tricks into the grind are over: the lock takes the board (the feet go on).
+      const airLoad = this.airLoadKick;
+      const airLoadS = this.airLoadS;
       this.endAir();
       this.clearLoad();
+      this.lockedAtS = this.clockS;
+      // POP-OUT BUFFER (assists): a load already held as the board lands in the grind is
+      // kept (up to `popOutBufferS` of it), so the pop out can come right away.
+      if (airLoad !== null && this.assist.popOutBufferS > 0) {
+        this.loadKick = airLoad;
+        this.loadS = Math.min(airLoadS, this.assist.popOutBufferS);
+      }
     }
     return locked;
   }
@@ -366,6 +457,7 @@ export class TrickController implements FootForceModel {
     const kick = lockedNow ? null : this.loadAndPop(input, keys, frame, out);
     if (kick !== null) {
       this.leftObstacleId = report?.obstacleId ?? null;
+      this.poppedOut = true;
       this.grind.release();
       out.push(
         impulseAt(
@@ -400,6 +492,13 @@ export class TrickController implements FootForceModel {
         realignRad,
       };
     }
+    // STANCE-KEY GRACE (assists): ↓ / W pressed just after the lock-in still picks the
+    // stance (a 50-50 becomes a 5-0, a boardslide a tailslide).
+    if (!lockedNow && this.clockS - this.lockedAtS <= this.assist.stanceKeyGraceS + 1e-9) {
+      const tail = this.onKick(keys, "tail");
+      const nose = this.onKick(keys, "nose");
+      if (tail !== nose) this.grind.press(tail ? "tail" : "nose", board);
+    }
     const lean = carveLean(input.controls, rider, this.config.stance.carveMinStickX);
     const toe = toeSideSign(input.controls.stance);
     const exit: GrindExit | null = this.grind.hold(
@@ -411,6 +510,7 @@ export class TrickController implements FootForceModel {
         leanToe: lean * toe,
         riderSide: frame.riderSide,
         toe,
+        assist: this.assist,
       },
       out,
     );
@@ -695,6 +795,10 @@ export class TrickController implements FootForceModel {
     this.popKick = kick;
     this.sincePopS = 0;
     this.popClockS = this.clockS;
+    this.graceBackS.front = 0;
+    this.graceBackS.back = 0;
+    // The pop foot just left this kick: that press does not pick a grind stance.
+    this.pressHeldAtS[kick] = Number.NEGATIVE_INFINITY;
     this.popSpeedMps = speedMps;
   }
 
@@ -767,6 +871,10 @@ export class TrickController implements FootForceModel {
     this.steerLean = 0;
     const { mass, dtS } = input;
     const kick = this.popKick;
+    for (const id of FOOT_IDS) {
+      const back = Math.abs(keys[id].side) < this.config.assist.graceLetGoStick;
+      this.graceBackS[id] = back ? this.graceBackS[id] + dtS : 0;
+    }
     if (kick !== null && !this.caught) {
       const guide = keys[guideFootOf(kick)];
       // Level: the guide foot slides toward the far end (W for an ollie, ↓ for a nollie).
@@ -776,15 +884,21 @@ export class TrickController implements FootForceModel {
       }
       // A swipe that ended since the pop, inside its window (the board may still have been
       // touching the ground for a step or two after the pop).
-      const flick = this.swipeSincePop(guideFootOf(kick), tricks.flickWindowS);
-      if (flick !== null && !this.flipped) {
-        this.flip(kick, flick, input.controls, mass, frame, out);
+      const flick = this.flipped
+        ? null
+        : this.swipeSincePop(guideFootOf(kick), tricks.flickWindowS);
+      const sweep = this.shoved ? null : this.swipeSincePop(popFootOf(kick), tricks.shoveWindowS);
+      // POP-OUT FLOOR (assists): the first trick out of a grind gets enough air to finish.
+      let timing = frame.board;
+      if ((flick !== null || sweep !== null) && this.poppedOut && !this.floorDone) {
+        this.floorDone = true;
+        const turns = Math.max(flick?.units ?? 0, (sweep?.units ?? 0) / 2);
+        timing = this.popOutFloor(kick, turns, mass, frame.board, out);
       }
-      const sweep = this.swipeSincePop(popFootOf(kick), tricks.shoveWindowS);
-      if (sweep !== null && !this.shoved) {
-        this.shove(kick, sweep, input.controls, mass, frame, out);
-      }
+      if (flick !== null) this.flip(kick, flick, input.controls, mass, frame, timing, out);
+      if (sweep !== null) this.shove(kick, sweep, input.controls, mass, frame, timing, out);
     }
+    if (kick !== null) this.magnet(input, keys, frame, out);
     if (kick !== null) {
       this.trackChannels(input.rider, frame, dtS);
       // Caught: a channel still turning rides in under the feet and ends at its target
@@ -832,10 +946,20 @@ export class TrickController implements FootForceModel {
     }
   }
 
-  /** `foot`'s last swipe if it ended at or after this air's pop, within `windowS` of it. */
+  /**
+   * `foot`'s last swipe if it ended at or after this air's pop, within `windowS` of it. With
+   * the SWIPE GRACE (assists) also one that ended up to `swipeGraceS` before the pop, once
+   * the foot is back near the middle (a key still held on that edge may be a pre-position).
+   */
   private swipeSincePop(foot: FootId, windowS: number): Swipe | null {
     const last = this.lastSwipe[foot];
-    if (last === null || last.endS < this.popClockS - 1e-9) return null;
+    if (last === null) return null;
+    const beforePopS = this.popClockS - last.endS;
+    if (beforePopS > 1e-9) {
+      if (beforePopS > this.assist.swipeGraceS + 1e-9) return null;
+      const back = this.graceBackS[foot] >= this.config.assist.graceLetGoS - 1e-9;
+      return back && this.sincePopS <= windowS ? last.swipe : null;
+    }
     return last.endS - this.popClockS <= windowS ? last.swipe : null;
   }
 
@@ -992,12 +1116,13 @@ export class TrickController implements FootForceModel {
     controls: RiderControls,
     mass: BoardMassProperties,
     frame: BoardFrame,
+    timing: BoardKinematics,
     out: FootForce[],
   ): void {
     const t = this.config.tricks;
     this.flipped = true;
     const turns = swipe.units;
-    const timeS = this.trickTimeS(frame.board, t.flipCompleteFraction);
+    const timeS = this.trickTimeS(timing, t.flipCompleteFraction);
     const rate = alignedRate(
       turns * TAU,
       Math.min(turns * t.maxFlipRatePerTurnRadps, (turns * TAU) / timeS),
@@ -1045,12 +1170,13 @@ export class TrickController implements FootForceModel {
     controls: RiderControls,
     mass: BoardMassProperties,
     frame: BoardFrame,
+    timing: BoardKinematics,
     out: FootForce[],
   ): void {
     const t = this.config.tricks;
     this.shoved = true;
     const halfTurns = swipe.units;
-    const timeS = this.trickTimeS(frame.board, t.shoveCompleteFraction);
+    const timeS = this.trickTimeS(timing, t.shoveCompleteFraction);
     const rate = alignedRate(
       halfTurns * Math.PI,
       Math.min(halfTurns * t.maxShoveRatePerHalfTurnRadps, (halfTurns * Math.PI) / timeS),
@@ -1250,6 +1376,254 @@ export class TrickController implements FootForceModel {
     out.push(torqueOf("front", "catch", mass.angularInertiaTimes(accel)));
   }
 
+  // ── assists (MECHANICS.md "Assists", ADR 0012) ────────────────────────────
+
+  /**
+   * ↓ / W (the pop foot on `kick`) held now, or within `stanceKeyGraceS` before now; the
+   * pop foot's own kick pressed at any time in this air (from `stanceKeyAfterPopS` after the
+   * pop) also counts.
+   */
+  private pressHeld(keys: Keys, kick: Kick): boolean {
+    const graceS = this.assist.stanceKeyGraceS;
+    if (this.onKick(keys, kick)) return true;
+    if (graceS <= 0) return false;
+    if (kick === this.popKick && this.pressHeldAtS[kick] >= this.popClockS) return true;
+    return this.clockS - this.pressHeldAtS[kick] <= graceS + 1e-9;
+  }
+
+  /** POP-OUT BUFFER: how long a load (pop foot on a kick + the set) has been held in the air. */
+  private trackAirLoad(keys: Keys, dtS: number): void {
+    const kick = KICKS.find((k) => this.onKick(keys, k) && this.isSet(keys, k)) ?? null;
+    if (kick !== null && (this.airLoadKick === null || this.airLoadKick === kick)) {
+      this.airLoadKick = kick;
+      this.airLoadS += dtS;
+    } else {
+      this.airLoadKick = null;
+      this.airLoadS = 0;
+    }
+  }
+
+  /**
+   * CATCH BUFFER: a held Space fires once the board is in the cone AND at its best moment:
+   * every running flip / shove near its target (the well-timed catch, so a combo is not
+   * grabbed early at |ω| just under the cone's limit), or the touchdown close, or the
+   * buffer running out. A board still short of its target waits while it stays in the cone.
+   */
+  private bufferedCatch(input: FootForceInput, frame: BoardFrame): boolean {
+    if (this.catchConeMiss(input.rider, frame) !== null) {
+      // Left the cone before its moment came: the press is spent.
+      this.catchArmed = false;
+      return false;
+    }
+    this.catchArmed = true;
+    if (!this.catchReady(frame.board)) return false;
+    this.catchRequestS = 0;
+    this.catchArmed = false;
+    this.beginCatch();
+    return true;
+  }
+
+  private catchReady(board: BoardKinematics): boolean {
+    const a = this.config.assist;
+    const left = (c: TrickChannel): number => Math.max(0, c.targetRad - Math.abs(c.turnedRad));
+    const flip = this.flipChannel;
+    const shove = this.shoveChannel;
+    const settled =
+      (!flip.active || left(flip) <= a.catchFireFlipLeftRad) &&
+      (!shove.active || left(shove) <= a.catchFireShoveLeftRad);
+    return settled || this.remainingAirtimeS(board) <= a.catchFireAirLeftS;
+  }
+
+  /**
+   * LATE CATCH: Space just after touchdown. The board on its wheels and within the landing
+   * tilt with a foot off: the feet go on (caught). Never a push.
+   */
+  private lateCatch(rider: RiderState, board: BoardKinematics): boolean {
+    if (rider.front.contact === "attached" && rider.back.contact === "attached") return false;
+    const upDot = Vec3.dot(boardUp(board), supportNormal(board));
+    return board.grounded && upDot >= Math.cos(this.config.tricks.landTiltRad);
+  }
+
+  /**
+   * POP-OUT FLOOR: a pop out that starts a flip / shove gets just enough extra VERTICAL
+   * speed (an impulse through the centre of mass) for `turns` × `popOutMinAirPerTurnS` of
+   * predicted air. Returns the board as the trick timing should see it.
+   */
+  private popOutFloor(
+    kick: Kick,
+    turns: number,
+    mass: BoardMassProperties,
+    board: BoardKinematics,
+    out: FootForce[],
+  ): BoardKinematics {
+    const floorS = turns * this.assist.popOutMinAirPerTurnS;
+    if (floorS <= 0) return board;
+    const airS = this.remainingAirtimeS(board);
+    if (airS >= floorS) return board;
+    const g = this.config.tricks.gravityMps2;
+    const v = board.linearVelocityMps;
+    // Height above the landing that gives `airS` at vy, then the vy that gives `floorS`.
+    const heightM = (g * airS * airS) / 2 - v.y * airS;
+    const vy = (g * floorS * floorS) / 2 / floorS - heightM / floorS;
+    if (vy <= v.y) return board;
+    out.push(
+      impulseAt(
+        popFootOf(kick),
+        "pop",
+        Vec3.create(0, mass.massKg * (vy - v.y), 0),
+        mass.centerOfMassWorldM,
+      ),
+    );
+    return { ...board, linearVelocityMps: Vec3.create(v.x, vy, v.z) };
+  }
+
+  /**
+   * Grind edges the board's path comes down onto, with when (s from now) and where the
+   * board centre will be then, square to the edge (m, + = outward for a one-sided edge).
+   */
+  private approaches(board: BoardKinematics): EdgeApproach[] {
+    const a = this.config.assist;
+    const g = this.config.tricks.gravityMps2;
+    const p = board.transform.positionM;
+    const v = board.linearVelocityMps;
+    const out: EdgeApproach[] = [];
+    for (const edge of this.edges) {
+      if (edge.obstacleId === this.leftObstacleId) continue;
+      const d = Vec3.sub(edge.endM, edge.startM);
+      const lengthH = Math.hypot(d.x, d.z);
+      if (lengthH < 1e-6) continue;
+      const alongH = Vec3.create(d.x / lengthH, 0, d.z / lengthH);
+      let acrossH = Vec3.create(-alongH.z, 0, alongH.x);
+      if (!edge.twoSided && Vec3.dot(acrossH, edge.outwardNormal) < 0) {
+        acrossH = Vec3.scale(acrossH, -1);
+      }
+      // The first moment, coming down, that the board centre is at the edge's height
+      // (plus `approachCentreAboveM`) over the segment; only if it has risen above it.
+      const apexY = p.y + Math.max(0, v.y) ** 2 / (2 * g);
+      for (let t = 0; t <= a.approachHorizonS; t += a.approachStepS) {
+        if (v.y - g * t > 0) continue;
+        const rel = Vec3.create(p.x + v.x * t - edge.startM.x, 0, p.z + v.z * t - edge.startM.z);
+        const s = Vec3.dot(rel, alongH);
+        const offsetM = Vec3.dot(rel, acrossH);
+        if (s < 0 || s > lengthH || Math.abs(offsetM) > a.approachMaxOffsetM) continue;
+        const edgeY = edge.startM.y + (d.y * s) / lengthH + a.approachCentreAboveM;
+        if (apexY < edgeY) break;
+        if (p.y + v.y * t - (g * t * t) / 2 > edgeY) continue;
+        out.push({ edge, alongH, acrossH, arrivalS: t, offsetM });
+        break;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * LOCK-ON MAGNETISM: while airborne after a pop, a grind edge the board comes down onto
+   * within `magnetReachM` sideways of a spot where it can lock pulls it there: a gentle
+   * sideways velocity nudge (square to the travel, so the speed along the path is kept),
+   * at most `magnetMaxMps` net, changing at most `magnetAccelMps2`.
+   */
+  private magnet(input: FootForceInput, keys: Keys, frame: BoardFrame, out: FootForce[]): void {
+    const a = this.assist;
+    if (a.magnetMaxMps <= 0 || a.magnetReachM <= 0) return;
+    // Only once the stance is settled: no flip or shove still turning, no body spin (the
+    // board's attitude at the lock, and so the spot to aim for, is known).
+    if (this.flipChannel.active || this.shoveChannel.active) return;
+    const spinning =
+      Math.abs(input.controls.spin ?? 0) >= this.config.assist.spinSnapReleasedStick ||
+      Math.abs(input.rider.bodySpinRateRadps) > this.config.assist.spinSnapMinRateRadps;
+    if (spinning) return;
+    const board = frame.board;
+    const v = board.linearVelocityMps;
+    const speed = Math.hypot(v.x, v.z);
+    if (speed < this.config.torso.headingTravelMinSpeedMps) return;
+    const side = Vec3.create(-v.z / speed, 0, v.x / speed);
+    const nudge = Vec3.dot(this.magnetMps, side);
+    let want = nudge;
+    let best = Number.POSITIVE_INFINITY;
+    for (const ap of this.approaches(board)) {
+      const target = this.lockSpotM(ap, keys, frame);
+      const shift = target - ap.offsetM;
+      const gain = Vec3.dot(side, ap.acrossH);
+      if (Math.abs(shift) > a.magnetReachM || Math.abs(gain) < 0.3) continue;
+      // Only on the final approach, when the stance it comes down in is clear.
+      if (ap.arrivalS > this.config.assist.magnetLeadS) continue;
+      if (Math.abs(shift) >= best) continue;
+      best = Math.abs(shift);
+      want = nudge + shift / (gain * Math.max(ap.arrivalS, 2 * input.dtS));
+    }
+    want = Math.max(-a.magnetMaxMps, Math.min(a.magnetMaxMps, want));
+    const step = this.config.assist.magnetAccelMps2 * input.dtS;
+    const dv = Math.max(-step, Math.min(step, want - nudge));
+    if (Math.abs(dv) < 1e-6) return;
+    this.magnetMps = Vec3.add(this.magnetMps, Vec3.scale(side, dv));
+    out.push(
+      impulseAt(
+        "front",
+        "magnet",
+        Vec3.scale(side, input.mass.massKg * dv),
+        input.mass.centerOfMassWorldM,
+      ),
+    );
+  }
+
+  /**
+   * Where (square to the edge, m) the board centre should come down to lock in the stance
+   * it is heading for: along the edge (a grind) the trucks on it; across (a slide) the
+   * deck middle on it, or the tail / nose (↓ / W held). The stance is the board's yaw to
+   * the edge (the magnet only acts once flips, shoves and body spins are done).
+   */
+  private lockSpotM(ap: EdgeApproach, keys: Keys, frame: BoardFrame): number {
+    const a = this.config.assist;
+    const g = this.config.grind;
+    const d = ap.offsetM;
+    const heading = boardHeadingRad(frame.board);
+    const edgeHeading = Math.atan2(-ap.alongH.z, ap.alongH.x);
+    const across = heading !== null && Math.abs(Math.sin(heading - edgeHeading)) > Math.SQRT1_2;
+    const tail = this.pressHeld(keys, "tail");
+    const nose = this.pressHeld(keys, "nose");
+    const kickSlide = tail !== nose;
+    const clamp = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x));
+    const grind = clamp(d, -a.magnetGrindBandM, a.magnetGrindBandM);
+    const halfL = this.deck.deck.lengthM / 2;
+    const slide = kickSlide
+      ? (Math.sign(d) || 1) *
+        clamp(Math.abs(d), g.kickPartFromM + a.magnetSlideMarginM, halfL - a.magnetSlideMarginM)
+      : clamp(
+          d,
+          a.magnetSlideMarginM - g.boardslideHalfM,
+          g.boardslideHalfM - a.magnetSlideMarginM,
+        );
+    return across ? slide : grind;
+  }
+
+  /**
+   * QUARTER-TURN HELPER: a body spin released (in the air, a grind edge ahead) where it
+   * would stop within `spinSnapRad` of a stance angle to the edge (0°, 90°, …) eases to a
+   * stop exactly on it. Returns that rider heading, or null.
+   */
+  private spinSnap(input: FootForceInput, frame: BoardFrame): number | null {
+    const snapRad = this.assist.spinSnapRad;
+    const { rider, controls } = input;
+    const rate = rider.bodySpinRateRadps;
+    const held = Math.abs(controls.spin ?? 0) >= this.config.assist.spinSnapReleasedStick;
+    if (snapRad <= 0 || this.grind.locked || held) {
+      this.snapHeadingRad = null;
+      return null;
+    }
+    if (this.snapHeadingRad !== null) return this.snapHeadingRad;
+    if (Math.abs(rate) < this.config.assist.spinSnapMinRateRadps) return null;
+    const ap = this.approaches(frame.board)[0];
+    if (ap === undefined) return null;
+    const stop =
+      rider.headingRad + (rate * Math.abs(rate)) / (2 * this.config.tricks.bodySpinAccelRadps2);
+    const edgeHeading = Math.atan2(-ap.alongH.z, ap.alongH.x);
+    const quarter = Math.PI / 2;
+    const nearest = edgeHeading + Math.round((stop - edgeHeading) / quarter) * quarter;
+    if (Math.abs(stop - nearest) > snapRad) return null;
+    this.snapHeadingRad = wrapPi(nearest);
+    return this.snapHeadingRad;
+  }
+
   private endAir(): void {
     this.leftObstacleId = null;
     this.popKick = null;
@@ -1266,10 +1640,30 @@ export class TrickController implements FootForceModel {
     this.caught = false;
     this.caughtS = 0;
     this.catchLockS = 0;
+    this.catchRequestS = 0;
+    this.catchArmed = false;
+    this.poppedOut = false;
+    this.floorDone = false;
+    this.magnetMps = Vec3.ZERO;
+    this.snapHeadingRad = null;
+    this.airLoadKick = null;
+    this.airLoadS = 0;
   }
 }
 
 const KICKS: readonly Kick[] = ["tail", "nose"];
+
+/** A grind edge the board's path comes down onto (assists: magnetism, spin snap). */
+interface EdgeApproach {
+  readonly edge: GrindEdgeView;
+  /** Horizontal units along the edge and square to it (outward for a one-sided edge). */
+  readonly alongH: Vec3;
+  readonly acrossH: Vec3;
+  /** When the board centre comes down to the edge's height, s from now. */
+  readonly arrivalS: number;
+  /** Where the board centre is then, square to the edge along `acrossH`, m. */
+  readonly offsetM: number;
+}
 
 /** Which catch-cone limit the board is outside of (`TrickController.catchConeMiss`). */
 export type CatchMiss = "roll" | "pitch" | "yaw" | "spin";

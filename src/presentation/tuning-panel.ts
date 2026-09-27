@@ -16,6 +16,8 @@ export interface TuningSection {
   readonly name: string;
   /** A mutable clone of a config object (`Tunable<T>`). Edited in place. */
   readonly target: object;
+  /** String properties shown as a dropdown of these options (e.g. the assist level). */
+  readonly choices?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Called after any value changes. `path` is dot-separated inside the section. */
@@ -71,6 +73,12 @@ export function createTuningPanel(
   for (const section of sections) {
     const folder = gui.addFolder(section.name);
     folder.close();
+    for (const [key, options] of Object.entries(section.choices ?? {})) {
+      folder
+        .add(section.target as Record<string, unknown>, key, [...options])
+        .listen()
+        .onChange((v: unknown) => onChange?.(section.name, key, v));
+    }
     addEntries(folder, section.target as Record<string, unknown>, section.name, "", onChange);
   }
   // lil-gui inputs have no name/id; give them one so DevTools' form audit stays quiet.

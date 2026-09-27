@@ -8,11 +8,11 @@ const park = WORLD_CONFIG.park;
 const hp = park.halfpipe;
 
 /**
- * 360 flip off the kicker: rolling in at 4.5 m/s from 6 m before it, the pop at 1.74 s is
- * at the lip (earlier, the pop lands back on the kicker's slope); W + A flick, and the 360
- * backside sweep as an edge-to-edge swipe (→ held with the load from 1.58 s, ← at 1.79 s:
- * MECHANICS "Swipe size"); Space as flip and 360 settle together (lands with Space in
- * ≈ 2.19–2.43 s).
+ * 360 flip off the kicker: rolling in at 4.5 m/s from 6 m before it, a full load, the pop
+ * at 1.76 s near the lip (pops from ≈ 1.68 to ≈ 1.82 s land); W + A flick (0.12 s), and
+ * the 360 backside sweep as an edge-to-edge swipe (→ held with the load from 1.6 s, ← at
+ * 1.81 s: MECHANICS "Swipe size"); Space at 2.26 s as flip and 360 settle together. Timed
+ * like a person would for the human-jitter test (ADR 0012).
  */
 export const treFlipKicker: MontageClip = {
   id: "tre-flip-kicker",
@@ -22,11 +22,11 @@ export const treFlipKicker: MontageClip = {
   spawn: { xM: park.kicker.xM - 6, yM: 0, zM: park.kicker.zM, headingRad: 0, speedMps: 4.5 },
   durationS: 3.6,
   keys: new KeyTimeline("regular")
-    .loadAndPop("tail", 1.52, 1.74)
-    .level("tail", 1.79)
-    .flick("tail", "heel", 1.79, 0.08)
-    .sweep360("tail", "heel", 1.58, 1.79)
-    .catch(2.31)
+    .loadAndPop("tail", 1.4, 1.76)
+    .level("tail", 1.81)
+    .flick("tail", "heel", 1.81, 0.12)
+    .sweep360("tail", "heel", 1.6, 1.81)
+    .catch(2.26)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "lowSide", side: "left", distanceM: 2.4, leadM: 0.8 } },

@@ -1,5 +1,66 @@
 import { deepFreeze } from "../../shared";
 
+/** How much the assists help (MECHANICS.md "Assists"): `pro` = none (pure timing). */
+export type AssistLevel = "pro" | "normal" | "easy";
+
+/**
+ * One assist level's tunables (MECHANICS.md "Assists: human timing without changing the
+ * feel", ADR 0012). Every value is 0 at `pro`: that level is the game without assists.
+ */
+const NO_ASSIST = {
+  /** CATCH BUFFER: a Space pressed up to this long before the board can be caught is held, s. */
+  catchBufferS: 0,
+  /** LATE CATCH: a Space up to this long after touchdown still counts as the catch, s. */
+  catchLateS: 0,
+  /** STANCE-KEY GRACE: ↓ / W held this long before or after the lock-in picks the stance, s. */
+  stanceKeyGraceS: 0,
+  /** SWIPE GRACE: a swipe ending up to this long before the pop is applied to it, s. */
+  swipeGraceS: 0,
+  /** MAGNETISM: a grind edge within this sideways of the predicted path pulls the board, m… */
+  magnetReachM: 0,
+  /** …by a sideways velocity nudge of at most this (net), m/s. */
+  magnetMaxMps: 0,
+  /** LIP CATCH: a board part up to this far below an edge top (rising or level) locks on, m. */
+  lipCatchBelowM: 0,
+  /** ANGLE BANDS: the lock's parallel / perpendicular tolerances widen by this, rad. */
+  parallelWidenRad: 0,
+  perpWidenRad: 0,
+  /**
+   * FLIP-IN CATCH: a board this much further from upright than `grind.lockMaxTiltRad`
+   * (still finishing its flip, turning slower than `tricks.catchMaxOmegaRadps`) still
+   * locks: the feet catch it onto the edge and the stance is finished with the catch's
+   * capped correction, rad.
+   */
+  lockTiltWidenRad: 0,
+  /** SPIN SNAP: a body spin released within this of a stance angle to an edge ahead stops on it, rad. */
+  spinSnapRad: 0,
+  /** POP-OUT FLOOR: a pop out that starts a flip / shove gets at least this airtime per turn, s. */
+  popOutMinAirPerTurnS: 0,
+  /** POP-OUT BUFFER: a load (↓ + S) held this long before the lock-in is kept for the pop out, s. */
+  popOutBufferS: 0,
+  /** BALANCE EASE: the balance drift is cut by this fraction (0.4 → × 0.6)… */
+  balanceDriftCut: 0,
+  /** …during the first this-long of a grind (never more than 1 s), s. */
+  balanceEaseS: 0,
+};
+
+/** The assist tunables of one level. */
+export type AssistTuning = typeof NO_ASSIST;
+
+/** Every assist level, from none to the most help (the order F2 cycles through). */
+export const ASSIST_LEVELS: readonly AssistLevel[] = Object.freeze(["pro", "normal", "easy"]);
+
+/** The level after `level` in `ASSIST_LEVELS`, wrapping around. */
+export function nextAssistLevel(level: AssistLevel): AssistLevel {
+  const i = ASSIST_LEVELS.indexOf(level);
+  return ASSIST_LEVELS[(i + 1) % ASSIST_LEVELS.length] ?? "pro";
+}
+
+/** Narrows an unknown value (a saved setting) to an assist level. */
+export function isAssistLevel(value: unknown): value is AssistLevel {
+  return typeof value === "string" && (ASSIST_LEVELS as readonly string[]).includes(value);
+}
+
 /**
  * Every tunable constant of the `rider` context (REQUIREMENTS §2.5). SI units.
  * The trick model is MECHANICS.md (assisted physics); ADR 0005 records the tuning.
@@ -302,6 +363,107 @@ export const RIDER_CONFIG = deepFreeze({
     fallOffSpeedMps: 0.8,
     /** Edges within this horizontal distance count as a landing for the airtime prediction, m. */
     airtimeEdgeRadiusM: 0.5,
+  },
+  /**
+   * ASSISTS (MECHANICS.md "Assists", ADR 0012): they widen WHEN and WHERE an input counts
+   * (catch, lock-on, pop out, flick windows), never how the board moves while riding. The
+   * active level is runtime state (`RiderSystem.assistLevel`, saved like the stance); these
+   * are each level's tunables. `pro` is all zero: the game without assists (the tests).
+   */
+  assist: {
+    /** The level a player starts at (nothing saved yet). */
+    defaultLevel: "normal" as AssistLevel,
+    /** localStorage key of the saved level. */
+    storageKey: "skate.assistLevel",
+    /** `KeyboardEvent.code` that cycles the level in the game (pro → normal → easy). */
+    cycleKey: "F2",
+    /**
+     * The buffered catch fires once every running flip / shove is within this of its
+     * target (the well-timed catch: at the end of the rotation), rad…
+     */
+    catchFireFlipLeftRad: 0.15,
+    catchFireShoveLeftRad: 0.4,
+    /** …or when the predicted airtime left is below this (catch before touchdown), s. */
+    catchFireAirLeftS: 0.1,
+    /** The magnet's nudge changes at most this fast (gentle, never a jolt), m/s². */
+    magnetAccelMps2: 8,
+    /** The magnet acts on the final approach only: this long before the board comes down, s. */
+    magnetLeadS: 0.3,
+    /** The magnet aims the trucks within this of a grind edge's line, m… */
+    magnetGrindBandM: 0.03,
+    /** …and a slide's deck part at least this far inside its part of the deck, m. */
+    magnetSlideMarginM: 0.03,
+    /**
+     * Edges ahead (magnet, spin snap): the path is followed this far ahead, s, in steps of
+     * this, s; an edge counts where the board centre comes down to this above it, m, within
+     * this sideways of it, m.
+     */
+    approachHorizonS: 1,
+    approachStepS: 0.01,
+    approachCentreAboveM: 0.06,
+    approachMaxOffsetM: 0.8,
+    /**
+     * STANCE-KEY GRACE before the lock-in counts a ↓ / W held at least this long, s (the
+     * level is a short W tap, not a nose press).
+     */
+    stanceKeyMinHoldS: 0.25,
+    /** …and only presses from this long after the pop (not the pop's own release), s. */
+    stanceKeyAfterPopS: 0.05,
+    /** A body spin slower than this is not snapped, rad/s. */
+    spinSnapMinRateRadps: 1,
+    /**
+     * SWIPE GRACE: a swipe that ended before the pop counts once its foot's stick has been
+     * within this of the middle for this long, s (a key still held there is a pre-position).
+     */
+    graceLetGoStick: 0.25,
+    graceLetGoS: 0.03,
+    /** FLIP-IN CATCH: the capped correction ends once the stance is within this, rad. */
+    flipInDoneRad: 0.1,
+    /** LIP CATCH: "level" = the part sinking no faster than this, m/s. */
+    lipCatchLevelMps: 0.3,
+    /** The balance ease never lasts longer than this, s. */
+    balanceEaseMaxS: 1,
+    /** A body spin counts as released when its smoothed key is below this. */
+    spinSnapReleasedStick: 0.3,
+    /** The snap may slow the body up to this × `bodySpinAccelRadps2`. */
+    spinSnapAccelScale: 2,
+    pro: { ...NO_ASSIST },
+    normal: {
+      ...NO_ASSIST,
+      catchBufferS: 0.15,
+      catchLateS: 0.06,
+      stanceKeyGraceS: 0.15,
+      swipeGraceS: 0.05,
+      magnetReachM: 0.25,
+      magnetMaxMps: 0.35,
+      lipCatchBelowM: 0.06,
+      parallelWidenRad: 0.11,
+      perpWidenRad: 0.19,
+      lockTiltWidenRad: 0.7,
+      spinSnapRad: 0.35,
+      popOutMinAirPerTurnS: 0.36,
+      popOutBufferS: 0.12,
+      balanceDriftCut: 0.4,
+      balanceEaseS: 1,
+    },
+    easy: {
+      ...NO_ASSIST,
+      catchBufferS: 0.25,
+      catchLateS: 0.1,
+      stanceKeyGraceS: 0.25,
+      swipeGraceS: 0.08,
+      magnetReachM: 0.4,
+      magnetMaxMps: 0.35,
+      lipCatchBelowM: 0.1,
+      parallelWidenRad: 0.2,
+      perpWidenRad: 0.3,
+      lockTiltWidenRad: 1,
+      spinSnapRad: 0.5,
+      popOutMinAirPerTurnS: 0.42,
+      popOutBufferS: 0.2,
+      balanceDriftCut: 0.6,
+      balanceEaseS: 1,
+    },
   },
   torso: {
     /** Torso height above the deck when standing, m. */

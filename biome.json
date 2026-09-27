@@ -56,7 +56,12 @@
       }
     },
     {
-      "includes": ["vite.config.ts", "vitest.config.ts", "vitest.montage.config.ts"],
+      "includes": [
+        "vite.config.ts",
+        "vitest.config.ts",
+        "vitest.montage.config.ts",
+        "vitest.human.config.ts"
+      ],
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
     }
   ],

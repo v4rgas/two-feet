@@ -8,6 +8,7 @@ import type {
   Transform,
   Vec3,
 } from "../../../shared";
+import type { AssistLevel } from "../rider.config";
 import type { FootForce } from "./foot-force";
 import type { RiderState } from "./rider-state";
 
@@ -129,6 +130,8 @@ export interface FootForceInput {
    * around the board). Absent: no edges (flat ground).
    */
   readonly edgesNear?: readonly GrindEdgeView[];
+  /** The active assist level (MECHANICS.md "Assists", ADR 0012). Absent: `pro` (none). */
+  readonly assistLevel?: AssistLevel;
 }
 
 /** What the rider sees of a grind lock this step (read model data). */
@@ -161,6 +164,11 @@ export interface FootForceOutput {
    * above) in the air to line up with the travel again.
    */
   readonly realignRad?: number;
+  /**
+   * SPIN SNAP (assists): the rider heading a released body spin should ease to a stop at
+   * (a stance angle to a grind edge ahead), rad, or null / absent for none.
+   */
+  readonly spinSnapHeadingRad?: number | null;
 }
 
 /**

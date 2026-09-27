@@ -530,9 +530,9 @@ function stairsGeometry(
 
   if (shape.hubba !== undefined) {
     const { widthM: hw, heightM: hh, edgeRadiusM: r } = shape.hubba;
-    // Starts one tread's depth back on the platform (flat), then follows the nosings
-    // down to the ground line, where it ends in a vertical face `hh` tall.
-    const startX = -run;
+    // Starts `flatTopM` (default one tread) back on the platform (flat), then follows the
+    // nosings down to the ground line, where it ends in a vertical face `hh` tall.
+    const startX = -(shape.hubba.flatTopM ?? run);
     pieces.push(
       prismZ(
         "ledge",

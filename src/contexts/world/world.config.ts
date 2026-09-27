@@ -68,7 +68,11 @@ export const WORLD_CONFIG = deepFreeze({
       topDepthM: 8,
       /** Roll-up slope from the ground to the back of the platform. */
       backSlopeRad: degToRad(14),
-      hubba: { widthM: 0.45, heightM: 0.35, edgeRadiusM: 0.02 },
+      /**
+       * The flat top reaches 0.9 m back onto the platform, like many real hubbas: a board
+       * coming down a little early lands on it instead of its end face (ADR 0012).
+       */
+      hubba: { widthM: 0.45, heightM: 0.35, edgeRadiusM: 0.02, flatTopM: 0.9 },
       handrail: { heightM: 0.8, barRadiusM: 0.024, offsetM: 0.3 },
     },
     kicker: { xM: 12, zM: 0, lengthM: 1.4, heightM: 0.32, widthM: 1.2 },

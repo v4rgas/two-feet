@@ -13,7 +13,7 @@ import type {
 import { NEUTRAL_CONTROLS, Rider, type RiderChange } from "../domain/rider";
 import type { RiderState } from "../domain/rider-state";
 import { TrickController } from "../domain/trick-controller";
-import type { RiderConfig } from "../rider.config";
+import type { AssistLevel, RiderConfig } from "../rider.config";
 import type { RiderSystem } from "./rider-system";
 
 /** Everything the rider system needs, injected by the composition root. */
@@ -38,6 +38,8 @@ export interface DefaultRiderSystemDeps {
    * The composition root implements it over the level's edges. Absent: none.
    */
   readonly grindEdgesNear?: (pointWorldM: Vec3, radiusM: number) => readonly GrindEdgeView[];
+  /** The assist level to start at (ADR 0012). Absent: `pro` (no assists). */
+  readonly assistLevel?: AssistLevel;
 }
 
 /**
@@ -62,6 +64,7 @@ export class DefaultRiderSystem implements RiderSystem {
     | undefined;
   /** The trick model reported a loaded pop this step (Q / E wind up). */
   private loading = false;
+  assistLevel: AssistLevel;
 
   constructor(deps: DefaultRiderSystemDeps) {
     this.body = deps.body;
@@ -72,6 +75,7 @@ export class DefaultRiderSystem implements RiderSystem {
     this.model = deps.model ?? new TrickController(deps.deck, deps.config);
     this.probeGroundY = deps.probeGroundY;
     this.grindEdgesNear = deps.grindEdgesNear;
+    this.assistLevel = deps.assistLevel ?? "pro";
     const body = deps.body;
     this.mass = {
       get massKg() {
@@ -113,6 +117,7 @@ export class DefaultRiderSystem implements RiderSystem {
           : this.probeGroundY(board.transform.positionM),
       edgesNear:
         this.grindEdgesNear?.(board.transform.positionM, this.config.grind.queryRadiusM) ?? [],
+      assistLevel: this.assistLevel,
     });
     this.forces = output.forces;
     this.loading = output.loading === true;
@@ -134,6 +139,7 @@ export class DefaultRiderSystem implements RiderSystem {
       this.publish(this.rider.liftFeet(output.realignRad ?? 0), tick, timeS);
     }
     if (output.caught) this.publish(this.rider.catchFeet(board), tick, timeS);
+    this.rider.snapSpinTo(output.spinSnapHeadingRad ?? null);
     this.publish(this.rider.setGrind(output.grind ?? null, output.grindExit ?? null), tick, timeS);
   }
 

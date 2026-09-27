@@ -96,7 +96,7 @@ function stairsEdges(shape: StairsShape, config: GeometryConfig): LocalEdge[] {
     out.push({
       name: "hubba-flat",
       surface: "grindable",
-      startM: Vec3.create(-shape.runM, flatY, halfW),
+      startM: Vec3.create(-(shape.hubba.flatTopM ?? shape.runM), flatY, halfW),
       endM: Vec3.create(0, flatY, halfW),
       outwardNormal: MINUS_Z,
       twoSided: false,

@@ -1,6 +1,6 @@
-import type { GrindExit, GrindKind, GrindSide } from "../../../shared";
+import type { GrindExit, GrindKind, GrindSide, Kick } from "../../../shared";
 import { Quat, Transform, Vec3 } from "../../../shared";
-import type { RiderConfig } from "../rider.config";
+import type { AssistTuning, RiderConfig } from "../rider.config";
 import { boardForward, boardUp } from "./board-geometry";
 import type { FootForce } from "./foot-force";
 import type {
@@ -39,6 +39,8 @@ export interface LockContext {
   /** +1 regular (toe side = rider +Z), −1 goofy. */
   readonly toe: 1 | -1;
   readonly airStart: AirStart | null;
+  /** The active assist level's tunables (angle bands, lip catch). Absent: none. */
+  readonly assist?: AssistTuning;
 }
 
 /** Everything `hold` needs this step. */
@@ -52,6 +54,8 @@ export interface HoldContext {
   /** The rider frame's +Z side (horizontal unit) and the toe sign. */
   readonly riderSide: Vec3;
   readonly toe: 1 | -1;
+  /** The active assist level's tunables (balance ease). Absent: none. */
+  readonly assist?: AssistTuning;
 }
 
 /** An edge with its frame: along u (unit), up m (square to u, as upright as possible). */
@@ -64,8 +68,10 @@ interface EdgeFrame {
 
 interface Lock {
   frame: EdgeFrame;
-  readonly kind: GrindKind;
+  kind: GrindKind;
   readonly side: GrindSide;
+  /** +1 when the board's nose points to the rider's front at the lock, else −1. */
+  readonly facing: 1 | -1;
   /** The locked point in the board frame. */
   pointLocal: Vec3;
   /** Target line = edge line + this (world). */
@@ -73,6 +79,11 @@ interface Lock {
   /** Direction a pop out leaves to (horizontal unit). */
   outward: Vec3;
   sinceS: number;
+  /**
+   * Locked while still finishing a flip (FLIP-IN CATCH): the stance PD is capped like the
+   * catch until the board is upright on the edge.
+   */
+  flipIn: boolean;
   balance: number;
   rateRadps: number;
   rng: number;
@@ -209,12 +220,23 @@ export class GrindController {
       const frame = edgeFrame(edge);
       if (frame === null) continue;
       const { u, m } = frame;
-      if (Vec3.dot(up, m) < Math.cos(g.lockMaxTiltRad)) continue;
+      // FLIP-IN CATCH (assists): a board still finishing its flip, slow enough to grab.
+      const tilt = Math.acos(Math.max(-1, Math.min(1, Vec3.dot(up, m))));
+      const flipIn = tilt > g.lockMaxTiltRad;
+      if (flipIn) {
+        const grace = ctx.assist?.lockTiltWidenRad ?? 0;
+        const omega = Vec3.length(board.angularVelocityRadps);
+        if (tilt > g.lockMaxTiltRad + grace || omega >= this.config.tricks.catchMaxOmegaRadps) {
+          continue;
+        }
+      }
       const fp = across(f, m);
       if (Vec3.length(fp) < 0.3) continue;
       const angle = Math.acos(Math.min(1, Math.abs(Vec3.dot(Vec3.normalize(fp), u))));
-      const parallel = angle <= g.parallelToleranceRad;
-      const perpendicular = angle >= Math.PI / 2 - g.perpToleranceRad;
+      // ANGLE BANDS (assists) widen the stances' tolerances.
+      const parallel = angle <= g.parallelToleranceRad + (ctx.assist?.parallelWidenRad ?? 0);
+      const perpendicular =
+        !parallel && angle >= Math.PI / 2 - g.perpToleranceRad - (ctx.assist?.perpWidenRad ?? 0);
       if (!parallel && !perpendicular) continue;
       const press = ctx.tailHeld === ctx.noseHeld ? null : ctx.tailHeld ? "tail" : "nose";
       const kind: GrindKind = parallel
@@ -234,7 +256,7 @@ export class GrindController {
       const s = Vec3.dot(Vec3.sub(p, edge.startM), u);
       if (s < 0 || s > frame.lengthM) continue;
       const toPoint = Vec3.sub(p, Vec3.add(edge.startM, Vec3.scale(u, s)));
-      const distanceM = Vec3.length(toPoint);
+      let distanceM = Vec3.length(toPoint);
       // Across a top surface the inner truck's wheels reach it first: they reach down
       // this much further than the deck (a boardslide on a ledge).
       const reach =
@@ -242,11 +264,26 @@ export class GrindController {
         (kind === "boardslide" && !edge.twoSided
           ? this.deck.trucks.heightM + this.deck.wheels.radiusM
           : 0);
-      if (distanceM > reach || Vec3.dot(toPoint, m) < -g.lockBelowM) continue;
       const vp = pointVelocity(board, p);
-      if (Vec3.dot(vp, toPoint) >= 0 && distanceM > g.lockDistanceM / 4) continue;
+      const belowM = -Vec3.dot(toPoint, m);
+      // LIP CATCH (assists): a part a hair below the edge top, still rising or level,
+      // square to the edge within reach, is lifted onto it instead of clipping its side.
+      const lip = ctx.assist?.lipCatchBelowM ?? 0;
+      const lipCatch =
+        lip > 0 &&
+        belowM > 0 &&
+        belowM <= g.lockBelowM + lip &&
+        Vec3.dot(vp, m) >= -this.config.assist.lipCatchLevelMps &&
+        Vec3.length(Vec3.sub(toPoint, Vec3.scale(m, -belowM))) <= reach;
+      if (lipCatch) distanceM = Vec3.length(Vec3.sub(toPoint, Vec3.scale(m, -belowM)));
+      else {
+        if (distanceM > reach || belowM > g.lockBelowM) continue;
+        if (Vec3.dot(vp, toPoint) >= 0 && distanceM > g.lockDistanceM / 4) continue;
+      }
       if (best !== null && best.distanceM <= distanceM) continue;
-      best = { lock: this.makeLock(kind, frame, pointLocal, p, ctx), distanceM };
+      const lock = this.makeLock(kind, frame, pointLocal, p, ctx);
+      lock.flipIn = flipIn;
+      best = { lock, distanceM };
     }
     if (best === null) return false;
     this.lock = best.lock;
@@ -346,10 +383,12 @@ export class GrindController {
       frame,
       kind,
       side,
+      facing: ctx.facing,
       pointLocal,
       offset: Vec3.ZERO,
       outward,
       sinceS: 0,
+      flipIn: false,
       balance: 0,
       rateRadps: 0,
       rng: (this.config.grind.balanceSeed + this.locks * 7919) | 0,
@@ -381,6 +420,31 @@ export class GrindController {
     lock.offset = Vec3.add(hover, Vec3.scale(inward, inset));
   }
 
+  /**
+   * STANCE-KEY GRACE (assists): ↓ / W pressed just after the lock-in. A 50-50 becomes a
+   * 5-0 / nosegrind, a boardslide a tailslide / noseslide, if that part is on the edge.
+   */
+  press(kick: Kick, board: BoardKinematics): void {
+    const lock = this.lock;
+    if (lock === null) return;
+    const kind: GrindKind | null =
+      lock.kind === "fiftyFifty"
+        ? kick === "tail"
+          ? "fiveO"
+          : "noseGrind"
+        : lock.kind === "boardslide"
+          ? kick === "tail"
+            ? "tailslide"
+            : "noseslide"
+          : null;
+    if (kind === null) return;
+    const pointLocal = this.partPoint(kind, board, lock.frame, lock.facing);
+    if (pointLocal === null) return;
+    lock.kind = kind;
+    lock.pointLocal = pointLocal;
+    this.fitToEdge(lock, board);
+  }
+
   // ── while locked ──────────────────────────────────────────────────────────
 
   /**
@@ -410,7 +474,11 @@ export class GrindController {
 
     // BALANCE.
     const slope = Math.abs(u.y);
+    // BALANCE EASE (assists): a calmer drift for the first moments on the edge.
+    const easeS = Math.min(ctx.assist?.balanceEaseS ?? 0, this.config.assist.balanceEaseMaxS);
+    const ease = lock.sinceS <= easeS ? 1 - (ctx.assist?.balanceDriftCut ?? 0) : 1;
     const scale =
+      ease *
       g.balanceDriftPerS *
       (1 + g.balanceSlopeFactor * slope) *
       (1 + g.balanceSpeedFactor * Math.abs(vAlong)) *
@@ -462,7 +530,16 @@ export class GrindController {
     const q = this.stanceRotation(lock, board, ctx);
     const err = Quat.toRotationVector(Quat.multiply(q, Quat.conjugate(board.transform.rotation)));
     const w = g.stanceOmegaRadps;
-    const accel = Vec3.sub(Vec3.scale(err, w * w), Vec3.scale(board.angularVelocityRadps, 2 * w));
+    let accel = Vec3.sub(Vec3.scale(err, w * w), Vec3.scale(board.angularVelocityRadps, 2 * w));
+    if (lock.flipIn) {
+      // Caught mid-flip: the feet finish it with the catch's capped, eased correction.
+      if (Vec3.length(err) < this.config.assist.flipInDoneRad) lock.flipIn = false;
+      const { catchMaxAlphaRadps2 } = this.config.tricks;
+      const reach = Math.min(1, lock.sinceS / Math.max(1e-3, this.config.feet.catchReachS));
+      const cap = catchMaxAlphaRadps2 * reach * reach * (3 - 2 * reach);
+      const size = Vec3.length(accel);
+      if (size > cap && size > 0) accel = Vec3.scale(accel, cap / size);
+    }
     out.push({
       kind: "torque",
       foot: "back",

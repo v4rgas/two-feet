@@ -23,7 +23,9 @@ export type FootForceLabel =
   /** Landing assist: damps bounce and rocking. */
   | "land"
   /** Grind lock: holds the board on the edge, its stance, friction, falling off (M4). */
-  | "grind";
+  | "grind"
+  /** Lock-on magnetism (assists): a gentle sideways nudge toward a grind edge ahead. */
+  | "magnet";
 
 /**
  * A force, impulse, torque or angular impulse the rider applies to the board (value

@@ -87,6 +87,11 @@ export interface HubbaParams {
   readonly heightM: number;
   /** Radius of the round steel edge on the hubba's inner top edge (`grindable`), m. */
   readonly edgeRadiusM: number;
+  /**
+   * Length of its flat top on the platform, back from the top nosing, m (default: one
+   * tread). A long flat top gives a board coming down onto it from the run-up room.
+   */
+  readonly flatTopM?: number;
 }
 
 /** A handrail: a bar running down beside a stair set (on its −Z side), on two posts. */
@@ -243,6 +248,9 @@ function validate(shape: ObstacleShape): void {
         requirePositive(kind, "hubba.widthM", shape.hubba.widthM);
         requirePositive(kind, "hubba.heightM", shape.hubba.heightM);
         requirePositive(kind, "hubba.edgeRadiusM", shape.hubba.edgeRadiusM);
+        if (shape.hubba.flatTopM !== undefined) {
+          requirePositive(kind, "hubba.flatTopM", shape.hubba.flatTopM);
+        }
         if (2 * shape.hubba.edgeRadiusM >= shape.hubba.heightM) {
           throw new RangeError(`${kind}: hubba.edgeRadiusM is too large for the hubba`);
         }

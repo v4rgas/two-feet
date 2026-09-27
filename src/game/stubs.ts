@@ -14,7 +14,7 @@ import type {
 import { FakeRigidBodyHandle, NO_CONTACT } from "../contexts/board";
 import type { FootIntent, InputSystem, IntentFrame, Stance } from "../contexts/input";
 import { INPUT_CONFIG, StickValue } from "../contexts/input";
-import type { FootForce, FootState, RiderState, RiderSystem } from "../contexts/rider";
+import type { AssistLevel, FootForce, FootState, RiderState, RiderSystem } from "../contexts/rider";
 import { DeckPosition } from "../contexts/rider";
 import type { AirSession, TricksSystem } from "../contexts/tricks";
 import type { FootId } from "../shared";
@@ -108,6 +108,7 @@ function restingFoot(id: FootId, alongM: number, board: BoardSnapshot): FootStat
 export class StubRiderSystem implements RiderSystem {
   state: RiderState;
   readonly lastForces: readonly FootForce[] = [];
+  assistLevel: AssistLevel = "pro";
   constructor(board: BoardSnapshot) {
     this.state = StubRiderSystem.rest(board);
   }
