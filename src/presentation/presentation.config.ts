@@ -62,6 +62,13 @@ export const PRESENTATION_CONFIG = deepFreeze({
     gripThicknessM: 0.0008,
     /** Grip tape inset from the deck edge on each side, m. */
     gripInsetM: 0.002,
+    /**
+     * Nose/tail rounding in the top view, as a fraction of the deck half width
+     * (1 = full semicircle). Visual only: the collider tips stay square.
+     */
+    tipRoundness: 1,
+    /** Cross-sections around each rounded tip (more = smoother curve). */
+    tipSegments: 10,
     /** Radial segments of a wheel (low-poly facets make the spin readable). */
     wheelSegments: 12,
     /** Wheel spin decay per second while airborne (fraction kept per s). */

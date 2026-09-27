@@ -29,16 +29,89 @@ export function deckTopProfile(spec: BoardSpec): THREE.Vector2[] {
   });
 }
 
-/** A slab following `top` (side profile), `thicknessM` thick below it, extruded across Z. */
-function profileSlab(
-  top: THREE.Vector2[],
-  thicknessM: number,
-  widthM: number,
+/** Shape of a deck-like slab seen from above, bent along the board's side profile. */
+interface SlabOutline {
+  /** Half length along X (tip to centre), m. */
+  readonly halfLengthM: number;
+  /** Half width across Z, m. */
+  readonly halfWidthM: number;
+  /** Radius of the rounded tips in the top view, m (≤ halfWidthM). */
+  readonly tipRadiusM: number;
+  readonly thicknessM: number;
+  /** Extra height added to the top surface, m. */
+  readonly liftM: number;
+}
+
+/** Stations along X: dense across the rounded tips, plus the kick bends so they stay sharp. */
+function slabStations(spec: BoardSpec, outline: SlabOutline, tipSegments: number): number[] {
+  const { halfLengthM: h, tipRadiusM: r } = outline;
+  const stations = new Set<number>([
+    -BoardSpec.flatLengthM(spec) / 2,
+    BoardSpec.flatLengthM(spec) / 2,
+  ]);
+  for (let i = 0; i <= tipSegments; i += 1) {
+    // Cosine spacing packs sections near the tip, where the curve turns fastest.
+    const t = (1 - Math.cos((Math.PI / 2) * (i / tipSegments))) * r;
+    stations.add(-h + t);
+    stations.add(h - t);
+  }
+  return [...stations].filter((x) => Math.abs(x) <= h).sort((a, b) => a - b);
+}
+
+/** Half width of the outline at `x`: straight sides, circular arcs at the tips. */
+function halfWidthAt(outline: SlabOutline, x: number): number {
+  const { halfLengthM: h, halfWidthM: w, tipRadiusM: r } = outline;
+  const intoArc = Math.abs(x) - (h - r);
+  if (intoArc <= 0) return w;
+  const arc = Math.sqrt(Math.max(0, r * r - intoArc * intoArc));
+  return w - r + arc;
+}
+
+/**
+ * A slab whose top follows `BoardSpec.deckTopPointLocal` (same kicks as the collider) but
+ * whose top-view outline has rounded tips. Built from cross-sections along X, so the
+ * kicks bend cleanly.
+ */
+function roundedSlab(
+  spec: BoardSpec,
+  outline: SlabOutline,
+  tipSegments: number,
 ): THREE.BufferGeometry {
-  const outline = [...top, ...top.map((p) => new THREE.Vector2(p.x, p.y - thicknessM)).reverse()];
-  const shape = new THREE.Shape(outline);
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: widthM, bevelEnabled: false });
-  geometry.translate(0, 0, -widthM / 2);
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const stations = slabStations(spec, outline, tipSegments);
+  // Per station: top-right, top-left, bottom-left, bottom-right (Z+ = right).
+  for (const x of stations) {
+    const top = BoardSpec.deckTopPointLocal(spec, x, 0).y + outline.liftM;
+    const bottom = top - outline.thicknessM;
+    const z = halfWidthAt(outline, x);
+    positions.push(x, top, z, x, top, -z, x, bottom, -z, x, bottom, z);
+    // Top-view UVs over the whole deck (0..1), so texture repeat reads per deck.
+    const u = (x + outline.halfLengthM) / (2 * outline.halfLengthM);
+    const v = (z + outline.halfWidthM) / (2 * outline.halfWidthM);
+    const v2 = (-z + outline.halfWidthM) / (2 * outline.halfWidthM);
+    uvs.push(u, v, u, v2, u, v2, u, v);
+  }
+  const quad = (a: number, b: number, c: number, d: number): void => {
+    indices.push(a, b, c, a, c, d);
+  };
+  for (let i = 0; i < stations.length - 1; i += 1) {
+    const a = i * 4;
+    const b = (i + 1) * 4;
+    quad(a, b, b + 1, a + 1); // top
+    quad(a + 3, a + 2, b + 2, b + 3); // bottom
+    quad(a + 1, b + 1, b + 2, a + 2); // left side (-Z)
+    quad(a, a + 3, b + 3, b); // right side (+Z)
+  }
+  const last = (stations.length - 1) * 4;
+  quad(0, 1, 2, 3); // tail cap (degenerate when fully round)
+  quad(last, last + 3, last + 2, last + 1); // nose cap
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
   return geometry;
 }
 
@@ -129,9 +202,19 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
   const wheelMaterial = flatMaterial(palette.wheel);
   const hubMaterial = flatMaterial(palette.concrete300);
 
-  const top = deckTopProfile(spec);
+  const halfWidthM = spec.deck.widthM / 2;
   const deck = new THREE.Mesh(
-    profileSlab(top, spec.deck.thicknessM, spec.deck.widthM),
+    roundedSlab(
+      spec,
+      {
+        halfLengthM: spec.deck.lengthM / 2,
+        halfWidthM,
+        tipRadiusM: halfWidthM * look.tipRoundness,
+        thicknessM: spec.deck.thicknessM,
+        liftM: 0,
+      },
+      look.tipSegments,
+    ),
     deckMaterial,
   );
   deck.castShadow = true;
@@ -139,9 +222,19 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
   group.add(deck);
 
   // Grip sits on top of the collider surface (a hair above, visual only), inset from the edge.
-  const gripTop = top.map((p) => new THREE.Vector2(p.x * 0.995, p.y + look.gripThicknessM));
+  const gripHalfWidthM = halfWidthM - look.gripInsetM;
   const grip = new THREE.Mesh(
-    profileSlab(gripTop, look.gripThicknessM * 1.5, spec.deck.widthM - 2 * look.gripInsetM),
+    roundedSlab(
+      spec,
+      {
+        halfLengthM: spec.deck.lengthM / 2 - look.gripInsetM,
+        halfWidthM: gripHalfWidthM,
+        tipRadiusM: gripHalfWidthM * look.tipRoundness,
+        thicknessM: look.gripThicknessM * 1.5,
+        liftM: look.gripThicknessM,
+      },
+      look.tipSegments,
+    ),
     gripMaterial,
   );
   grip.receiveShadow = true;
