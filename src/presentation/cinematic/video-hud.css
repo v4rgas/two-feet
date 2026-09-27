@@ -1,0 +1,25 @@
+/* Montage "video" HUD (video-hud.ts). The game's DOM HUD is hidden while filming. */
+
+.skate-montage .skate-hud {
+  display: none;
+}
+
+.skate-video-hud {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* Recording: the game canvas is a fixed 16:9 frame, centred on a dark page. */
+.skate-montage-record {
+  background: #111 !important;
+}
+
+.skate-montage-record #game {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}

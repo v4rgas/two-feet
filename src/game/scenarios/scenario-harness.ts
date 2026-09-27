@@ -9,7 +9,7 @@
  */
 import type { BoardConfig, BoardSnapshot } from "../../contexts/board";
 import { BOARD_CONFIG, BoardSpec, WHEEL_IDS } from "../../contexts/board";
-import type { InputConfig, StanceRepository } from "../../contexts/input";
+import type { InputConfig, KeyPress, StanceRepository } from "../../contexts/input";
 import { clusterForFoot, INPUT_CONFIG } from "../../contexts/input";
 import { KeyboardInputSource } from "../../contexts/input/infrastructure/keyboard-input-source";
 import type { FootForce, RiderConfig, RiderState } from "../../contexts/rider";
@@ -25,12 +25,8 @@ import { GAME_CONFIG } from "../game.config";
 /** A stick direction of one foot, by role (the stance picks the physical key). */
 export type FootDirection = "up" | "down" | "left" | "right";
 
-/** One key press in a script: `code` held from `atS` for `holdS` seconds. */
-export interface KeyPress {
-  readonly code: string;
-  readonly atS: number;
-  readonly holdS: number;
-}
+/** One key press in a script: `code` held from `atS` for `holdS` seconds (shared with montage clips). */
+export type { KeyPress } from "../../contexts/input";
 
 /** Key code of a foot's direction for a stance (regular: front = WASD, back = arrows). */
 export function footKey(stance: Stance, foot: FootId, direction: FootDirection): string {
