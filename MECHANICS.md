@@ -45,7 +45,7 @@ stances. With the follow camera behind the board, screen right is the board's
 |---|---|---|
 | Back foot → tail | `↓` | `S` |
 | Front foot → nose | `W` | `↑` |
-| Front foot → toe edge ("set") | `D` | `←` |
+| Front foot → back toward the tail ("set") | `S` | `↓` |
 | Front foot → heel edge (kickflip) | `A` | `→` |
 | Back foot → heel side (backside shove) | `←` | `D` |
 | Back foot → toe side (frontside shove) | `→` | `A` |
@@ -58,7 +58,7 @@ The rest of this document uses regular-stance keys.
 ```
 ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (manual)  ──release──▶ ROLLING (no pop)
    │
-   └──(↓ + D held ≥ loadMinS)──▶ LOADED ──release ↓──▶ POP ──▶ AIR ──land──▶ ROLLING / BAIL
+   └──(↓ + S held ≥ loadMinS)──▶ LOADED ──release ↓──▶ POP ──▶ AIR ──land──▶ ROLLING / BAIL
                                                           │
                               within windows after pop:   ├─ W        → level (ollie)
                                                           ├─ A / W+A  → kickflip (+level if W)
@@ -79,7 +79,9 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 - This is also the base for manuals later.
 
 ### Load
-- **Gesture:** hold `↓` and `D` together for at least `loadMinS` (≈ 0.08 s).
+- **Gesture:** hold `↓` and `S` together (both feet toward the tail, like
+  crouching for the pop) for at least `loadMinS` (≈ 0.08 s). In goofy it is `S`
+  + `↓`.
 - **Physics:** the board stays on four wheels (no tail press). Carving is off
   while loaded.
 - **HUD:** the back pad shows a filled ring and the front pad shows "set".
@@ -87,8 +89,8 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
   holding longer adds nothing.
 
 ### Pop
-- **Gesture:** release `↓` while loaded, with `D` still held. Releasing both at
-  the same time also pops. Releasing `D` first must **not** be required.
+- **Gesture:** release `↓` while loaded, with `S` still held. Releasing both at
+  the same time also pops. Releasing `S` first must **not** be required.
 - **Condition:** the board must be on its wheels.
 - **Physics:**
   - Target height `h = lerp(popMinHeightM, popMaxHeightM, loadFraction)`. Start
@@ -182,13 +184,14 @@ The mechanic is written in terms of two roles:
 
 - **Pop foot:** the foot on the kick that pops. It loads, pops, and does the
   shove-it.
-- **Guide foot:** the other foot. It sets, levels, and flicks.
+- **Guide foot:** the other foot. It sets (slides toward the popping kick),
+  levels (slides toward the other end), and flicks.
 
 | | Ollie (from the tail) | Nollie (from the nose) |
 |---|---|---|
 | Pop foot | back foot on the tail | front foot on the nose |
 | Guide foot | front foot | back foot |
-| Load | `↓` + `D` | `W` + `→` (back foot set toward the toe edge) |
+| Load | `↓` + `S` | `W` + `↑` (back foot set toward the nose) |
 | Pop | release `↓` | release `W` |
 | Level | `W` (guide foot → nose) | `↓` (guide foot → tail) |
 | Kickflip | `A` / `W`+`A` | `←` / `↓`+`←` (guide foot → heel edge) |
@@ -234,7 +237,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 
 ## Acceptance scenarios (headless, real Rapier)
 
-1. **Ollie:** `↓` down, `D` down 0.02 s later, hold 0.2 s, release `↓` (`D` still held), then `W` 0.05 s later, then
+1. **Ollie:** `↓` down, `S` down 0.02 s later, hold 0.2 s, release `↓` (`S` still held), then `W` 0.05 s later, then
    release and press `Space` to catch. Clean landing, height ≥ 0.25 m, forward speed kept within
    10%. Works in both stances with the mirrored keys.
 2. **Sloppy ollie:** the same without `W`. It lands nose-high or bails. There
@@ -254,6 +257,6 @@ These are all first guesses. The dev tuning panel must expose them live.
    exceeds start + 0.3 m/s.
 9. **Catch cone:** `Space` pressed mid-flip (board upside down) does not catch. Pressing it again after `catchRetryS` near upright does catch.
 9b. **No pop from the manual:** hold `↓` alone for 1 s and release. There is no pop.
-10. **Nollie:** scenarios 1, 3 and 5 mirrored from the nose (`W`+`→`, release `W`, `↓` / `←` / `A`, `Space`) give the same results, with pitch mirrored.
+10. **Nollie:** scenarios 1, 3 and 5 mirrored from the nose (`W`+`↑`, release `W`, `↓` / `←` / `A`, `Space`) give the same results, with pitch mirrored.
 11. **Nose press:** hold `W` alone for 3 s. Pitch ≈ −`manualPitchRad`, the nose stays above −2 mm, and releasing does not pop.
 12. **Idle:** 10 s with no input. No drift and no bail.
