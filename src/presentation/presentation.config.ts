@@ -81,19 +81,17 @@ export const PRESENTATION_CONFIG = deepFreeze({
   },
   feet: {
     /**
-     * Procedural skate shoe (scene/shoe-geometry.ts), m. Origin at the centre of the sole's
+     * Simple low-poly skate shoe (scene/shoe-geometry.ts), m. Origin at the centre of the sole's
      * bottom face, +X toe, +Y up. Baked at construction (reload to apply).
      */
     shoe: {
       lengthM: 0.28,
       widthM: 0.1,
-      /** Top of the padded collar. */
+      /** Top of the collar. */
       heightM: 0.09,
       soleThicknessM: 0.024,
       /** Sole overhang past the upper, all around. */
       soleFlareM: 0.004,
-      /** Lift of the sole's toe tip. */
-      toeSpringM: 0.008,
     },
     /**
      * Each toe points at the rider's facing (the toe edge, across the deck), then turns

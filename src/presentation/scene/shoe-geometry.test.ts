@@ -17,7 +17,7 @@ function bounds(geometry: THREE.BufferGeometry): THREE.Box3 {
   return box;
 }
 
-describe("procedural skate shoe", () => {
+describe("simple skate shoe", () => {
   const geometry = buildShoeGeometry(SIZE);
   const position = geometry.getAttribute("position");
 
@@ -25,7 +25,6 @@ describe("procedural skate shoe", () => {
     const box = bounds(geometry);
     expect(box.max.x - box.min.x).toBeCloseTo(SIZE.lengthM, 2);
     expect(box.max.z - box.min.z).toBeCloseTo(SIZE.widthM, 2);
-    // The tongue may peek a few mm over the collar.
     expect(box.max.y).toBeGreaterThan(SIZE.heightM * 0.97);
     expect(box.max.y).toBeLessThan(SIZE.heightM * 1.1);
   });
@@ -40,29 +39,23 @@ describe("procedural skate shoe", () => {
     expect(flatCount).toBeGreaterThan(20);
   });
 
-  it("points its toe at +X: low toe box in front, high collar behind, toe spring lifts the tip", () => {
+  it("points its toe at +X: low toe in front, high collar behind", () => {
     let toeTop = 0;
     let heelTop = 0;
-    let toeBottom = Number.POSITIVE_INFINITY;
     for (let i = 0; i < position.count; i++) {
       const x = position.getX(i);
       const y = position.getY(i);
-      if (x > SIZE.lengthM * 0.3) {
-        toeTop = Math.max(toeTop, y);
-        toeBottom = Math.min(toeBottom, y);
-      }
+      if (x > SIZE.lengthM * 0.3) toeTop = Math.max(toeTop, y);
       if (x < -SIZE.lengthM * 0.3) heelTop = Math.max(heelTop, y);
     }
     expect(heelTop).toBeGreaterThan(SIZE.heightM * 0.9);
     expect(toeTop).toBeLessThan(heelTop * 0.75);
-    expect(toeBottom).toBeGreaterThan(0);
     expect(shoeAnkleLocal(SIZE).x).toBeLessThan(0);
   });
 
-  it("stays low-poly, with a draw group per material", () => {
+  it("stays very low-poly, with a draw group per material", () => {
     const triangles = position.count / 3;
-    expect(triangles).toBeGreaterThan(200);
-    expect(triangles).toBeLessThan(700);
+    expect(triangles).toBeLessThan(200);
     expect(geometry.groups.map((g) => g.materialIndex)).toEqual([
       SHOE_MATERIAL.upper,
       SHOE_MATERIAL.sole,
