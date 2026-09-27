@@ -18,6 +18,8 @@ export class FakeRigidBodyHandle implements RigidBodyHandle {
   linearVelocityMps: Vec3 = Vec3.ZERO;
   angularVelocityRadps: Vec3 = Vec3.ZERO;
   massKg = 2.2;
+  /** Inertia about any axis returned by `getAngularInertiaKgM2`, kg·m². */
+  angularInertiaKgM2 = 0.05;
   readonly applied: RecordedApplication[] = [];
 
   getTransform(): Transform {
@@ -43,6 +45,10 @@ export class FakeRigidBodyHandle implements RigidBodyHandle {
 
   getMassKg(): number {
     return this.massKg;
+  }
+
+  getAngularInertiaKgM2(): number {
+    return this.angularInertiaKgM2;
   }
 
   applyForceAtPoint(forceN: Vec3, pointWorldM: Vec3): void {

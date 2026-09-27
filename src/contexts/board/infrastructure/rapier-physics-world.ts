@@ -94,6 +94,16 @@ class RapierRigidBodyHandle implements RigidBodyHandle {
     return this.raw.mass();
   }
 
+  getAngularInertiaKgM2(axisWorld: Vec3): number {
+    const axis = Vec3.normalize(axisWorld);
+    const r = this.raw.rotation();
+    const f = this.raw.principalInertiaLocalFrame();
+    const local = Quat.inverseRotate(Quat.create(r.x, r.y, r.z, r.w), axis);
+    const a = Quat.inverseRotate(Quat.create(f.x, f.y, f.z, f.w), local);
+    const i = this.raw.principalInertia();
+    return i.x * a.x * a.x + i.y * a.y * a.y + i.z * a.z * a.z;
+  }
+
   applyForceAtPoint(forceN: Vec3, pointWorldM: Vec3): void {
     this.raw.addForceAtPoint(forceN, pointWorldM, true);
   }

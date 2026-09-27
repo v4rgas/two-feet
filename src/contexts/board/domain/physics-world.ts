@@ -27,6 +27,11 @@ export interface RigidBodyHandle {
   /** Centre of mass, m (world). */
   getCenterOfMassWorld(): Vec3;
   getMassKg(): number;
+  /**
+   * Moment of inertia about an axis through the centre of mass, kg·m² (`axisWorld` need
+   * not be normalised). Lets controllers turn a target spin rate into an angular impulse.
+   */
+  getAngularInertiaKgM2(axisWorld: Vec3): number;
 
   /**
    * Adds a force (N) at a world point. Forces accumulate and act during the NEXT

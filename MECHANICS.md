@@ -49,7 +49,7 @@ stances. With the follow camera behind the board, screen right is the board's
 | Front foot → heel edge (kickflip) | `A` | `→` |
 | Back foot → heel side (backside shove) | `←` | `D` |
 | Back foot → toe side (frontside shove) | `→` | `A` |
-| Push | `Space` | `Space` |
+| Push (ground) / catch (air) | `Space` | `Space` |
 
 The rest of this document uses regular-stance keys.
 
@@ -137,18 +137,26 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
   with no extra code.
 
 ### Catch
-- **Gesture:** release **all** foot keys in the air.
-- **Condition:** the board's rotation must be within `catchCone` of a
-  landable pose: roll within ±`catchRollRad` of upright, and yaw within
-  ±`catchYawRad` of 0° or 180°.
+- **Gesture:** press `Space` in the air. This means "both feet down". On the
+  ground, `Space` is still push.
+- **Condition:** the board must be roughly pointing up, within the catch cone:
+  roll within ±`catchRollRad` of upright, and yaw within ±`catchYawRad` of 0°
+  or 180°.
 - **Physics:**
-  - The feet reattach (they snap onto the deck).
+  - Both feet attach (they snap onto the deck).
   - A PD controller kills the spin and drives the board toward level, with
     gain `catchAssist`.
   - It also snaps the yaw to the nearest 0°/180°.
-- **Outside the cone:** the spin continues and the board isn't caught.
-- **No catch:** if any foot key is still held when the board lands, it lands
-  uncaught. That's a bail unless the board is roughly level and on its wheels.
+- **Outside the cone:** nothing is caught and the feet stay off. The next
+  catch attempt is locked out for `catchRetryS` (≈ 0.15 s), so mashing
+  `Space` doesn't work. You have to time it.
+- **Letting go of the keys does not catch.** That way a flip can finish.
+  `autoCatchOnRelease` (default `false`) turns release-to-catch back on as an
+  easy mode.
+- **No catch:** if the board lands uncaught, it bails unless it is roughly
+  level and on its wheels.
+- **HUD:** both pads flash when the catch works, and flash `warn` when it
+  misses.
 
 ### Land
 - **Clean:** four wheels down, tilt below `landTiltRad`, and caught. Emits
@@ -175,6 +183,8 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `maxFlipRateRadps` | 30 |
 | `catchRollRad` / `catchYawRad` | 0.7 / 0.6 |
 | `catchAssist` | 0.8 |
+| `catchRetryS` | 0.15 |
+| `autoCatchOnRelease` | false |
 | `landTiltRad` | 0.5 |
 
 ## Acceptance scenarios (headless, real Rapier)
@@ -184,11 +194,11 @@ These are all first guesses. The dev tuning panel must expose them live.
    10%. Works in both stances with the mirrored keys.
 2. **Sloppy ollie:** the same without `W`. It lands nose-high or bails. There
    is no explosion and it never goes through the ground.
-3. **Kickflip:** load, pop, `A` 0.05 s later, release all. Roll = 2π ± 0.3,
+3. **Kickflip:** load, pop, `A` 0.05 s later, release, then `Space` once the roll is near 2π. Roll = 2π ± 0.3,
    clean landing.
 4. **Late kickflip:** `A` at 0.3 s. It under-rotates or bails, but never
    crashes.
-5. **Shove-it:** load, pop, `←` 0.05 s later, release all. Yaw = π ± 0.3,
+5. **Shove-it:** load, pop, `←` 0.05 s later, release, then `Space` near the end of the air. Yaw = π ± 0.3,
    clean landing. `→` spins the other way.
 6. **Varial:** `A` and `←` together. Roll ≈ 2π and yaw ≈ π.
 7. **Tail press:** hold `↓` alone for 3 s. Pitch ≈ `manualPitchRad`, the tail
@@ -196,4 +206,5 @@ These are all first guesses. The dev tuning panel must expose them live.
 8. **No thrust:** from rest and from 3 m/s, every single direction key and
    every pair of them, held for 5 s without `Space`. Horizontal speed never
    exceeds start + 0.3 m/s.
-9. **Idle:** 10 s with no input. No drift and no bail.
+9. **Catch cone:** `Space` pressed mid-flip (board upside down) does not catch. Pressing it again after `catchRetryS` near upright does catch.
+10. **Idle:** 10 s with no input. No drift and no bail.
