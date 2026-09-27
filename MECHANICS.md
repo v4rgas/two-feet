@@ -260,6 +260,64 @@ defined by the edge the guide foot flicks off. The trick is recognised as
 loaded, the one loaded first wins. The other foot's input is then read as the
 guide foot.
 
+## Trick matrix: every combination works from both kicks
+
+Every trick is a combination of four independent inputs from one pop. **Nothing
+is special-cased.** The trick controller treats them as separate channels on
+the same board, and the recognizer (tricks context) names the result.
+
+| Channel | Input (regular, tail pop; nose pop uses the mirrored roles) | Options |
+|---|---|---|
+| **Kick** | which end popped | tail (ollie family), nose (nollie family) |
+| **Flip** (guide foot, flick window) | heel-edge flick / toe-edge flick | none, kickflip, heelflip. **Double**: the flick key held ≥ `doubleFlickHoldS` (≈ 0.12 s) targets 2 turns (4π) instead of 1. |
+| **Shove** (pop foot, shove window) | BS / FS sweep | none, 180 shove. **360 shove**: the sweep key held ≥ `shove360HoldS` (≈ 0.12 s) targets 2π instead of π. |
+| **Body** (`Q` / `E`) | spin left / right | none, or any angle (180, 360, …) |
+
+Riding direction (forward / fakie) and stance (regular / switch) aren't
+inputs. They are the **state at the pop**, and the recognizer uses them as
+prefixes.
+
+### Nollie keys (regular)
+The nose-pop version of every row, with pop foot = front and guide foot =
+back:
+- load `W` + `↑`, pop by releasing `W`
+- kickflip `←` or `↓`+`←`
+- heelflip `→` or `↓`+`→`
+- shove BS / FS: `A` / `D`, swept by the front foot
+- `Q`/`E` body spin
+
+### Names the recognizer must produce (M2, and for testing now)
+- **Flip × shove:**
+
+  | | no shove | BS shove | FS shove | BS 360 | FS 360 |
+  |---|---|---|---|---|---|
+  | no flip | Ollie | BS Pop Shove-it | FS Pop Shove-it | 360 Shove-it | FS 360 Shove-it |
+  | kickflip | Kickflip | Varial Kickflip | Hardflip | 360 Flip (Tre Flip) | — |
+  | heelflip | Heelflip | Inward Heelflip | Varial Heelflip | — | Laser Flip |
+  | double kick / heel | Double Kickflip / Double Heelflip | — | — | — | — |
+
+  A cell marked "—" gets a generic name (`<flip> + <shove>`), which is fine.
+- **Prefixes:**
+  - "Nollie" for nose pops.
+  - "Fakie" when rolling backwards in the same stance, "Switch" when riding in
+    the other stance.
+  - "BS 180" / "FS 180" / "360" for body spins, from the body yaw and the
+    stance (BS = the back faces forward first).
+  - Example: "Nollie FS 180 Heelflip".
+- **Shove direction naming:** BS / FS follow the tail's direction relative to
+  the rider, and they mirror correctly for nollie and for goofy.
+
+### Acceptance (the "matrix" scenario family)
+- One parametrised headless scenario runs **every row × column of the table**,
+  in **both kicks** (tail and nose) and **both stances**.
+- Each case: pop, the inputs 0.05 s after the pop, then `Space` near the end.
+- Each case asserts:
+  - roll ≈ target (0, 2π, 4π, signed)
+  - yaw ≈ target (0, ±π, ±2π)
+  - a clean landing
+  - no thrust (speed ≤ start + 0.3 m/s)
+- The expected recognizer name is asserted too, once the recognizer exists.
+
 ## Tunables (`rider.config.ts` → `tricks` block)
 
 These are all first guesses. The dev tuning panel must expose them live.
@@ -280,6 +338,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `catchRollRad` / `catchYawRad` | 0.7 / 0.6 |
 | `catchAssist` | 0.8 |
 | `catchRetryS` | 0.15 |
+| `doubleFlickHoldS` / `shove360HoldS` | 0.12 / 0.12 |
 | `bodySpinRateRadps` / `bodySpinAccelRadps2` | 9 / 40 |
 | `windUpMaxRad` / `windUpSpinRadps` | 0.6 / 4 |
 | `landYawToleranceRad` | 0.35 |
