@@ -7,6 +7,8 @@ A physics-based browser skate game where each foot is controlled separately.
   contexts, the layer rules, the loop order, and the conventions.
 - [`MECHANICS.md`](MECHANICS.md) is the trick mechanics spec (assisted physics). It overrides
   REQUIREMENTS §1.2 and ADR 0004 where they conflict.
+- [`GAME.md`](GAME.md) covers the game shell: tutorial, maps (`src/maps/<id>/`), the menu, and
+  restart/checkpoint.
 - [`STYLE.md`](STYLE.md) covers visuals, the HUD, the camera, and the palette.
 
 Rules that matter most:
