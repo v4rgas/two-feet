@@ -2,6 +2,14 @@
 export type { ObstacleId, SurfaceType } from "../../shared";
 export { SURFACE_TYPES } from "../../shared";
 export { createFlatGroundLevel } from "./domain/flat-ground";
+export type { GrindEdge, GrindEdgeHit } from "./domain/grind-edges";
+export {
+  closestOnEdge,
+  grindEdgesNear,
+  levelGrindEdges,
+  nearestGrindEdge,
+  obstacleGrindEdges,
+} from "./domain/grind-edges";
 export type { Spawn } from "./domain/level";
 export { Level } from "./domain/level";
 export type {

@@ -180,6 +180,11 @@ export const RIDER_CONFIG = deepFreeze({
     landAssist: 0.8,
     landDampingPerS: 25,
   },
+  /** MECHANICS.md "Grinds and slides" (M4): lock-on, stances, balance, exits. ADR 0009. */
+  grind: {
+    /** Edges within this distance of the board centre are considered each step, m. */
+    queryRadiusM: 1,
+  },
   torso: {
     /** Torso height above the deck when standing, m. */
     heightM: 0.9,

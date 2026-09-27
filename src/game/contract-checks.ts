@@ -8,12 +8,13 @@ import type { InputSystem, IntentFrame } from "../contexts/input";
 import type {
   BoardKinematics,
   DeckGeometry,
+  GrindEdgeView,
   RiderControls,
   RiderState,
   RiderSystem,
 } from "../contexts/rider";
 import type { DefaultTricksSystemDeps, MotionSample, RiderPose } from "../contexts/tricks";
-import type { ObstacleColliderDesc } from "../contexts/world";
+import type { GrindEdge, ObstacleColliderDesc } from "../contexts/world";
 
 type Assert<T extends true> = T;
 type Extends<A, B> = [A] extends [B] ? true : false;
@@ -27,4 +28,5 @@ export type StructuralContractChecks = [
   Assert<Extends<RiderSystem, DefaultTricksSystemDeps["rider"]>>,
   Assert<Extends<InputSystem, DefaultTricksSystemDeps["stance"]>>,
   Assert<Extends<ObstacleColliderDesc, StaticColliderDesc>>,
+  Assert<Extends<GrindEdge, GrindEdgeView>>,
 ];

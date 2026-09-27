@@ -50,6 +50,25 @@ export interface BoardKinematics {
   }[];
 }
 
+/**
+ * A grind edge (MECHANICS.md "Grinds and slides"), satisfied by world's `GrindEdge`: a
+ * straight segment on top of a rail, a coping, the hubba's steel edge or a ledge's edge.
+ */
+export interface GrindEdgeView {
+  readonly obstacleId: string;
+  /** `grindable` (steel) or `ledge` (concrete). */
+  readonly surface: string;
+  /** Ends of the segment on top of the edge's profile, m (world). */
+  readonly startM: Vec3;
+  readonly endM: Vec3;
+  /** Horizontal unit normal square to the edge, away from the obstacle (pop outs go there). */
+  readonly outwardNormal: Vec3;
+  /** A bar open on both sides (rail); else the top surface lies on the −outward side. */
+  readonly twoSided: boolean;
+  /** Half the width of the edge's profile, m. */
+  readonly halfWidthM: number;
+}
+
 /** Deck dimensions the rider needs (satisfied by board's `BoardSpec`). */
 export interface DeckGeometry {
   readonly deck: {
@@ -91,6 +110,11 @@ export interface FootForceInput {
    * airtime prediction lands on the real surface (stairs, a ramp). Absent: flat ground at 0.
    */
   readonly groundBelowYM?: number | null;
+  /**
+   * Grind edges near the board this step (the composition root queries the level's edges
+   * around the board). Absent: no edges (flat ground).
+   */
+  readonly edgesNear?: readonly GrindEdgeView[];
 }
 
 /** What the model decided this step: forces for the board, cues for the `Rider`. */

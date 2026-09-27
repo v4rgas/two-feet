@@ -8,7 +8,7 @@ import { DefaultRiderSystem } from "../contexts/rider";
 import type { TricksConfig } from "../contexts/tricks";
 import { DefaultTricksSystem, TRICKS_CONFIG } from "../contexts/tricks";
 import type { Level } from "../contexts/world";
-import { obstacleCollider } from "../contexts/world";
+import { grindEdgesNear, levelGrindEdges, obstacleCollider } from "../contexts/world";
 import type { Clock } from "../shared";
 import { InMemoryEventBus, Quat, Transform, Vec3 } from "../shared";
 import type { GameConfig } from "./game.config";
@@ -66,6 +66,7 @@ export async function composeSimulation(deps: SimulationDeps): Promise<Simulatio
   const physics = await RapierPhysicsWorld.create(configs.board);
   for (const obstacle of level.obstacles) physics.addStaticCollider(obstacleCollider(obstacle));
   const board = new PhysicsBoardSystem(physics.createBoard(spec, spawn), spec, configs.board, bus);
+  const edges = levelGrindEdges(level.obstacles);
   const input = new DefaultInputSystem(deps.inputSource, deps.stanceRepository, configs.input);
   const rider = new DefaultRiderSystem({
     body: board.body,
@@ -78,6 +79,8 @@ export async function composeSimulation(deps: SimulationDeps): Promise<Simulatio
         { originWorldM: pointWorldM, directionWorld: Vec3.create(0, -1, 0) },
         { maxDistanceM: configs.rider.tricks.groundProbeM, excludeBody: board.body },
       )?.pointWorldM.y ?? null,
+    grindEdgesNear: (pointWorldM, radiusM) =>
+      grindEdgesNear(edges, pointWorldM, radiusM).map((hit) => hit.edge),
   });
   const tricks = new DefaultTricksSystem({
     bus,

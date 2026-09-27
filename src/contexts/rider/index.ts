@@ -19,6 +19,7 @@ export type {
   FootForceInput,
   FootForceModel,
   FootForceOutput,
+  GrindEdgeView,
   RiderControls,
 } from "./domain/foot-force-model";
 export type { FeetPressure } from "./domain/foot-placement";

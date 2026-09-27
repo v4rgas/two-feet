@@ -7,6 +7,7 @@ import type {
   BoardMassProperties,
   DeckGeometry,
   FootForceModel,
+  GrindEdgeView,
   RiderControls,
 } from "../domain/foot-force-model";
 import { NEUTRAL_CONTROLS, Rider, type RiderChange } from "../domain/rider";
@@ -32,6 +33,11 @@ export interface DefaultRiderSystemDeps {
    * composition root implements it with a physics raycast. Absent: flat ground at 0.
    */
   readonly probeGroundY?: (pointWorldM: Vec3) => number | null;
+  /**
+   * Grind edges whose segment passes within `radiusM` of a point (world), nearest first.
+   * The composition root implements it over the level's edges. Absent: none.
+   */
+  readonly grindEdgesNear?: (pointWorldM: Vec3, radiusM: number) => readonly GrindEdgeView[];
 }
 
 /**
@@ -45,11 +51,15 @@ export class DefaultRiderSystem implements RiderSystem {
   private readonly bus: EventBus;
   private readonly rider: Rider;
   private readonly model: FootForceModel;
+  private readonly config: RiderConfig;
   private readonly mass: BoardMassProperties;
   private controls: RiderControls = NEUTRAL_CONTROLS;
   private forces: readonly FootForce[] = [];
   private lastBoard: BoardSnapshot;
   private readonly probeGroundY: ((pointWorldM: Vec3) => number | null) | undefined;
+  private readonly grindEdgesNear:
+    | ((pointWorldM: Vec3, radiusM: number) => readonly GrindEdgeView[])
+    | undefined;
   /** The trick model reported a loaded pop this step (Q / E wind up). */
   private loading = false;
 
@@ -57,9 +67,11 @@ export class DefaultRiderSystem implements RiderSystem {
     this.body = deps.body;
     this.bus = deps.bus;
     this.lastBoard = deps.board;
+    this.config = deps.config;
     this.rider = new Rider(deps.deck, deps.config, deps.board);
     this.model = deps.model ?? new TrickController(deps.deck, deps.config);
     this.probeGroundY = deps.probeGroundY;
+    this.grindEdgesNear = deps.grindEdgesNear;
     const body = deps.body;
     this.mass = {
       get massKg() {
@@ -97,6 +109,8 @@ export class DefaultRiderSystem implements RiderSystem {
         board.grounded || this.probeGroundY === undefined
           ? null
           : this.probeGroundY(board.transform.positionM),
+      edgesNear:
+        this.grindEdgesNear?.(board.transform.positionM, this.config.grind.queryRadiusM) ?? [],
     });
     this.forces = output.forces;
     this.loading = output.loading === true;
