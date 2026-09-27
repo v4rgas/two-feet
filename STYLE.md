@@ -50,9 +50,19 @@ front and back.
   truth: deck about 0.80 × 0.21 m, wheelbase about 0.36 m, wheels 54 mm.
   Rendering must match the collider shapes exactly, because the player reads
   the physics from the visuals.
-- Feet are low-poly skate shoes (a procedural cupsole: cream sole, upper in the foot
-  color, ink laces), toes toward the toe edge.  A detached foot
+- Feet are simple low-poly skate shoes (a cream sole slab, a chamfered upper in the
+  foot color, a dark ankle opening), toes toward the toe edge. A detached foot
   turns semi-transparent.
+- **Ankle tilt in the air:** the sideways stick input (toward the toe or heel edge)
+  tilts each shoe about its width axis, the way an ankle does.
+  - Toward the toe edge: the heel lifts and the toe points down, up to
+    `ankleTiltMaxRad` (≈ 0.45 rad).
+  - Toward the heel edge: the toes lift and the heel drops, like the
+    kickflip flick.
+  - Smoothed (`ankleTiltResponseS` ≈ 0.06 s), then back to flat as the stick
+    returns.
+  - This is visual only and never moves the physics. On the ground, feet
+    stay flat on the grip.
 
 ## Camera
 
