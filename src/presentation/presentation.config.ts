@@ -100,8 +100,8 @@ export const PRESENTATION_CONFIG = deepFreeze({
     frontFootYawRad: degToRad(20),
     backFootYawRad: degToRad(8),
     /**
-     * Ankle tilt in the air (STYLE.md): sideways stick tilts the shoe about its width axis,
-     * toe down toward the toe edge, toe up toward the heel edge, at most this much, rad…
+     * Ankle tilt in the air (STYLE.md): sideways stick (|x|) tilts the shoe about its width
+     * axis, the back foot toe down, the front foot toes up, at most this much, rad…
      */
     ankleTiltMaxRad: 0.45,
     /** …smoothed with this time constant, s. */

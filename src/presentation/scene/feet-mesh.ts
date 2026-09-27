@@ -84,7 +84,7 @@ class FootView {
       a.z + (b.z - a.z) * alpha,
     );
     this.shoe.quaternion.copy(headingQuat).multiply(this.yaw);
-    this.applyAnkleTilt(stance, inputs);
+    this.applyAnkleTilt(inputs);
     this.shoe.material = attached ? this.solid : this.ghost;
     this.shoe.scale.set(1, squash, 1);
 
@@ -102,15 +102,18 @@ class FootView {
   }
 
   /**
-   * Ankle tilt (STYLE.md, visual only): in the air, the sideways stick tilts the shoe about
-   * its width axis around the ball of the foot — toward the toe edge the toe points down,
-   * toward the heel edge the toe lifts; flat on the ground. The shoe is raised just enough
+   * Ankle tilt (STYLE.md, visual only): in the air, sideways stick (|x|, either edge) tilts
+   * the shoe about its width axis around the ball of the foot — the back foot toe down, the
+   * front foot toes up; flat on the ground. The shoe is raised just enough
    * that no part of the sole goes below the sole's resting plane (never into the deck).
    */
-  private applyAnkleTilt(stance: Stance, inputs: FeetInputs): void {
+  private applyAnkleTilt(inputs: FeetInputs): void {
     const f = this.config.feet;
-    const towardToe = inputs.stickX[this.id] * (stance === "regular" ? 1 : -1);
-    const wanted = inputs.airborne ? -Math.max(-1, Math.min(1, towardToe)) * f.ankleTiltMaxRad : 0;
+    // The back foot always points its toe down, the front foot lifts its toes; the amount
+    // follows |stick x| of that foot (either edge).
+    const amount = Math.min(1, Math.abs(inputs.stickX[this.id]));
+    const direction = this.id === "back" ? -1 : 1;
+    const wanted = inputs.airborne ? direction * amount * f.ankleTiltMaxRad : 0;
     const k = inputs.dtS > 0 ? 1 - Math.exp(-inputs.dtS / f.ankleTiltResponseS) : 0;
     this.tiltRad += (wanted - this.tiltRad) * k;
     if (Math.abs(this.tiltRad) < 1e-4) return;
