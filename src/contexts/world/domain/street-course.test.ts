@@ -181,8 +181,23 @@ describe("street course level", () => {
     expect(S.kinkedRail.heightM).toBeLessThanOrEqual(0.4);
     // The bank-to-ledge: the ledge stands 0.3 m above the top of the bank.
     expect(S.bankLedge.ledgeHeightM).toBeLessThanOrEqual(0.4);
-    // The hubbas: 0.35 m above the landing (like the park's).
-    expect(S.bigStairs.hubba.heightM).toBeLessThanOrEqual(0.4);
+    // The hubbas: 0.28 m above the landing (like the park's).
+    expect(S.bigStairs.hubba.heightM).toBeLessThanOrEqual(0.3);
+    // The handrail: 0.38 m square to the nosings, from over the top nosing to over the
+    // foot. Its top end starts past the nosing (never back over the landing) within an
+    // ollie of the landing, and its low end stays clear of the ground.
+    expect(S.bigStairs.handrail.heightM).toBeLessThanOrEqual(0.4);
+    const rail = levelGrindEdges(level.obstacles).find((e) => e.id === "big-stairs:handrail");
+    const landingY = S.bigStairs.stepCount * S.bigStairs.riseM;
+    expect(rail?.startM.x).toBeGreaterThan(S.bigStairs.xM);
+    expect((rail?.startM.y ?? Infinity) - landingY).toBeLessThan(0.4);
+    expect(rail?.endM.y).toBeGreaterThan(0.3);
+    // The bar piece (local frame): the grindable piece down the middle (z ≈ 0).
+    const bar = obstacleGeometry(byId("big-stairs")).pieces.find(
+      (p) => p.surface === "grindable" && p.verticesM.every((v) => Math.abs(v.z) < 0.1),
+    );
+    const barTopY = Math.max(...(bar?.verticesM ?? []).map((v) => v.y));
+    expect(barTopY - landingY).toBeLessThan(0.4);
     // The funbox is a funbox, not a wall: about 0.5 m.
     expect(h("funbox")).toBeLessThan(0.9); // incl. its top rail
   });

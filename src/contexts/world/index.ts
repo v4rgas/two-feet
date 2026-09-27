@@ -45,6 +45,7 @@ export type {
 export {
   bankLedgeRunM,
   funboxBankRunM,
+  handrailSpanXM,
   handrailZM,
   kickerLipAngleRad,
   kickerRadiusM,

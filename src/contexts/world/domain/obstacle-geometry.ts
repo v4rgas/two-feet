@@ -1113,6 +1113,18 @@ export function handrailZM(shape: StairsShape): number {
 }
 
 /**
+ * Horizontal span of a stair set's handrail bar (local x), measured on the line of nosings:
+ * `overhangM` (default two post insets) back from the top nosing and on past the foot, m.
+ */
+export function handrailSpanXM(
+  shape: StairsShape,
+  config: GeometryConfig = WORLD_CONFIG.geometry,
+): { startXM: number; endXM: number } {
+  const overhang = shape.handrail?.overhangM ?? 2 * config.railPostInsetM;
+  return { startXM: -overhang, endXM: stairsFootXM(shape) + overhang };
+}
+
+/**
  * Frame running down the line of nosings on the plane z = `zM`: `d` points down the
  * stairs, `e2` is the upward normal of that line, `e1` = local −Z. Origin at the top
  * nosing's height.
@@ -1225,8 +1237,7 @@ function stairsGeometry(
     const { heightM: rh, barRadiusM: r } = shape.handrail;
     const z = handrailZM(shape);
     const inset = config.railPostInsetM;
-    const startX = -2 * inset;
-    const endX = footX + 2 * inset;
+    const { startXM: startX, endXM: endX } = handrailSpanXM(shape, config);
     const axisOffsetM = rh - r; // square to the line of nosings
     pieces.push(
       prism(

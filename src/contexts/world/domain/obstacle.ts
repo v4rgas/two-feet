@@ -105,6 +105,13 @@ export interface HandrailParams {
   readonly offsetM: number;
   /** True: the rail runs down the middle of the stairs (axis on z = 0), not beside them. */
   readonly centered?: boolean;
+  /**
+   * How far the bar reaches on past each end of the stairs, m, measured along x: back over
+   * the landing from the top nosing, and out past the foot (default: two post insets). A
+   * low rail wants 0: back over the landing it would stand taller above the platform than
+   * at the nosing, and past the foot it would sink toward the ground.
+   */
+  readonly overhangM?: number;
 }
 
 /**
@@ -371,6 +378,9 @@ function validate(shape: ObstacleShape): void {
         requirePositive(kind, "handrail.heightM", shape.handrail.heightM);
         requirePositive(kind, "handrail.barRadiusM", shape.handrail.barRadiusM);
         requirePositive(kind, "handrail.offsetM", shape.handrail.offsetM);
+        if ((shape.handrail.overhangM ?? 0) < 0) {
+          throw new RangeError(`${kind}: handrail.overhangM must not be negative`);
+        }
         if (2 * shape.handrail.barRadiusM >= shape.handrail.heightM) {
           throw new RangeError(`${kind}: handrail.barRadiusM is too large for the handrail`);
         }

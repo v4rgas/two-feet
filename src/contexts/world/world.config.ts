@@ -139,8 +139,12 @@ export const WORLD_CONFIG = deepFreeze({
       widthM: 4,
       topDepthM: 7,
       backSlopeRad: degToRad(14),
-      hubba: { widthM: 0.45, heightM: 0.35, edgeRadiusM: 0.02, flatTopM: 0.9, bothSides: true },
-      handrail: { heightM: 0.8, barRadiusM: 0.024, offsetM: 0.3, centered: true },
+      hubba: { widthM: 0.45, heightM: 0.28, edgeRadiusM: 0.02, flatTopM: 0.9, bothSides: true },
+      /**
+       * 0.38 m square to the nosings, from over the top nosing to over the foot (no
+       * overhang): its top end is ≈ 0.35 m above the landing, within an ollie from it.
+       */
+      handrail: { heightM: 0.38, barRadiusM: 0.024, offsetM: 0.3, centered: true, overhangM: 0 },
     },
     /** Funbox in the middle: banks on −X, +X and −Z, a ledge on +Z, a flat rail and a down rail. */
     funbox: {

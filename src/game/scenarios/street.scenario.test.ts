@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createStreetCourseLevel, Level, WORLD_CONFIG } from "../../contexts/world";
+import {
+  createStreetCourseLevel,
+  Level,
+  levelGrindEdges,
+  WORLD_CONFIG,
+} from "../../contexts/world";
 import { Vec3 } from "../../shared";
 import type { ScenarioHarness, StepRecord } from "./scenario-harness";
 import { ScenarioHarness as Harness } from "./scenario-harness";
@@ -9,8 +14,9 @@ import { awayFrom, catchAt, feetOn, loadAndPop } from "./scenario-helpers";
  * RIDER ON THE STREET COURSE (full loop, real Rapier, the `?level=street` geometry), with
  * the existing gesture timelines and adapted spawns: an ollie down the 7-stair with a
  * Space catch (the park's stairs ollie), an ollie to 50-50 on the funbox's flat rail (G1),
- * a 50-50 down the kinked rail whose lock carries on across the kink, and a manual across
- * a manual pad (↓ held, no pop). None may bail.
+ * a 50-50 down the kinked rail whose lock carries on across the kink, an ollie from the
+ * 7-stair's landing onto its centre handrail (a 50-50 down it), and a manual across a
+ * manual pad (↓ held, no pop). None may bail.
  */
 
 const open: ScenarioHarness[] = [];
@@ -152,6 +158,64 @@ describe("rider on the street course", () => {
       const slope = Math.atan2(S.smallStairs.riseM, S.smallStairs.runM);
       expect(h.pitchRad()).toBeLessThan(-0.6 * slope);
       expect(bails(h)).toEqual([]);
+      expectSane(h);
+    },
+    T,
+  );
+
+  it(
+    "ollies from the 7-stair's landing onto the centre handrail: a 50-50 down it, rolls off the end, lands clean at the bottom",
+    async () => {
+      const rail = levelGrindEdges(STREET.obstacles).find((e) => e.id === "big-stairs:handrail");
+      if (rail === undefined) throw new Error("no handrail");
+      const landingY = S.bigStairs.stepCount * S.bigStairs.riseM;
+      // The bar's top end is ≈ 0.35 m above the landing: an ollie clears it. The bar then
+      // drops at the stairs' 24° — faster than a board coming down from its pop — so the
+      // board meets it part way down. At 2.75 m/s it locks at full speed for pops 0.5–0.85 m
+      // before the bar's top end (this is the middle). Earlier pops come down on the very
+      // top end, where the lock stalls the tail truck at the bar's end (ADR 0012) before
+      // gravity takes it down; later ones hit the end of the bar.
+      const h = await streetAt(S.bigStairs.xM - 4.5, landingY, rail.startM.z + 0.15, 0.03);
+      h.launch(2.75);
+      runUntilX(h, rail.startM.x - 0.68, 0.34);
+      loadAndPop(h, 0.32);
+      h.foot("front", awayFrom("tail"), 0.37, 0.15);
+      h.run(3.5);
+      const [start, ...more] = h.eventsOf("GrindStarted");
+      expect(more).toEqual([]);
+      expect(start?.obstacleId).toBe("big-stairs");
+      expect(start?.grind).toBe("fiftyFifty");
+      expect(start?.name).toMatch(/^(FS|BS) 50-50$/);
+      const [end] = h.eventsOf("GrindEnded");
+      expect(end?.exit).toBe("rollOff");
+      expect(end?.durationS).toBeGreaterThan(0.3);
+      const locked = lockedSteps(h);
+      // It locks on the upper half of the bar and rides it on top, nose down its slope, and
+      // never stalls (gravity down the slope, no thrust: ≤ the free-fall gain).
+      const midX = (rail.startM.x + rail.endM.x) / 2;
+      expect(locked[0]?.board.transform.positionM.x).toBeLessThan(midX);
+      const slope = Math.atan2(S.bigStairs.riseM, S.bigStairs.runM);
+      for (const r of locked.slice(12)) {
+        expect(Math.abs(r.board.transform.positionM.z - rail.startM.z)).toBeLessThan(0.03);
+        expect(h.pitchRad(r.board)).toBeLessThan(-0.6 * slope);
+        expect(Vec3.length(r.board.linearVelocityMps)).toBeGreaterThan(2);
+      }
+      const first = locked[0];
+      const last = locked.at(-1);
+      if (first === undefined || last === undefined) throw new Error("never locked");
+      const dropM = first.board.transform.positionM.y - last.board.transform.positionM.y;
+      const vIn = Vec3.length(first.board.linearVelocityMps);
+      expect(Vec3.length(last.board.linearVelocityMps)).toBeLessThanOrEqual(
+        Math.sqrt(vIn * vIn + 2 * 9.81 * dropM) + 0.05,
+      );
+      // Clean at the bottom: one landing, the 50-50's name, on four wheels past the foot.
+      expect(h.eventsOf("TrickLanded").map((e) => e.name)).toEqual([start?.name]);
+      expect(bails(h)).toEqual([]);
+      expect(h.board.wheelsDown).toBe(4);
+      const footX = S.bigStairs.xM + S.bigStairs.stepCount * S.bigStairs.runM;
+      expect(h.board.transform.positionM.x).toBeGreaterThan(footX + 1);
+      expect(h.board.transform.positionM.y).toBeLessThan(0.2);
+      expect(feetOn(h)).toBe(true);
       expectSane(h);
     },
     T,
