@@ -14,6 +14,16 @@ import { FeetMesh } from "./scene/feet-mesh";
 import type { LevelMesh } from "./scene/level-mesh";
 import { buildLevelMesh } from "./scene/level-mesh";
 import { buildSky } from "./scene/sky";
+import { Toast } from "./ui/toast";
+
+/** What the scene holds (leak checks: a map switch must leave these where they were). */
+export interface SceneStats {
+  /** Objects in the scene graph. */
+  readonly objects: number;
+  /** GPU geometries and textures alive (`WebGLRenderer.info.memory`). */
+  readonly geometries: number;
+  readonly textures: number;
+}
 
 /** Longest frame delta fed to smoothing (tab switches, breakpoints), s. */
 const MAX_FRAME_DT_S = 0.1;
@@ -44,6 +54,7 @@ export class ThreeRenderer implements Renderer {
   private readonly rig: FollowCameraRig;
   private readonly hud: Hud;
   private readonly debug: DebugOverlay;
+  private readonly toast: Toast;
   private readonly feet: FeetMesh;
   private readonly boardPivot = new THREE.Group();
   private board: BoardMesh | null = null;
@@ -123,6 +134,7 @@ export class ThreeRenderer implements Renderer {
     const hudParent = options.hudParent ?? canvas.parentElement ?? document.body;
     this.hud = new Hud(hudParent, config);
     this.debug = new DebugOverlay(hudParent, config);
+    this.toast = new Toast(hudParent);
     this.scene.add(this.debug.group);
     this.boardPivot.add(this.debug.axes);
 
@@ -218,6 +230,21 @@ export class ThreeRenderer implements Renderer {
     return this.canvas;
   }
 
+  /** A short, subtle message (the checkpoint toast). */
+  showToast(text: string): void {
+    this.toast.show(text);
+  }
+
+  /** Scene graph and GPU memory counts (dev handle: leak checks after a map switch). */
+  sceneStats(): SceneStats {
+    let objects = 0;
+    this.scene.traverse(() => {
+      objects += 1;
+    });
+    const { geometries, textures } = this.renderer.info.memory;
+    return { objects, geometries, textures };
+  }
+
   /** Debug overlay toggle (also bound to F1). */
   setDebugEnabled(enabled: boolean): void {
     this.debug.setEnabled(enabled);
@@ -230,6 +257,7 @@ export class ThreeRenderer implements Renderer {
     this.feet.dispose();
     this.debug.dispose();
     this.hud.dispose();
+    this.toast.dispose();
     this.sky.geometry.dispose();
     (this.sky.material as THREE.Material).dispose();
     this.renderer.dispose();

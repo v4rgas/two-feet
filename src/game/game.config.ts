@@ -22,6 +22,15 @@ export const GAME_CONFIG = deepFreeze({
     /** The map the game opens on after the tutorial (GAME.md "First launch"). */
     defaultMapId: "street",
   },
+  /** The game shell (GAME.md): storage keys and feedback timings. */
+  shell: {
+    /** localStorage: "true" once the tutorial is done or skipped. */
+    tutorialDoneKey: "skate.tutorialDone",
+    /** localStorage: the id of the last map played. */
+    lastMapKey: "skate.lastMap",
+    /** What the checkpoint toast says. */
+    checkpointToast: "checkpoint",
+  },
   /** localStorage keys of settings that no longer exist, removed on boot. */
   obsoleteStorageKeys: ["skate.assistLevel"],
   debug: {

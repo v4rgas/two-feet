@@ -38,8 +38,35 @@ export function createTunableConfigs(): TunableConfigs {
   };
 }
 
+/** Something that can be shown and hidden (the lil-gui panel). */
+export interface Showable {
+  setVisible(visible: boolean): void;
+}
+
 /**
- * Loads lil-gui lazily and builds the panel. Call only when `import.meta.env.DEV`.
+ * F3 (GAME.md "Controls"): the tuning panel is hidden on load; the first toggle loads and
+ * builds it (lazily: lil-gui is only fetched when asked for), later toggles show / hide it.
+ */
+export class TuningToggle {
+  private visible = false;
+  private panel: Promise<Showable> | null = null;
+
+  constructor(private readonly load: () => Promise<Showable>) {}
+
+  get shown(): boolean {
+    return this.visible;
+  }
+
+  toggle(): Promise<void> {
+    this.visible = !this.visible;
+    this.panel ??= this.load();
+    const visible = this.visible;
+    return this.panel.then((p) => p.setVisible(visible));
+  }
+}
+
+/**
+ * Loads lil-gui lazily and builds the panel (hidden). Call only when `import.meta.env.DEV`.
  *
  * Live: `presentation` (ThreeRenderer), `board`, `rider`, `input`, `tricks`, `game` —
  * `bootstrap.ts` injects these very clones into the systems, which read them every step.
@@ -47,9 +74,9 @@ export function createTunableConfigs(): TunableConfigs {
  * (body + colliders), `board.colliders`, `board.physics.gravityMps2`, `solverIterations`,
  * the collider friction/restitution, `input.keys`, `game.loop.fixedStepS`.
  */
-export async function installDevTuningPanel(configs: TunableConfigs): Promise<void> {
+export async function installDevTuningPanel(configs: TunableConfigs): Promise<Showable> {
   const { createTuningPanel } = await import("../presentation/tuning-panel");
-  createTuningPanel(
+  return createTuningPanel(
     [
       // The assists (ADR 0012) are one mode, edited in rider.assist.
       { name: "presentation", target: configs.presentation },

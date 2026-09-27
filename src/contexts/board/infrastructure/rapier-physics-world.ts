@@ -215,6 +215,8 @@ class RapierBoardBody implements BoardBody {
 
 /** Rapier implementation of the `PhysicsWorld` port. Create with `RapierPhysicsWorld.create`. */
 export class RapierPhysicsWorld implements PhysicsWorld {
+  /** Worlds created and not yet disposed (leak checks: a map switch disposes the old one). */
+  private static live = 0;
   private readonly statics = new Map<number, StaticInfo>();
   private readonly staticIds = new Set<ObstacleId>();
   private readonly boards: RapierBoardBody[] = [];
@@ -230,7 +232,19 @@ export class RapierPhysicsWorld implements PhysicsWorld {
     await initRapier();
     const world = new RAPIER.World({ x: 0, y: config.physics.gravityMps2, z: 0 });
     world.integrationParameters.numSolverIterations = config.physics.solverIterations;
+    RapierPhysicsWorld.live += 1;
     return new RapierPhysicsWorld(world, config);
+  }
+
+  /** How many worlds are alive (created, not disposed). */
+  static get liveWorlds(): number {
+    return RapierPhysicsWorld.live;
+  }
+
+  /** Rigid bodies and colliders in this world (leak checks). */
+  stats(): { readonly bodies: number; readonly colliders: number } {
+    this.assertAlive();
+    return { bodies: this.world.bodies.len(), colliders: this.world.colliders.len() };
   }
 
   addStaticCollider(desc: StaticColliderDesc): void {
@@ -352,6 +366,7 @@ export class RapierPhysicsWorld implements PhysicsWorld {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    RapierPhysicsWorld.live -= 1;
     this.world.free();
   }
 

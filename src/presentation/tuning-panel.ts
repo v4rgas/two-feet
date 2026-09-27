@@ -24,6 +24,8 @@ export interface TuningSection {
 export type TuningChangeHandler = (section: string, path: string, value: unknown) => void;
 
 export interface TuningPanel {
+  /** Shows or hides the panel (GAME.md: hidden on load, F3 toggles it). */
+  setVisible(visible: boolean): void;
   dispose(): void;
 }
 
@@ -70,6 +72,7 @@ export function createTuningPanel(
 ): TuningPanel {
   const gui = new GUI({ title: "Tuning (dev)", width: 300 });
   gui.close();
+  gui.hide();
   for (const section of sections) {
     const folder = gui.addFolder(section.name);
     folder.close();
@@ -87,5 +90,5 @@ export function createTuningPanel(
       input.name ||= `tuning-${index}`;
     }
   });
-  return { dispose: () => gui.destroy() };
+  return { setVisible: (visible) => gui.show(visible), dispose: () => gui.destroy() };
 }

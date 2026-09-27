@@ -1,4 +1,4 @@
-import type { Transform } from "../../../shared";
+import type { Transform, Vec3 } from "../../../shared";
 import type { BoardSnapshot } from "../domain/board-snapshot";
 import type { RigidBodyHandle } from "../domain/physics-world";
 import type { BoardForce } from "../domain/tyre-model";
@@ -30,6 +30,9 @@ export interface BoardSystem {
   prePhysics(dtS: number): void;
   /** Loop step 4: read back state, build the snapshot, publish contact events. */
   postPhysics(tick: number, timeS: number): BoardSnapshot;
-  /** Puts the board at rest at `transform` (board frame pose) and forgets contact history. */
-  reset(transform: Transform): void;
+  /**
+   * Puts the board at `transform` (board frame pose) with the given velocities (default:
+   * at rest) and forgets contact history.
+   */
+  reset(transform: Transform, linearVelocityMps?: Vec3, angularVelocityRadps?: Vec3): void;
 }

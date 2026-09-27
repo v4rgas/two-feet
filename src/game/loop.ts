@@ -21,6 +21,14 @@ export interface LoopSystems {
   readonly spawn: Transform;
 }
 
+/** A pose to put the board back at: the spawn, or a checkpoint (GAME.md "Controls"). */
+export interface RespawnPose {
+  readonly transform: Transform;
+  /** Default: at rest. */
+  readonly linearVelocityMps?: Vec3;
+  readonly angularVelocityRadps?: Vec3;
+}
+
 interface TimedVector {
   readonly vector: Omit<DebugVector, "ageS">;
   readonly timeS: number;
@@ -33,7 +41,7 @@ interface TimedVector {
 export class GameLoop {
   private readonly accumulator: FixedStepAccumulator;
   private readonly stepS: number;
-  private tick = 0;
+  private tick_ = 0;
   private timeS = 0;
   private previous: BoardSnapshot;
   private current: BoardSnapshot;
@@ -44,6 +52,8 @@ export class GameLoop {
   private bailedAtS: number | null = null;
   private recentEvents: DomainEvent[] = [];
   private debugVectors: TimedVector[] = [];
+  /** Where a bail resets to: a checkpoint, or null for the spawn. */
+  private respawn: RespawnPose | null = null;
 
   constructor(
     private readonly systems: LoopSystems,
@@ -73,6 +83,43 @@ export class GameLoop {
     return this.systems.rider.state;
   }
 
+  /** Fixed steps simulated so far. */
+  get tick(): number {
+    return this.tick_;
+  }
+
+  /** The map's spawn pose (at rest). */
+  get spawn(): Transform {
+    return this.systems.spawn;
+  }
+
+  /** Where a bail resets to from now on: `pose`, or the spawn when null. */
+  setRespawn(pose: RespawnPose | null): void {
+    this.respawn = pose;
+  }
+
+  /** R: back to the respawn pose (a checkpoint, else the spawn). */
+  restart(): void {
+    this.resetTo(this.respawn ?? { transform: this.systems.spawn });
+  }
+
+  /**
+   * Puts the board at `pose` (with its velocities), the rider upright with both feet on and
+   * every per-air state cleared (trick air, catch, grind, bail), the sticks neutral. The
+   * same path as the bail reset.
+   */
+  resetTo(pose: RespawnPose): void {
+    this.bailedAtS = null;
+    const { board, rider, tricks, input } = this.systems;
+    board.reset(pose.transform, pose.linearVelocityMps, pose.angularVelocityRadps);
+    rider.reset(board.snapshot);
+    tricks.reset();
+    input.reset();
+    this.previous = board.snapshot;
+    this.current = board.snapshot;
+    this.previousRider = rider.state;
+  }
+
   /** Runs as many fixed steps as `elapsedS` of real time allows. Returns the count. */
   advance(elapsedS: number): number {
     const steps = this.accumulator.advance(elapsedS);
@@ -99,12 +146,12 @@ export class GameLoop {
     physics.step(dtS);
     this.physicsStepMs = (clock.nowS() - t0) * 1000;
 
-    this.tick += 1;
-    this.timeS = this.tick * dtS;
+    this.tick_ += 1;
+    this.timeS = this.tick_ * dtS;
 
     // 4. board reads back state, builds the BoardSnapshot and emits contact events.
     this.previous = this.current;
-    this.current = board.postPhysics(this.tick, this.timeS);
+    this.current = board.postPhysics(this.tick_, this.timeS);
 
     // 5. rider updates attach/detach and bail.
     rider.postPhysics(this.current, dtS);
@@ -198,14 +245,7 @@ export class GameLoop {
       Vec3.length(b.linearVelocityMps) < bailRestSpeedMps &&
       Vec3.length(b.angularVelocityRadps) < bailRestSpinRadps;
     if (!resting && sinceS < bailResetMaxS) return;
-    this.bailedAtS = null;
-    const { board, rider, tricks, input, spawn } = this.systems;
-    board.reset(spawn);
-    rider.reset(board.snapshot);
-    tricks.reset();
-    input.reset();
-    this.previous = board.snapshot;
-    this.current = board.snapshot;
-    this.previousRider = rider.state;
+    // To the checkpoint if one is set, else the spawn (GAME.md "Controls").
+    this.restart();
   }
 }

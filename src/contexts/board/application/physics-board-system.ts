@@ -165,8 +165,8 @@ export class PhysicsBoardSystem implements BoardSystem {
     return this.snapshot;
   }
 
-  reset(transform: Transform): void {
-    this.body.resetTo(transform);
+  reset(transform: Transform, linearVelocityMps?: Vec3, angularVelocityRadps?: Vec3): void {
+    this.body.resetTo(transform, linearVelocityMps, angularVelocityRadps);
     this.primed = false;
     this.grounded = false;
     this.leftGroundAtS = 0;
