@@ -56,14 +56,14 @@ and the platforms' roll-up slopes in the west.
 
 ```
  z
- 11.5 ┌────────────────────────── barrier (planned) ─────────────────────────────┐
+ 11.5 ┌────────────────────────── barrier ───────────────────────────────────────┐
       │ [3-stair deck ====╗kinked rail]   [pad 15cm]   [pad 25cm]       [HIP]    │  north lane z=8.5
   4.5 │                        [== flat bar ==]                                  │  middle lane
     0 │ /slope [7-stair deck ](stairs)  → 6.3 m →  [/ FUNBOX \]   →  [QP east] │  centre lane
    -5 │                                             [== long ledge ==]       │QP│  south lane
    -9 │ /slope [euro gap]  → 7 m →  [up-ledge]  → → →        [bank→ledge]      │  south-outer
 -12.5 └──────────────────────────────────────────────────────────────────────────┘
-      x=−19                                0                                  20
+      x=−23                                0                                21.5
 ```
 
 | Feature | Where (config) | Footprint above ground | Notes |
@@ -96,33 +96,42 @@ and the platforms' roll-up slopes in the west.
    manual up the up-ledge. Roll on to the bank-to-ledge in the south-east corner. Or,
    in the inner south lane, slide the long ledge and roll into the quarter pipe.
 
-## Barriers, banners and graffiti (planned: the `barrier` kind isn't on main yet)
+## Barriers, banners and graffiti
 
-- **Perimeter:** `STREET_CONFIG.perimeter`, a rectangle with x ∈ [−19, 20] and
-  z ∈ [−12.5, 11.5]. Every feature stands at least 1 m inside it (tested). About 1 m
-  high, a low contest fence. The east run behind the quarter pipe can sit right behind
-  its deck (x ≈ 19.2–20).
-- **Entry gaps** (about 3 m each):
-  - west side at z ∈ [3, 6]: the middle lane, which is the turn-around between the two
-    stair decks;
-  - north side at x ∈ [−5, −2]: between the kinked rail's end and the first pad;
-  - south side at x ∈ [3, 7]: between the up-ledge and the bank-to-ledge;
-  - east side at z ∈ [6, 7] is optional (between the quarter pipe and the hip).
-- **Sponsor banners** (on the barrier's inside face):
-  - **BipBop Labs (bipbop.cl):** on the east barrier behind the quarter pipe, centred
-    at z = 0. It's the first thing you see from the spawn, looking down the main line,
-    and it's in the 7-stair clips' shots.
-  - **v4rgas:** on the north barrier at x ≈ 3–9, behind the manual pads. This is the
-    backdrop of the funbox and flat-bar shots, whose tripods look north.
-  - A second **BipBop Labs** on the south barrier at x ≈ 4–10, behind the long ledge.
-  - Another **v4rgas** on the west barrier behind the 7-stair deck (z ≈ −3…2), seen when
-    you carve back toward the spawn.
-- **Graffiti decals** (plaza surfaces, where tags actually end up):
-  - the side walls of the 7-stair deck (z = ±2.45, x ≈ −13…−8);
-  - the front face of the up-ledge (x = −1);
-  - the +Z ledge wall of the funbox;
-  - the back walls of the hip (they face the fence);
-  - the deck face of the quarter pipe;
-  - the inside of the barrier in the south-west corner, behind the gap platform.
-  Keep decals off the riding surfaces and grind edges, so the player reads the physics
-  from clean concrete (STYLE.md).
+Built in `street-dressing.ts` from `STREET_CONFIG.perimeter`, `deckFence` and `graffiti`
+(tested in `street-course.test.ts`).
+
+- **Perimeter:** a ring of 0.9 m `barrier` segments (≈ 4 m each; solid, never grindable)
+  with its outer faces on x ∈ [−23, 21.5], z ∈ [−12.5, 11.5]. The first plan had
+  x ∈ [−19, 20], but the stair decks' rounded roll-up slopes reach x ≈ −18 and the
+  board-only roll-up scenarios start 7 m (7-stair) and 5 m (3-stair) before them, so
+  the west run moved out to −23: a ≈ 4.7 m flat run-up west of both slopes, and room to
+  carve round from the middle lane. The east run moved to 21.5 so the hip's back wall
+  has ≈ 4.5 m of roll-out (its board-only scenario ends near x ≈ 19) and there is a
+  2 m lane behind the quarter pipe.
+- **Entry gaps** (3 m each): west at z ∈ [3, 6] (the middle lane, the turn-around
+  between the two stair decks); north at x ∈ [−5, −2] (between the kinked rail's end
+  and the first pad); south at x ∈ [2.5, 5.5] (between the up-ledge and the
+  bank-to-ledge; it moved 1.5 m west of the first plan's x ∈ [3, 7] so the segment
+  after it lines up with the long ledge). No east gap.
+- **Sponsor banners** (on the inside faces, each with plain wall either side):
+  - **BipBop Labs:** on the **deck fence** of the quarter pipe: a 0.9 m banner wall on the
+    back 20 cm of its deck (x ≈ 18.8–19), 4 m wide and centred on z = 0, plain concrete
+    either side across the rest of the deck. A barrier on the ground behind the quarter
+    pipe would be hidden by its 1.2 m deck; on the deck it is the first thing you see
+    from the spawn, looking down the main line, and it is in the 7-stair clips' shots.
+  - **BipBop Labs** again on the south run right behind the long ledge (x 5.5–9.5).
+  - **v4rgas:** on the north run behind the 25 cm manual pad (x 5.8–9.8), the backdrop
+    of the funbox and flat-bar shots, and on the west run behind the 7-stair deck
+    (z −0.8…3), seen when you carve back toward the spawn.
+  - The other segments of banner length follow a rhythm of mostly plain wall with a
+    house banner (`house-deck`, `house-feet`) every third segment or so.
+- **Graffiti** (three pieces, walls only, clear of riding surfaces and grind edges):
+  - a `v4rgas-throwup` on the 7-stair deck's south side wall (under the hubba, x ≈ −9),
+    seen from the south lane and the euro gap;
+  - a small `deck-penguin-roundel` on the funbox's +Z wall, under its ledge edge;
+  - a `penguin-king` on the plain barrier in the south-west corner, behind the gap
+    platform.
+  The other planned spots (the up-ledge's front face, the hip's back walls, the quarter
+  pipe's deck face) stay clean: STYLE.md asks for a couple of pieces per map, and the
+  hip's walls and the deck face look at the fence, where hardly anyone would see them.

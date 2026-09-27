@@ -255,8 +255,9 @@ describe("El Toro", () => {
       if (o.id === "stairs") continue;
       expect(intrudes(o, foot, foot + 15, -3, 3), `${o.id} blocks the roll-out`).toBe(false);
     }
-    const fence = footprint(byId("fence-east"));
-    expect(fence.minX).toBeGreaterThan(foot + 15);
+    const east = FEATURES.filter((o) => o.id.startsWith("fence-east-"));
+    expect(east.length).toBeGreaterThan(3);
+    for (const o of east) expect(footprint(o).minX).toBeGreaterThan(foot + 15);
   });
 
   it("the secondary spots: a 4-stair off the lower terrace, a planter ledge, a curb, lunch benches", () => {
@@ -316,5 +317,67 @@ describe("El Toro", () => {
         expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
       }
     }
+  });
+});
+
+describe("El Toro dressing (fence, banners, graffiti)", () => {
+  const fence = FEATURES.filter((o) => o.id.startsWith("fence-"));
+  const sponsorOf = (o: Obstacle): string | null =>
+    o.shape.kind === "barrier" ? (o.shape.banner?.sponsorId ?? null) : null;
+  const facing = (o: Obstacle): Vec3 => Transform.toWorldDirection(o.transform, Vec3.UNIT_Z);
+  const isSponsor = (o: Obstacle): boolean => ["bipbop", "v4rgas"].includes(sponsorOf(o) ?? "");
+
+  it("the fence line is barriers on the east, north and south, never grindable", () => {
+    for (const side of ["east", "north", "south"]) {
+      const run = fence.filter((o) => o.id.startsWith(`fence-${side}-`));
+      expect(run.length, side).toBeGreaterThan(3);
+    }
+    for (const o of fence) {
+      expect(o.shape.kind).toBe("barrier");
+      expect(obstacleGrindEdges(o)).toEqual([]);
+      const r = footprint(o);
+      expect(r.minX).toBeGreaterThanOrEqual(P.fence.bounds.minXM - 1e-9);
+      expect(r.maxX).toBeLessThanOrEqual(P.fence.bounds.maxXM + 1e-9);
+      expect(r.minZ).toBeGreaterThanOrEqual(P.fence.bounds.minZM - 1e-9);
+      expect(r.maxZ).toBeLessThanOrEqual(P.fence.bounds.maxZM + 1e-9);
+    }
+  });
+
+  it("BipBop Labs and v4rgas side by side on the east fence, square to the drop, and again on the north fence", () => {
+    const east = fence.filter((o) => o.id.startsWith("fence-east-") && isSponsor(o));
+    expect(east.map(sponsorOf).sort()).toEqual(["bipbop", "v4rgas"]);
+    for (const o of east) {
+      expect(Math.abs(o.transform.positionM.z)).toBeLessThan(4); // framed by the drop
+      expect(facing(o).x).toBeCloseTo(-1, 9); // facing the stairs
+    }
+    const north = fence.filter((o) => o.id.startsWith("fence-north-") && isSponsor(o));
+    expect(north.map(sponsorOf).sort()).toEqual(["bipbop", "v4rgas"]);
+    const ledge = footprint(byId("planter-ledge"));
+    for (const o of north) {
+      const r = footprint(o);
+      expect(Math.min(r.maxX, ledge.maxX) - Math.max(r.minX, ledge.minX), o.id).toBeGreaterThan(1);
+    }
+    // Not wall-to-wall logos.
+    const bannered = fence.filter((o) => sponsorOf(o) !== null);
+    expect(bannered.length).toBeLessThanOrEqual(fence.length / 2);
+  });
+
+  it("banner boards on the retaining walls beside the stairs face the courtyard, clear of the drop", () => {
+    const boards = FEATURES.filter((o) => o.id.startsWith("wall-banner-"));
+    expect(boards.map(sponsorOf).sort()).toEqual(["bipbop", "v4rgas"]);
+    for (const o of boards) {
+      const r = footprint(o);
+      expect(facing(o).x).toBeCloseTo(1, 9);
+      expect(r.minX).toBeGreaterThanOrEqual(-1e-9); // on the wall's face (x = 0)
+      expect(Math.min(Math.abs(r.minZ), Math.abs(r.maxZ))).toBeGreaterThan(2.7); // off the rails
+      expect(r.maxY).toBeLessThan(QUAD_Y); // below the lip
+    }
+  });
+
+  it("carries a couple of graffiti pieces, on walls only", () => {
+    const pieces = level.graffiti ?? [];
+    expect(pieces.length).toBeGreaterThanOrEqual(2);
+    expect(pieces.length).toBeLessThanOrEqual(4);
+    for (const g of pieces) expect(Math.abs(g.normal.y), g.pieceId).toBeLessThan(1e-9);
   });
 });

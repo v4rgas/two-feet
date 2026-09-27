@@ -1,0 +1,136 @@
+import type {
+  GraffitiPlacement,
+  Obstacle,
+  PerimeterSide,
+  QuarterPipeShape,
+} from "../../contexts/world";
+import {
+  graffitiOnFace,
+  ObstacleShape,
+  perimeterBarriers,
+  quarterPipeLipXM,
+} from "../../contexts/world";
+import { Quat, Transform, Vec3 } from "../../shared";
+import type { BannerSpot, StreetConfig } from "./street.config";
+
+/*
+ * The street course's dressing (DESIGN.md "Barriers, banners and graffiti"): the
+ * perimeter barriers with their sponsor and house banners, the banner fence on the
+ * quarter pipe's deck, and a couple of graffiti pieces. Barriers are solid (never
+ * grindable); banners and graffiti are artwork only.
+ */
+
+/** A barrier's side (from its `<prefix>-<side>-<n>` id) and its centre along that side. */
+function sideOf(o: Obstacle): { side: PerimeterSide; centreM: number } {
+  const side = o.id.split("-").at(-2) as PerimeterSide;
+  const p = o.transform.positionM;
+  return { side, centreM: side === "north" || side === "south" ? p.x : p.z };
+}
+
+/** The same barrier with `sponsorId`'s banner on its front (or plain for null). */
+function withBanner(o: Obstacle, sponsorId: string | null): Obstacle {
+  if (o.shape.kind !== "barrier") return o;
+  const { lengthM, heightM, thicknessM } = o.shape;
+  return {
+    ...o,
+    shape: ObstacleShape.barrier({
+      lengthM,
+      heightM,
+      thicknessM,
+      ...(sponsorId === null ? {} : { banner: { sponsorId } }),
+    }),
+  };
+}
+
+/** The spot (if any) whose point lies on barrier `o`. */
+function spotOn(o: Obstacle, spots: readonly BannerSpot[]): BannerSpot | undefined {
+  if (o.shape.kind !== "barrier") return undefined;
+  const { side, centreM } = sideOf(o);
+  const half = o.shape.lengthM / 2;
+  return spots.find((x) => x.side === side && Math.abs(x.atM - centreM) <= half);
+}
+
+/**
+ * The perimeter ring: the sponsors on their spots (their neighbours stay plain, so a
+ * sponsor never reads as one of a row of logos), every other segment of banner length
+ * taking the next entry of the rhythm (mostly plain, a house banner now and then).
+ */
+export function streetPerimeter(s: StreetConfig): Obstacle[] {
+  const p = s.perimeter;
+  const ring = perimeterBarriers(p, {
+    idPrefix: "barrier",
+    heightM: p.heightM,
+    thicknessM: p.thicknessM,
+    segmentLengthM: p.segmentLengthM,
+    openings: p.openings,
+  });
+  const spots = ring.map((o) => spotOn(o, p.spots));
+  const sponsored = (i: number, side: PerimeterSide): boolean => {
+    const o = ring[i];
+    return o !== undefined && sideOf(o).side === side && (spots[i]?.sponsorId ?? null) !== null;
+  };
+  let beat = 0;
+  return ring.map((o, i) => {
+    if (o.shape.kind !== "barrier") return o;
+    const spot = spots[i];
+    if (spot !== undefined) return withBanner(o, spot.sponsorId);
+    const { side } = sideOf(o);
+    const { min, max } = p.bannerSegmentM;
+    const fits = o.shape.lengthM >= min && o.shape.lengthM <= max;
+    const besideSponsor = sponsored(i - 1, side) || sponsored(i + 1, side);
+    if (!fits || besideSponsor || p.rhythm.length === 0) return withBanner(o, null);
+    const sponsor = p.rhythm[beat % p.rhythm.length] ?? null;
+    beat += 1;
+    return withBanner(o, sponsor);
+  });
+}
+
+/**
+ * The banner fence standing on the back of the quarter pipe's deck (its front faces the
+ * course, −X), so the BipBop Labs banner shows above the deck from the spawn.
+ */
+export function streetDeckFence(s: StreetConfig, qp: QuarterPipeShape): Obstacle[] {
+  const f = s.deckFence;
+  const x = s.quarterPipe.toeXM + quarterPipeLipXM(qp) + qp.deckDepthM - f.thicknessM / 2;
+  const facingWest = Quat.fromAxisAngle(Vec3.UNIT_Y, -Math.PI / 2);
+  return f.segments.map(
+    (seg, i): Obstacle => ({
+      id: `qp-deck-fence-${i}`,
+      name: "Deck fence",
+      surface: "ground",
+      transform: Transform.create(Vec3.create(x, qp.heightM, seg.zM), facingWest),
+      shape: ObstacleShape.barrier({
+        lengthM: seg.lengthM,
+        heightM: f.heightM,
+        thicknessM: f.thicknessM,
+        ...(seg.sponsorId === null ? {} : { banner: { sponsorId: seg.sponsorId } }),
+      }),
+    }),
+  );
+}
+
+/** The course's graffiti: the 7-stair deck's side, the funbox's +Z wall, the SW corner. */
+export function streetGraffiti(
+  s: StreetConfig,
+  obstacles: readonly Obstacle[],
+): GraffitiPlacement[] {
+  const byId = (id: string): Obstacle => {
+    const o = obstacles.find((x) => x.id === id);
+    if (o === undefined) throw new Error(`street graffiti: no obstacle "${id}"`);
+    return o;
+  };
+  const corner = obstacles.find((o) => {
+    if (!o.id.startsWith("barrier-")) return false;
+    if (o.shape.kind !== "barrier" || o.shape.banner !== undefined) return false;
+    const spot = s.perimeter.spots.find((x) => x.sponsorId === null);
+    if (spot === undefined) return false;
+    const { side, centreM } = sideOf(o);
+    return side === spot.side && Math.abs(spot.atM - centreM) <= o.shape.lengthM / 2;
+  });
+  const g = s.graffiti;
+  return [
+    graffitiOnFace(byId("big-stairs"), g.stairDeck),
+    graffitiOnFace(byId("funbox"), g.funbox),
+    ...(corner === undefined ? [] : [graffitiOnFace(corner, g.corner)]),
+  ];
+}
