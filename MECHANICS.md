@@ -190,7 +190,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 ## Acceptance scenarios (headless, real Rapier)
 
 1. **Ollie:** `↓`+`D` for 0.2 s, release `↓`, then `W` 0.05 s later, then
-   release all. Clean landing, height ≥ 0.25 m, forward speed kept within
+   release and press `Space` to catch. Clean landing, height ≥ 0.25 m, forward speed kept within
    10%. Works in both stances with the mirrored keys.
 2. **Sloppy ollie:** the same without `W`. It lands nose-high or bails. There
    is no explosion and it never goes through the ground.
