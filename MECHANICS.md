@@ -244,7 +244,7 @@ The mechanic is written in terms of two roles:
 | Level | `W` (guide foot → nose) | `↓` (guide foot → tail) |
 | Kickflip | `A` / `W`+`A` | `←` / `↓`+`←` (guide foot → heel edge) |
 | Heelflip | `D` / `W`+`D` | `→` / `↓`+`→` (guide foot → toe edge) |
-| Shove-it (BS / FS) | `←` / `→` | `A` / `D` (pop foot sweeps) |
+| Shove-it (BS / FS) | `←` / `→` | `D` / `A` (pop foot sweeps; BS/FS always named by where the **tail** goes, so the heel-side sweep from the nose is FS) |
 | Press (manual) | hold `↓` alone, no WASD: tail press | hold `W` alone, no arrows: nose press |
 
 (Regular-stance keys; goofy mirrors them the same way as in the key table.)
@@ -283,7 +283,8 @@ back:
 - load `W` + `↑`, pop by releasing `W`
 - kickflip `←` or `↓`+`←`
 - heelflip `→` or `↓`+`→`
-- shove BS / FS: `A` / `D`, swept by the front foot
+- shove BS / FS: `D` / `A`, swept by the front foot. It is named by the tail's direction:
+  a heel-side sweep of the nose sends the tail frontside.
 - `Q`/`E` body spin
 
 ### Names the recognizer must produce (M2, and for testing now)
