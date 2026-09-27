@@ -55,12 +55,16 @@ front and back.
 
 ## Camera
 
-- The default follow camera sits about 2.2 m behind the board, 1.2 m up, and
-  offset slightly toward the heel side. It looks slightly ahead of the board.
+- The default follow camera is **close**: about 1.1 m behind the board, 0.65 m up,
+  and offset about 0.4 m toward the heel side, so the view is three-quarter rather
+  than end-on. It looks at a point about 0.45 m ahead of the board, just above the
+  deck. The board and the feet fill a good part of the screen. (The first draft had
+  2.2 m / 1.2 m; the board read too small.) Values live in
+  `presentation.config.ts` → `camera`.
 - Its position follows with critical damping. It does **not** copy the board's
   roll or flip rotation. The camera follows the board's direction of travel,
   so a flip reads clearly.
-- FOV is 60°. When airborne, zoom out slightly (+5°), and ease back in on
+- FOV is 55°. When airborne, zoom out slightly (+5°), and ease back in on
   landing.
 
 ## HUD

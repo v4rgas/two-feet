@@ -89,21 +89,22 @@ export const PRESENTATION_CONFIG = deepFreeze({
     legOpacity: 0.35,
   },
   camera: {
-    fovDeg: 60,
+    fovDeg: 55,
     /** Extra FOV while airborne (STYLE.md: +5°). */
     airborneFovExtraDeg: 5,
     /** Time constant of the FOV ease in/out, s. */
     fovEaseTauS: 0.25,
     /** Board must be airborne at least this long before the FOV widens, s (ignores bumps). */
     airborneFovMinAirS: 0.06,
-    distanceBehindM: 2.2,
-    heightM: 1.2,
-    /** Offset toward the rider's heel side, m. */
-    heelSideOffsetM: 0.35,
+    /** Close follow: the board and feet fill a good part of the screen (STYLE.md §Camera). */
+    distanceBehindM: 1.1,
+    heightM: 0.65,
+    /** Offset toward the rider's heel side, m (a 3/4 view, so the deck is not end-on). */
+    heelSideOffsetM: 0.4,
     /** The camera aims this far ahead of the board, m… */
-    lookAheadM: 1.2,
+    lookAheadM: 0.45,
     /** …and this high above the board origin, m. */
-    lookHeightM: 0.25,
+    lookHeightM: 0.08,
     /** Smooth time of the critically damped position follow, s. */
     positionSmoothTimeS: 0.18,
     /** Smooth time of the look target, s. */
