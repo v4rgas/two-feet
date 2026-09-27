@@ -78,8 +78,10 @@ export const RIDER_CONFIG = deepFreeze({
     /** Tail press (↓ alone): PD toward this nose-up pitch, rad. */
     manualPitchRad: 0.16,
     /** Tail press PD natural frequency, rad/s, and its torque cap, N·m. */
-    manualOmegaRadps: 12,
-    manualMaxTorqueNm: 10,
+    manualOmegaRadps: 40,
+    manualMaxTorqueNm: 20,
+    /** …and keeps the board straight along the rider heading (yaw PD), rad/s. */
+    manualYawOmegaRadps: 10,
 
     /** W within this long after the pop levels the board (ollie), s. */
     levelWindowS: 0.35,
@@ -100,6 +102,16 @@ export const RIDER_CONFIG = deepFreeze({
     /** The shove completes 180° in this fraction of the predicted airtime. */
     shoveCompleteFraction: 0.85,
     maxShoveRateRadps: 20,
+    /**
+     * Scoop: the shove spins tilted. Peak dip of the scooped kick (far end up) and lean
+     * toward the scoop side, reached mid-scoop, rad.
+     */
+    shoveScoopPitchRad: 0.3,
+    shoveScoopRollRad: 0.12,
+    /** The scoop lasts this fraction of the 180° spin, then the board is level again. */
+    scoopDurationFraction: 0.75,
+    /** Scoop tracking PD natural frequency, rad/s. */
+    scoopOmegaRadps: 45,
 
     /** Catch cone: board tilt within this of upright… */
     catchRollRad: 0.7,

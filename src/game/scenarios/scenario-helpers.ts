@@ -3,7 +3,7 @@
  * Gestures follow MECHANICS.md; keys are chosen by foot role and board edge, so the same
  * script plays in both stances (regular: WASD = front, arrows = back).
  */
-import type { Stance } from "../../shared";
+import type { FootId, Kick, Stance } from "../../shared";
 import { Transform, Vec3 } from "../../shared";
 import type { FootDirection, HarnessOptions, StepRecord } from "./scenario-harness";
 import { ScenarioHarness } from "./scenario-harness";
@@ -30,10 +30,31 @@ export function heel(stance: Stance): FootDirection {
   return stance === "regular" ? "left" : "right";
 }
 
-/** Load (↓ + set) for `loadS`, then release ↓ (the pop). Times relative to now. */
-export function loadAndPop(h: ScenarioHarness, loadS = 0.2): void {
-  h.foot("back", "down", 0, loadS);
-  h.foot("front", toe(h.stance), 0, loadS);
+/** The pop foot of a kick (back on the tail, front on the nose) and the guide foot. */
+export function popFoot(kick: Kick): FootId {
+  return kick === "tail" ? "back" : "front";
+}
+export function guideFoot(kick: Kick): FootId {
+  return kick === "tail" ? "front" : "back";
+}
+
+/** Stick direction of a foot toward a kick (the tail is "down", the nose "up"). */
+export function toward(kick: Kick): FootDirection {
+  return kick === "tail" ? "down" : "up";
+}
+
+/** Stick direction away from a kick (the guide foot's level key: W for an ollie). */
+export function awayFrom(kick: Kick): FootDirection {
+  return kick === "tail" ? "up" : "down";
+}
+
+/**
+ * Load (pop foot on its kick + guide foot set to the toe edge) for `loadS`, then release
+ * (the pop). Ollie: ↓ + D. Nollie: W + → (regular). Times relative to now.
+ */
+export function loadAndPop(h: ScenarioHarness, loadS = 0.2, kick: Kick = "tail"): void {
+  h.foot(popFoot(kick), toward(kick), 0, loadS);
+  h.foot(guideFoot(kick), toe(h.stance), 0, loadS);
 }
 
 /** Press Space (catch in the air) at `atS` for 0.1 s. */

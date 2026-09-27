@@ -88,13 +88,14 @@ export class DefaultRiderSystem implements RiderSystem {
     const tick = board.tick + 1;
     const timeS = board.timeS + dtS;
     for (const f of this.forces) this.apply(f);
-    if (output.popped) {
+    if (output.popped !== null) {
       const pop = this.forces.find((f) => f.label === "pop" && f.kind === "impulse");
       this.bus.publish({
         type: "BoardPopped",
         tick,
         timeS,
-        foot: "back",
+        foot: output.popped === "nose" ? "front" : "back",
+        kick: output.popped,
         impulseNs: pop?.kind === "impulse" ? Vec3.length(pop.impulseNs) : 0,
         pointWorldM: pop?.kind === "impulse" ? pop.pointWorldM : board.transform.positionM,
       });

@@ -104,6 +104,25 @@ describe("7. tail press (↓ alone)", () => {
   }
 });
 
+describe("11. nose press (W alone)", () => {
+  it("3 s of W holds ≈ −manualPitchRad, nose above −2 mm, release does not pop", async () => {
+    const h = await track(rolling(1.3));
+    const t0 = h.timeS;
+    h.foot("front", "up", 0, 3).run(3.6);
+    const spec = h.sim.spec;
+    const held = h.since(t0 + 0.6).filter((r) => r.timeS <= t0 + 3);
+    const noseY = h
+      .since(t0)
+      .map((r) => Transform.toWorldPoint(r.board.transform, BoardSpec.noseTipLocal(spec)).y);
+    expect(Math.min(...noseY)).toBeGreaterThan(-0.002);
+    const mean = held.reduce((a, r) => a + h.pitchRad(r.board), 0) / held.length;
+    expect(Math.abs(mean + RIDER_CONFIG.tricks.manualPitchRad)).toBeLessThan(0.05);
+    expect(h.eventsOf("BoardPopped")).toHaveLength(0);
+    expect(h.eventsOf("RiderBailed")).toHaveLength(0);
+    expect(h.board.wheelsDown).toBe(4);
+  }, T);
+});
+
 describe("8. no free thrust: feet alone never speed the board up", () => {
   const dirs = ["up", "down", "left", "right"] as const;
   const combos: [string, string][] = [];

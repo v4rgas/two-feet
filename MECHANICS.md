@@ -58,7 +58,7 @@ The rest of this document uses regular-stance keys.
 ```
 ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (manual)  ──release──▶ ROLLING (no pop)
    │
-   └──(↓ + D held ≥ loadMinS)──▶ LOADED ──release ↓──▶ POP ──▶ AIR ──land──▶ ROLLING / BAIL
+   └──(↓ + D, release D)──▶ ARMED ──release ↓──▶ POP ──▶ AIR ──land──▶ ROLLING / BAIL
                                                           │
                               within windows after pop:   ├─ W        → level (ollie)
                                                           ├─ A / W+A  → kickflip (+level if W)
@@ -72,22 +72,38 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 - `Space` pushes.
 
 ### Tail press (manual)
-- **Gesture:** hold `↓` without the front foot set.
+- **Gesture:** hold `↓` with **no WASD key pressed**, and not armed (see
+  below).
 - **Physics:** a PD controller holds the board at `manualPitchRad`, about 8–10°
   nose up. The tail may touch the ground but never goes into it. The torque is
   capped. There is no pop on release.
 - This is also the base for manuals later.
 
-### Load
-- **Gesture:** hold `↓` and `D` together for at least `loadMinS` (≈ 0.08 s).
-- **Physics:** the board stays on four wheels (no tail press). Carving is off
-  while loaded.
-- **HUD:** the back pad shows a filled ring and the front pad shows "set".
-- Longer loading gives a higher pop, up to `loadMaxS` (≈ 0.35 s). Beyond that,
-  holding longer adds nothing.
+### Load and arm (the ollie set-up)
+- **Gesture, in order:**
+  1. hold `↓`
+  2. press `D`
+  3. release `D`
+  4. release `↓`
+
+  Step 4 is the pop.
+- **Loading:** while `↓` + `D` are held together, the board stays on four
+  wheels (no tail press) and carving is off. The pop height grows with how
+  long they were held together: `loadFraction` goes from 0 at `loadMinS`
+  (≈ 0.05 s) to 1 at `loadMaxS` (≈ 0.30 s).
+- **Arming:** releasing `D` while still holding `↓` **arms** the pop.
+  - The arm lasts `armWindowS` (≈ 0.40 s).
+  - While armed, the board stays on its wheels even though only `↓` is held.
+    It is *not* a manual.
+  - If `↓` is still held when the arm expires, the board turns into a normal
+    tail press and no pop happens.
+- **Forgiving order:** releasing `↓` while `D` is still held also pops. That
+  way slightly wrong finger order never feels broken.
+- **HUD:** the back pad shows a filled ring while loaded or armed. The front
+  pad shows "set".
 
 ### Pop
-- **Gesture:** release `↓` while loaded. Releasing `D` doesn't matter.
+- **Gesture:** release `↓` while armed (or while loaded).
 - **Condition:** the board must be on its wheels.
 - **Physics:**
   - Target height `h = lerp(popMinHeightM, popMaxHeightM, loadFraction)`. Start
@@ -187,12 +203,12 @@ The mechanic is written in terms of two roles:
 |---|---|---|
 | Pop foot | back foot on the tail | front foot on the nose |
 | Guide foot | front foot | back foot |
-| Load | `↓` + `D` | `W` + `→` (back foot set toward the toe edge) |
+| Set-up | hold `↓`, tap `D` | hold `W`, tap `→` (back foot set toward the toe edge) |
 | Pop | release `↓` | release `W` |
 | Level | `W` (guide foot → nose) | `↓` (guide foot → tail) |
 | Kickflip | `A` / `W`+`A` | `←` / `↓`+`←` (guide foot → heel edge) |
 | Shove-it (BS / FS) | `←` / `→` | `A` / `D` (pop foot sweeps) |
-| Press (manual) | hold `↓` alone: tail press | hold `W` alone: nose press |
+| Press (manual) | hold `↓` alone, no WASD: tail press | hold `W` alone, no arrows: nose press |
 
 (Regular-stance keys; goofy mirrors them the same way as in the key table.)
 
@@ -213,8 +229,9 @@ These are all first guesses. The dev tuning panel must expose them live.
 
 | Key | Start value |
 |---|---|
-| `loadMinS` | 0.08 |
-| `loadMaxS` | 0.35 |
+| `loadMinS` | 0.05 |
+| `armWindowS` | 0.40 |
+| `loadMaxS` | 0.30 |
 | `popMinHeightM` / `popMaxHeightM` | 0.18 / 0.40 |
 | `popPitchRateRadps` | 6 |
 | `manualPitchRad` | 0.16 |
@@ -233,7 +250,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 
 ## Acceptance scenarios (headless, real Rapier)
 
-1. **Ollie:** `↓`+`D` for 0.2 s, release `↓`, then `W` 0.05 s later, then
+1. **Ollie:** hold `↓`, press `D`, 0.15 s later release `D`, 0.05 s later release `↓`, then `W` 0.05 s later, then
    release and press `Space` to catch. Clean landing, height ≥ 0.25 m, forward speed kept within
    10%. Works in both stances with the mirrored keys.
 2. **Sloppy ollie:** the same without `W`. It lands nose-high or bails. There

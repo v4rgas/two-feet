@@ -1,4 +1,4 @@
-import type { FootId, Stance, Transform, Vec3 } from "../../../shared";
+import type { FootId, Kick, Stance, Transform, Vec3 } from "../../../shared";
 import type { FootForce } from "./foot-force";
 import type { RiderState } from "./rider-state";
 
@@ -80,8 +80,8 @@ export interface FootForceInput {
 /** What the model decided this step: forces for the board, cues for the `Rider`. */
 export interface FootForceOutput {
   readonly forces: readonly FootForce[];
-  /** The pop fired this step: the rider jumps, the feet leave the deck. */
-  readonly popped: boolean;
+  /** The kick that popped this step (the rider jumps, the feet leave the deck), or null. */
+  readonly popped: Kick | null;
   /** The board was caught this step: the feet snap back onto the deck. */
   readonly caught: boolean;
 }
