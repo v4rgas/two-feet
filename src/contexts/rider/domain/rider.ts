@@ -196,12 +196,7 @@ export class Rider {
    * `maxSlideSpeedMps`); while grounded it stays over the deck (leaning does not step
    * off). An airborne foot is simply held at its target.
    */
-  private moveHold(
-    foot: Foot,
-    target: DeckPosition,
-    board: BoardKinematics,
-    dtS: number,
-  ): void {
+  private moveHold(foot: Foot, target: DeckPosition, board: BoardKinematics, dtS: number): void {
     if (!foot.isAttached) {
       foot.holdAt(target);
       return;

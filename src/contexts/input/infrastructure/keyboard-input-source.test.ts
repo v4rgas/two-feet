@@ -46,7 +46,11 @@ describe("KeyboardInputSource", () => {
     expect(source.sample().feetDown).toBe(true);
     release("KeyS");
     release("Space");
-    expect(source.sample()).toEqual({ left: { x: 0, y: 0 }, right: { x: 0, y: 0 }, feetDown: false });
+    expect(source.sample()).toEqual({
+      left: { x: 0, y: 0 },
+      right: { x: 0, y: 0 },
+      feetDown: false,
+    });
   });
 
   it("opposite keys: the most recent press wins", () => {
@@ -64,7 +68,11 @@ describe("KeyboardInputSource", () => {
     press("ArrowUp");
     press("Space");
     target.dispatchEvent(new Event("blur"));
-    expect(source.sample()).toEqual({ left: { x: 0, y: 0 }, right: { x: 0, y: 0 }, feetDown: false });
+    expect(source.sample()).toEqual({
+      left: { x: 0, y: 0 },
+      right: { x: 0, y: 0 },
+      feetDown: false,
+    });
   });
 
   it("prevents the default action of arrows and Space only", () => {

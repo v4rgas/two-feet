@@ -82,45 +82,53 @@ describe("10. idle", () => {
 
 describe("7. tail press (↓ alone)", () => {
   for (const pushS of [0, 1.3]) {
-    it(`${pushS > 0 ? "rolling" : "standing"}: 3 s of ↓ holds ≈ manualPitchRad, tail above −2 mm, no jitter, release does not pop`, async () => {
-      const h = await track(rolling(pushS));
-      const t0 = h.timeS;
-      h.foot("back", "down", 0, 3).run(3.6);
-      const spec = h.sim.spec;
-      const held = h.since(t0 + 0.6).filter((r) => r.timeS <= t0 + 3);
-      const tailY = h
-        .since(t0)
-        .map((r) => Transform.toWorldPoint(r.board.transform, BoardSpec.tailTipLocal(spec)).y);
-      expect(Math.min(...tailY)).toBeGreaterThan(-0.002);
-      const pitches = held.map((r) => h.pitchRad(r.board));
-      const mean = pitches.reduce((a, p) => a + p, 0) / pitches.length;
-      expect(Math.abs(mean - RIDER_CONFIG.tricks.manualPitchRad)).toBeLessThan(0.05);
-      const jumps = pitches.slice(1).map((p, i) => Math.abs(p - (pitches[i] ?? p)));
-      expect(Math.max(...jumps)).toBeLessThan(0.01);
-      expect(h.eventsOf("BoardPopped")).toHaveLength(0);
-      expect(h.eventsOf("RiderBailed")).toHaveLength(0);
-      expect(h.board.wheelsDown).toBe(4);
-    }, T);
+    it(
+      `${pushS > 0 ? "rolling" : "standing"}: 3 s of ↓ holds ≈ manualPitchRad, tail above −2 mm, no jitter, release does not pop`,
+      async () => {
+        const h = await track(rolling(pushS));
+        const t0 = h.timeS;
+        h.foot("back", "down", 0, 3).run(3.6);
+        const spec = h.sim.spec;
+        const held = h.since(t0 + 0.6).filter((r) => r.timeS <= t0 + 3);
+        const tailY = h
+          .since(t0)
+          .map((r) => Transform.toWorldPoint(r.board.transform, BoardSpec.tailTipLocal(spec)).y);
+        expect(Math.min(...tailY)).toBeGreaterThan(-0.002);
+        const pitches = held.map((r) => h.pitchRad(r.board));
+        const mean = pitches.reduce((a, p) => a + p, 0) / pitches.length;
+        expect(Math.abs(mean - RIDER_CONFIG.tricks.manualPitchRad)).toBeLessThan(0.05);
+        const jumps = pitches.slice(1).map((p, i) => Math.abs(p - (pitches[i] ?? p)));
+        expect(Math.max(...jumps)).toBeLessThan(0.01);
+        expect(h.eventsOf("BoardPopped")).toHaveLength(0);
+        expect(h.eventsOf("RiderBailed")).toHaveLength(0);
+        expect(h.board.wheelsDown).toBe(4);
+      },
+      T,
+    );
   }
 });
 
 describe("11. nose press (W alone)", () => {
-  it("3 s of W holds ≈ −manualPitchRad, nose above −2 mm, release does not pop", async () => {
-    const h = await track(rolling(1.3));
-    const t0 = h.timeS;
-    h.foot("front", "up", 0, 3).run(3.6);
-    const spec = h.sim.spec;
-    const held = h.since(t0 + 0.6).filter((r) => r.timeS <= t0 + 3);
-    const noseY = h
-      .since(t0)
-      .map((r) => Transform.toWorldPoint(r.board.transform, BoardSpec.noseTipLocal(spec)).y);
-    expect(Math.min(...noseY)).toBeGreaterThan(-0.002);
-    const mean = held.reduce((a, r) => a + h.pitchRad(r.board), 0) / held.length;
-    expect(Math.abs(mean + RIDER_CONFIG.tricks.manualPitchRad)).toBeLessThan(0.05);
-    expect(h.eventsOf("BoardPopped")).toHaveLength(0);
-    expect(h.eventsOf("RiderBailed")).toHaveLength(0);
-    expect(h.board.wheelsDown).toBe(4);
-  }, T);
+  it(
+    "3 s of W holds ≈ −manualPitchRad, nose above −2 mm, release does not pop",
+    async () => {
+      const h = await track(rolling(1.3));
+      const t0 = h.timeS;
+      h.foot("front", "up", 0, 3).run(3.6);
+      const spec = h.sim.spec;
+      const held = h.since(t0 + 0.6).filter((r) => r.timeS <= t0 + 3);
+      const noseY = h
+        .since(t0)
+        .map((r) => Transform.toWorldPoint(r.board.transform, BoardSpec.noseTipLocal(spec)).y);
+      expect(Math.min(...noseY)).toBeGreaterThan(-0.002);
+      const mean = held.reduce((a, r) => a + h.pitchRad(r.board), 0) / held.length;
+      expect(Math.abs(mean + RIDER_CONFIG.tricks.manualPitchRad)).toBeLessThan(0.05);
+      expect(h.eventsOf("BoardPopped")).toHaveLength(0);
+      expect(h.eventsOf("RiderBailed")).toHaveLength(0);
+      expect(h.board.wheelsDown).toBe(4);
+    },
+    T,
+  );
 });
 
 describe("8. no free thrust: feet alone never speed the board up", () => {

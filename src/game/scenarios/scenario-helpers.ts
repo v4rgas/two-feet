@@ -49,12 +49,13 @@ export function awayFrom(kick: Kick): FootDirection {
 }
 
 /**
- * Load (pop foot on its kick + guide foot set to the toe edge) for `loadS`, then release
- * (the pop). Ollie: ↓ + D. Nollie: W + → (regular). Times relative to now.
+ * The set-up (MECHANICS.md "Load" / "Pop"): the pop foot goes onto its kick, the guide
+ * foot sets 0.02 s later and stays set; the pop foot is released at `popAtS` (the pop) while
+ * the set is still held. Ollie: ↓, D, release ↓. Nollie: W, →, release W. Times from now.
  */
-export function loadAndPop(h: ScenarioHarness, loadS = 0.2, kick: Kick = "tail"): void {
-  h.foot(popFoot(kick), toward(kick), 0, loadS);
-  h.foot(guideFoot(kick), toe(h.stance), 0, loadS);
+export function loadAndPop(h: ScenarioHarness, popAtS = 0.22, kick: Kick = "tail"): void {
+  h.foot(popFoot(kick), toward(kick), 0, popAtS);
+  h.foot(guideFoot(kick), toe(h.stance), 0.02, popAtS + 0.05);
 }
 
 /** Press Space (catch in the air) at `atS` for 0.1 s. */

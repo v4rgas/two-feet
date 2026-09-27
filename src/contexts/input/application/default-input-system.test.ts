@@ -8,7 +8,11 @@ import { DefaultInputSystem } from "./default-input-system";
 const DT = 1 / 120;
 
 class ScriptedSource implements InputSource {
-  current: RawInputSample = { left: StickValue.NEUTRAL, right: StickValue.NEUTRAL, feetDown: false };
+  current: RawInputSample = {
+    left: StickValue.NEUTRAL,
+    right: StickValue.NEUTRAL,
+    feetDown: false,
+  };
   sample(): RawInputSample {
     return this.current;
   }
