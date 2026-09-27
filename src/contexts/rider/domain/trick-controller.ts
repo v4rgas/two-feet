@@ -8,6 +8,7 @@ import {
   boardUp,
   deckPointWorld,
   restHeightM,
+  supportNormal,
   tiltRad,
   wrapPi,
 } from "./board-geometry";
@@ -62,8 +63,13 @@ class BoardFrame {
   readonly riderForward: Vec3;
   readonly riderSide: Vec3;
   /**
-   * Horizontal axis a nose-up rotation of the rider-front end turns about, and that end's
-   * elevation (rad, + = up) and pitch rate (rad/s) about it.
+   * "Level" for the assists: the normal of the ground the wheels touch (a bank, a
+   * transition), world up when no wheel touches.
+   */
+  readonly support: Vec3;
+  /**
+   * Axis (in the support plane) a nose-up rotation of the rider-front end turns about, and
+   * that end's elevation above the support plane (rad, + = up) and pitch rate (rad/s).
    */
   readonly pitchAxis: Vec3;
   readonly frontPitchRad: number;
@@ -98,12 +104,15 @@ class BoardFrame {
     const yaw = Quat.fromAxisAngle(Vec3.UNIT_Y, riderHeadingRad);
     this.riderForward = Quat.rotate(yaw, Vec3.UNIT_X);
     this.riderSide = Quat.rotate(yaw, Vec3.UNIT_Z);
+    this.support = supportNormal(board);
     // The board's long axis, pointed at the rider's front.
     const facing = Vec3.dot(this.forward, this.riderForward) >= 0 ? 1 : -1;
     const front = Vec3.scale(this.forward, facing);
-    const flat = Vec3.normalize(Vec3.create(front.x, 0, front.z));
-    this.pitchAxis = Vec3.lengthSq(flat) > 0 ? Vec3.cross(flat, Vec3.UNIT_Y) : this.riderSide;
-    this.frontPitchRad = Math.asin(Math.max(-1, Math.min(1, front.y)));
+    const along = Vec3.dot(front, this.support);
+    const inPlane = Vec3.sub(front, Vec3.scale(this.support, along));
+    const flat = Vec3.lengthSq(inPlane) > 1e-9 ? Vec3.normalize(inPlane) : Vec3.ZERO;
+    this.pitchAxis = Vec3.lengthSq(flat) > 0 ? Vec3.cross(flat, this.support) : this.riderSide;
+    this.frontPitchRad = Math.asin(Math.max(-1, Math.min(1, along)));
     this.noseUpAxis = Vec3.scale(Transform.toWorldDirection(board.transform, Vec3.UNIT_Z), facing);
     this.frontPitchRateRadps = Vec3.dot(board.angularVelocityRadps, this.pitchAxis);
   }
@@ -173,6 +182,8 @@ export class TrickController implements FootForceModel {
   private pushCooldownS = 0;
   /** Space held from the air (the catch) does not push after landing until released. */
   private pushLocked = false;
+  /** Ground height below the board this step (world y, m), for the airtime prediction. */
+  private groundYM = 0;
 
   constructor(
     private readonly deck: DeckGeometry,
@@ -193,6 +204,7 @@ export class TrickController implements FootForceModel {
 
   computeForces(input: FootForceInput): FootForceOutput {
     const { controls, rider, board, dtS } = input;
+    this.groundYM = input.groundBelowYM ?? 0;
     const keys = this.readKeys(controls);
     const feetDownPressed = controls.feetDown && !this.feetDownBefore;
     const releasedNow = keys.released && !this.releasedBefore;
@@ -355,8 +367,10 @@ export class TrickController implements FootForceModel {
   ): void {
     const { stance } = this.config;
     const lean = this.loadKick !== null ? 0 : carveLean(controls, rider, stance.carveMinStickX);
-    // Weight acts straight down (world −Y): along a pitched deck's normal it would thrust.
-    const down = Vec3.create(0, -1, 0);
+    // Weight acts into the ground the wheels roll on (−mean wheel normal): straight down on
+    // the flat — also in a manual, where the deck's own −Y would thrust — and into the
+    // slope on a bank or a wall, where world down would brake the light board.
+    const down = Vec3.scale(supportNormal(board), -1);
     // The carve lean is in the rider frame (+Z side); map it onto the board's own Z.
     const boardSide = Transform.toWorldDirection(board.transform, Vec3.UNIT_Z);
     const facing = Math.sign(Vec3.dot(boardSide, frame.riderSide)) || 1;
@@ -844,11 +858,11 @@ export class TrickController implements FootForceModel {
 
   /**
    * Remaining airtime (ballistic) of the board centre falling back to its rest height plus
-   * `landingMarginM`, s.
+   * `landingMarginM` above the ground below it (probed: stairs, ramps), s.
    */
   private remainingAirtimeS(board: BoardKinematics): number {
     const { gravityMps2: g, landingMarginM, minAirtimeS } = this.config.tricks;
-    const landingY = restHeightM(this.deck) + landingMarginM;
+    const landingY = this.groundYM + restHeightM(this.deck) + landingMarginM;
     const heightM = Math.max(0, board.transform.positionM.y - landingY);
     const vy = board.linearVelocityMps.y;
     const airS = (vy + Math.sqrt(vy * vy + 2 * g * heightM)) / g;
@@ -914,7 +928,7 @@ export class TrickController implements FootForceModel {
   ): void {
     const { catchAssist, catchOmegaRadps: w } = this.config.tricks;
     const board = frame.board;
-    const levelError = Vec3.cross(frame.up, Vec3.UNIT_Y);
+    const levelError = Vec3.cross(frame.up, frame.support);
     const heading = boardHeadingRad(board);
     const yawError = heading === null ? 0 : -axisErrorRad(heading - rider.headingRad);
     const side = Transform.toWorldDirection(board.transform, Vec3.UNIT_Z);

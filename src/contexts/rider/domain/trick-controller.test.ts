@@ -69,8 +69,8 @@ describe("TrickController — rolling", () => {
     expect(press).toHaveLength(2);
     for (const f of press) {
       if (f.kind !== "force") throw new Error("press is a force");
-      expect(f.forceN.x).toBe(0);
-      expect(f.forceN.z).toBe(0);
+      expect(Math.abs(f.forceN.x)).toBe(0);
+      expect(Math.abs(f.forceN.z)).toBe(0);
       expect(f.forceN.y).toBeCloseTo(-RIDER_CONFIG.stance.standingPressN);
       expect(f.pointWorldM.z).toBeCloseTo(0, 9);
     }

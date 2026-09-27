@@ -80,6 +80,8 @@ export const RIDER_CONFIG = deepFreeze({
      * (a tilted or flipping board touches down with a wheel or an edge earlier), m.
      */
     landingMarginM: 0.06,
+    /** How far below the board the ground is looked for (airtime prediction), m. */
+    groundProbeM: 10,
     /** Floor of the predicted remaining airtime, so a very late flick is not infinitely fast, s. */
     minAirtimeS: 0.05,
 

@@ -14,6 +14,7 @@ import { clusterForFoot, INPUT_CONFIG } from "../../contexts/input";
 import { KeyboardInputSource } from "../../contexts/input/infrastructure/keyboard-input-source";
 import type { FootForce, RiderConfig, RiderState } from "../../contexts/rider";
 import { RIDER_CONFIG } from "../../contexts/rider";
+import type { Level } from "../../contexts/world";
 import { createFlatGroundLevel, WORLD_CONFIG } from "../../contexts/world";
 import type { DomainEvent, FootId, Stance } from "../../shared";
 import { ManualClock, Transform, Vec3 } from "../../shared";
@@ -55,6 +56,8 @@ export interface HarnessOptions {
   readonly rider?: RiderConfig;
   readonly input?: InputConfig;
   readonly game?: GameConfig;
+  /** The level (default: flat ground). */
+  readonly level?: Level;
 }
 
 class MemoryStanceRepository implements StanceRepository {
@@ -98,7 +101,7 @@ export class ScenarioHarness {
         input: options.input ?? INPUT_CONFIG,
         game,
       },
-      level: createFlatGroundLevel(WORLD_CONFIG.flatGround),
+      level: options.level ?? createFlatGroundLevel(WORLD_CONFIG.flatGround),
       inputSource: new KeyboardInputSource(keys, INPUT_CONFIG.keys),
       stanceRepository: new MemoryStanceRepository(stance),
       clock: new ManualClock(),
@@ -126,6 +129,14 @@ export class ScenarioHarness {
       this.pending.push({ atS: now + p.atS + p.holdS, type: "keyup", code: p.code });
     }
     this.pending.sort((a, b) => a.atS - b.atS);
+    return this;
+  }
+
+  /** Sets the board rolling at `speedMps` along its nose, keeping its pose (a run-up). */
+  launch(speedMps: number): this {
+    const body = this.sim.board.body;
+    const t = body.getTransform();
+    body.resetTo(t, Transform.toWorldDirection(t, Vec3.create(speedMps, 0, 0)));
     return this;
   }
 

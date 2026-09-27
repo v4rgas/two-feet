@@ -66,6 +66,19 @@ export function restHeightM(deck: DeckGeometry): number {
 }
 
 /** Wraps an angle to (−π, π]. */
+/**
+ * The ground the board rolls on: the mean normal of its wheel contacts (unit), or world up
+ * when no wheel touches (or the snapshot carries no contacts).
+ */
+export function supportNormal(board: BoardKinematics): Vec3 {
+  let sum = Vec3.ZERO;
+  for (const c of board.contactPoints ?? []) {
+    if (c.normalWorld === undefined || c.part === undefined || !c.part.endsWith("Wheel")) continue;
+    sum = Vec3.add(sum, c.normalWorld);
+  }
+  return Vec3.lengthSq(sum) > 1e-9 ? Vec3.normalize(sum) : Vec3.UNIT_Y;
+}
+
 export function wrapPi(a: number): number {
   return Math.atan2(Math.sin(a), Math.cos(a));
 }
