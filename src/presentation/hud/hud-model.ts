@@ -61,13 +61,17 @@ const BAIL_MESSAGE: PopupMessage = Object.freeze({ text: "bail", tone: "bail" })
 
 /**
  * Picks the popup message for one domain event, or null if the event does not show one.
- * `TrickLanded` → trick name; `TrickBailed` / `RiderBailed` → "bail".
+ * `TrickLanded` → trick name; `TrickBailed` → "<closest trick> · bail" (or "bail" when the
+ * recognizer has no name); `RiderBailed` → "bail".
  */
 export function popupForEvent(event: DomainEvent): PopupMessage | null {
   switch (event.type) {
     case "TrickLanded":
       return { text: event.name, tone: "trick" };
     case "TrickBailed":
+      return event.name === null || event.name === ""
+        ? BAIL_MESSAGE
+        : { text: `${event.name} · ${BAIL_MESSAGE.text}`, tone: "bail" };
     case "RiderBailed":
       return BAIL_MESSAGE;
     default:
@@ -76,8 +80,9 @@ export function popupForEvent(event: DomainEvent): PopupMessage | null {
 }
 
 /**
- * Popup state machine. A bail right after another bail (e.g. `TrickBailed` then
- * `RiderBailed` for the same landing) does not restart the popup.
+ * Popup state machine. A bail right after another bail (e.g. `RiderBailed` then
+ * `TrickBailed` for the same landing) does not restart the popup; a named bail only
+ * replaces the text of a plain "bail".
  */
 export class PopupModel {
   message: PopupMessage | null = null;
@@ -89,7 +94,10 @@ export class PopupModel {
     const next = popupForEvent(event);
     if (next === null) return;
     const showing = this.ageS < this.config.popupDurationS;
-    if (showing && next.tone === "bail" && this.message?.tone === "bail") return;
+    if (showing && next.tone === "bail" && this.message?.tone === "bail") {
+      if (this.message.text === BAIL_MESSAGE.text) this.message = next;
+      return;
+    }
     this.message = next;
     this.ageS = 0;
   }

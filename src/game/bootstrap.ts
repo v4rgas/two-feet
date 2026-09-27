@@ -3,6 +3,7 @@ import { INPUT_CONFIG } from "../contexts/input";
 import { KeyboardInputSource } from "../contexts/input/infrastructure/keyboard-input-source";
 import { LocalStorageStanceRepository } from "../contexts/input/infrastructure/local-storage-stance-repository";
 import { RIDER_CONFIG } from "../contexts/rider";
+import { TRICKS_CONFIG } from "../contexts/tricks";
 import { createFlatGroundLevel, WORLD_CONFIG } from "../contexts/world";
 import { PRESENTATION_CONFIG } from "../presentation/presentation.config";
 import { ThreeRenderer } from "../presentation/three-renderer";
@@ -31,6 +32,7 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<GameLoop> {
     rider: RIDER_CONFIG,
     input: INPUT_CONFIG,
     game: GAME_CONFIG,
+    tricks: TRICKS_CONFIG,
   };
   const level = createFlatGroundLevel(WORLD_CONFIG.flatGround);
   const sim = await composeSimulation({

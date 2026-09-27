@@ -41,9 +41,9 @@ export function createTunableConfigs(): TunableConfigs {
 /**
  * Loads lil-gui lazily and builds the panel. Call only when `import.meta.env.DEV`.
  *
- * Live: `presentation` (ThreeRenderer), `board`, `rider`, `input`, `game` — `bootstrap.ts`
- * injects these very clones into the systems, which read them every step. `tricks` is
- * not wired yet (M2). Values baked at construction need a page reload: `board.spec`
+ * Live: `presentation` (ThreeRenderer), `board`, `rider`, `input`, `tricks`, `game` —
+ * `bootstrap.ts` injects these very clones into the systems, which read them every step.
+ * Values baked at construction need a page reload: `board.spec`
  * (body + colliders), `board.colliders`, `board.physics.gravityMps2`, `solverIterations`,
  * the collider friction/restitution, `input.keys`, `game.loop.fixedStepS`.
  */
