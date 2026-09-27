@@ -131,7 +131,7 @@ const MAX_BLIP_S = 0.03;
 describe("street course transitions (board only)", () => {
   it("funbox at 4.5 m/s along X: up the −X bank, over the top, down the +X bank — no air, 4 wheels at both toes", async () => {
     // The lane between the flat rail (z = −0.7) and the down rail (z = +0.6).
-    const r = await ride(at(0.5, 0, 0), 4.5, 5);
+    const r = await ride(at(FB.xM - 7.5, 0, 0), 4.5, 5);
     // No air: at most a crest blip (the wheels ease ≤ 3 mm off for a step or two).
     expect(Math.max(0, ...airSpells(r))).toBeLessThanOrEqual(MAX_BLIP_S);
     const westToe = FB_RUN_TOE(FB.xM - FB.topLengthM / 2, -1);
@@ -150,10 +150,11 @@ describe("street course transitions (board only)", () => {
     expect(end.linearVelocityMps.x).toBeGreaterThan(3); // 4.5 in, ≈ 3.6 out
     expect(Math.abs(end.transform.positionM.z)).toBeLessThan(0.05);
     expect(end.wheelsDown).toBe(4);
-  });
+  }, 20_000); // 5 s of simulation: slow on a loaded machine
 
   it("funbox at 4.5 m/s up the −Z bank: onto the top without a hop, then off the ledge side and lands", async () => {
-    const r = await ride(at(FB.xM - 0.5, 0, -6, -Math.PI / 2), 4.5, 3);
+    // From the gap between the long ledge (z = −4.75) and the bank's toe.
+    const r = await ride(at(FB.xM - 0.5, 0, -4.4, -Math.PI / 2), 4.5, 2.6);
     const southToe = FB_RUN_TOE(FB.zM - FB.topWidthM / 2, -1);
     expect(minWheels(near(r, "z", southToe, 0.6))).toBe(4);
     const ledgeZ = FB.zM + FB.topWidthM / 2;
@@ -171,11 +172,13 @@ describe("street course transitions (board only)", () => {
     expect(end.linearVelocityMps.z).toBeGreaterThan(1.5);
   });
 
-  it("hip at 4.5 m/s: up its −X bank beside the ridge onto the top, never airborne until it drops off the back", async () => {
+  it("hip at 4.7 m/s: up its −X bank beside the ridge onto the top, never airborne until it drops off the back", async () => {
     const hip = S.hip;
     const topZ0 = hip.zM - hip.topWidthM / 2;
     // A lane 0.4 m inside the top's −Z edge, so the ridge's rounding is right beside it.
-    const r = await ride(at(hip.xM - 5, 0, topZ0 + 0.4), 4.5, 3.2);
+    // 4.7 m/s: slower, the riderless board leaves the back wall (0.7 m) at < 2 m/s and
+    // tips nose-first onto its side.
+    const r = await ride(at(hip.xM - 5, 0, topZ0 + 0.4), 4.7, 3.1);
     const backX = hip.xM + hip.topLengthM / 2;
     const up = r.snaps.filter((s) => s.transform.positionM.x < backX - 0.3);
     expect(up.every((s) => s.grounded)).toBe(true);

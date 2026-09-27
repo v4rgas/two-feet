@@ -90,18 +90,36 @@ describe("street course level", () => {
     }
   });
 
-  it("fits in about 53 × 30 m, quarter pipes at both short ends", () => {
+  it("fits in about 37 × 22 m, ≥ 1 m inside the planned perimeter, the quarter pipe at the east end", () => {
     const rects = FEATURES.map(footprint);
     const minX = Math.min(...rects.map((r) => r.minX));
     const maxX = Math.max(...rects.map((r) => r.maxX));
     const minZ = Math.min(...rects.map((r) => r.minZ));
     const maxZ = Math.max(...rects.map((r) => r.maxZ));
-    expect(maxX - minX).toBeLessThan(56);
-    expect(maxZ - minZ).toBeLessThan(31);
-    const west = footprint(byId("qp-west"));
+    expect(maxX - minX).toBeGreaterThan(36);
+    expect(maxX - minX).toBeLessThan(40);
+    expect(maxZ - minZ).toBeGreaterThan(21);
+    expect(maxZ - minZ).toBeLessThan(26);
+    const p = S.perimeter;
+    expect(minX - p.minXM).toBeGreaterThanOrEqual(1 - 1e-9);
+    expect(p.maxXM - maxX).toBeGreaterThanOrEqual(1 - 1e-9);
+    expect(minZ - p.minZM).toBeGreaterThanOrEqual(1 - 1e-9);
+    expect(p.maxZM - maxZ).toBeGreaterThanOrEqual(1 - 1e-9);
     const east = footprint(byId("qp-east"));
-    expect(west.minX).toBeCloseTo(minX, 6);
     expect(east.maxX).toBeCloseTo(maxX, 6);
+  });
+
+  it("features are within a push or two: every feature has a neighbour ≤ 7 m away", () => {
+    const rects = FEATURES.map((o) => ({ id: o.id, r: footprint(o) }));
+    const gap = (a: Rect, b: Rect): number =>
+      Math.hypot(
+        Math.max(0, a.minX - b.maxX, b.minX - a.maxX),
+        Math.max(0, a.minZ - b.maxZ, b.minZ - a.maxZ),
+      );
+    for (const a of rects) {
+      const nearest = Math.min(...rects.filter((b) => b !== a).map((b) => gap(a.r, b.r)));
+      expect(nearest, `${a.id} is isolated`).toBeLessThanOrEqual(7);
+    }
   });
 
   it("no two obstacles overlap (the kinked rail stands in its 3-stair, over its middle)", () => {
@@ -136,7 +154,7 @@ describe("street course level", () => {
     expect(Math.abs(level.spawn.positionM.z)).toBeLessThan(stairs.shape.widthM / 2 - 0.5);
   });
 
-  it("leaves at least 4 m of clear roll-out after every drop (6 m after the stairs and the gap)", () => {
+  it("leaves at least 4 m of clear roll-out after every feature (6 m after the stairs and the gap)", () => {
     const big = byId("big-stairs");
     if (big.shape.kind !== "stairs") throw new Error("not stairs");
     const bigFoot = big.transform.positionM.x + stairsFootXM(big.shape);
@@ -159,8 +177,10 @@ describe("street course level", () => {
     const gz = gap.transform.positionM.z;
     expectClear("the euro gap", gap.transform.positionM.x, 6, gz - 2, gz + 2, ["gap-platform"]);
 
+    // The two manual pads are a line: 2 m of flat between them (a manual off one, onto the next).
+    const lowPad = footprint(byId("manual-pad-low"));
+    expectClear("manual-pad-low", lowPad.maxX, 2, lowPad.minZ, lowPad.maxZ, ["manual-pad-low"]);
     for (const id of [
-      "manual-pad-low",
       "manual-pad-high",
       "long-ledge",
       "flat-bar",
@@ -236,7 +256,6 @@ describe("street course level", () => {
       expect(of(id)).toHaveLength(2);
     }
     expect(of("flat-bar")).toHaveLength(1);
-    expect(of("qp-west")).toHaveLength(1);
     expect(of("qp-east")).toHaveLength(1);
 
     // Kinked rail: flat → down → flat, each segment starting where the last one ended.

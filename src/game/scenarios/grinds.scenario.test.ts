@@ -145,9 +145,9 @@ async function slideOntoLedge(
  * G4, the stairs line, as a key timeline from the clip start (regular stance), timed the
  * way a person would (ADR 0012: the middle of each window, full load, 0.12 s taps; the
  * human-jitter test G4H plays it perturbed). The board starts on the 7-stair's landing at
- * (−13, 1.05, 1.63) — 5 m behind the top nosing and 0.37 m inside the +Z hubba's steel edge
+ * (−11.5, 1.05, 1.63) — 5 m behind the top nosing and 0.37 m inside the +Z hubba's steel edge
  * (z = 2) — facing +X at 3.5 m/s:
- * - 0.3 ↓ + 0.32 S: load; release ↓ at 0.75: the pop (full load) at x ≈ −10.4 (the line
+ * - 0.3 ↓ + 0.32 S: load; release ↓ at 0.75: the pop (full load) at x ≈ −8.9 (the line
  *   lands for pops ≈ 0.16 s either side);
  * - 0.8 W + A: kickflip with the level (its height bonus clears the 0.28 m hubba);
  * - 1.0 ↓ held until 1.78: the tail press that picks the TAILSLIDE at the lock;
@@ -162,7 +162,7 @@ async function slideOntoLedge(
 const G4_SPAWN = {
   xM: S.bigStairs.xM - 5,
   yM: S.bigStairs.stepCount * S.bigStairs.riseM,
-  zM: S.bigStairs.widthM / 2 - 0.37,
+  zM: S.bigStairs.zM + S.bigStairs.widthM / 2 - 0.37,
   headingRad: 0,
   speedMps: 3.5,
 } as const;

@@ -10,8 +10,8 @@ const stairs = street.bigStairs;
 /**
  * Ollie down the 7-stair (1.05 m): rolling at 4.5 m/s on the landing, 4.5 m behind the
  * nosing in the lane between the handrail and the +Z hubba; ↓ + S from 0.72 s, the pop
- * at 0.92 s just before the nosing, W to level, Space as it comes down. It opens on a wide
- * shot of the course from above the funbox.
+ * at 0.92 s just before the nosing, W to level, Space as it comes down. It opens on a wide,
+ * high shot of the whole course from beyond its south side.
  */
 export const ollieSevenStair: MontageClip = {
   id: "ollie-seven-stair",
@@ -36,7 +36,7 @@ export const ollieSevenStair: MontageClip = {
       fromS: 0,
       shot: {
         kind: "fixedTripod",
-        positionM: [street.funbox.xM + 6, 9, -12],
+        positionM: [street.funbox.xM + 2, 19, street.perimeter.minZM - 15],
         fovStartDeg: 62,
         fovEndDeg: 50,
         zoomS: 1,

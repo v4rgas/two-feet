@@ -21,14 +21,16 @@ import { HUMAN_JITTER, jitterRuns, landedRate } from "./human-jitter";
  * easy levels were removed; their last rates are in ADR 0012).
  *
  * Measured on the Street Course (GAME.md: the park they ran on was removed; its rates were
- * G4H 20 %, 5-stair kickflip 100 %, flat-rail 50-50 52 %, kicker 360 flip 62 %):
+ * G4H 20 %, 5-stair kickflip 100 %, flat-rail 50-50 52 %, kicker 360 flip 62 %). The
+ * course was then redesigned tighter (src/maps/street/DESIGN.md; each line keeps its
+ * geometry relative to its feature):
  *
- * | line                                        | measured |
- * |---------------------------------------------|----------|
- * | G4H kickflip → tailslide → hardflip (hubba) | 28 % |
- * | kickflip down the 7-stair                   | 98 % |
- * | ollie to 50-50 on the flat bar              | 76 % |
- * | 360 flip down the euro gap                  | 84 % |
+ * | line                                        | first street | tight street |
+ * |---------------------------------------------|--------------|--------------|
+ * | G4H kickflip → tailslide → hardflip (hubba) | 28 %         | 30 %         |
+ * | kickflip down the 7-stair                   | 98 %         | 98 %         |
+ * | ollie to 50-50 on the flat bar              | 76 %         | 78 %         |
+ * | 360 flip down the euro gap                  | 84 %         | 84 %         |
  *
  * Each 50-run batch takes ≈ 5–7 s.
  */
@@ -49,7 +51,7 @@ const LINES: readonly Line[] = [
   {
     name: "G4H: kickflip → FS tailslide → hardflip out (the G4 line)",
     clip: stairsTailslideHardflip,
-    floor: 0.26,
+    floor: 0.28,
   },
   {
     name: "kickflip down the 7-stair",
@@ -60,7 +62,7 @@ const LINES: readonly Line[] = [
     name: "ollie to 50-50 on the flat bar (either side; balancing like a person)",
     clip: railFiftyFifty,
     options: { names: [/^(FS|BS) 50-50$/], balanceReflex: true },
-    floor: 0.74,
+    floor: 0.76,
   },
   {
     name: "360 flip down the euro gap",
