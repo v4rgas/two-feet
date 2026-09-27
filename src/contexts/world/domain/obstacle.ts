@@ -92,6 +92,8 @@ export interface HubbaParams {
    * tread). A long flat top gives a board coming down onto it from the run-up room.
    */
   readonly flatTopM?: number;
+  /** True: a mirror-image hubba on the −Z side too (a hubba on each side of the stairs). */
+  readonly bothSides?: boolean;
 }
 
 /** A handrail: a bar running down beside a stair set (on its −Z side), on two posts. */
@@ -99,8 +101,10 @@ export interface HandrailParams {
   /** Height of the top of the bar above the line of the stair nosings (measured square to it), m. */
   readonly heightM: number;
   readonly barRadiusM: number;
-  /** Gap between the stairs' side and the rail's axis, m. */
+  /** Gap between the stairs' side and the rail's axis, m (ignored when `centered`). */
   readonly offsetM: number;
+  /** True: the rail runs down the middle of the stairs (axis on z = 0), not beside them. */
+  readonly centered?: boolean;
 }
 
 /**
@@ -126,8 +130,113 @@ export interface StairsShape {
    * Omit for a vertical back.
    */
   readonly backSlopeRad?: number;
+  /**
+   * True: the roll-up slope's toe and crest are rounded like a funbox bank's (a fillet
+   * from the ground, a rounded crest onto the platform), so it rolls without a jolt.
+   */
+  readonly roundedBackSlope?: boolean;
   readonly hubba?: HubbaParams;
   readonly handrail?: HandrailParams;
+}
+
+/** What one side of a funbox is: a bank down to the ground, a plain wall, or a ledge. */
+export type FunboxSide = "bank" | "wall" | "ledge";
+
+/** The four sides of a funbox, by the local direction they face. */
+export interface FunboxSides {
+  readonly plusX: FunboxSide;
+  readonly minusX: FunboxSide;
+  readonly plusZ: FunboxSide;
+  readonly minusZ: FunboxSide;
+}
+
+/** A flat bar across a funbox's top, along local X, centred on x = 0. */
+export interface FunboxTopRail {
+  /** Axis position across the top (local Z), m. */
+  readonly zM: number;
+  /** Length of the bar, m (at most the top's length). */
+  readonly lengthM: number;
+  /** Height of the top of the bar above the funbox top, m. */
+  readonly heightM: number;
+  readonly barRadiusM: number;
+}
+
+/** A down rail on a funbox's ±X bank: a flat part on the top, then down the bank's fall line. */
+export interface FunboxBankRail {
+  /** The bank it runs down (must be a `bank` side). */
+  readonly side: "plusX" | "minusX";
+  /** Axis position across the funbox (local Z), m. */
+  readonly zM: number;
+  /** Length of the flat part on the top, back from the crest, m. */
+  readonly flatM: number;
+  /** Height of the top of the bar above the surface under it (vertical), m. */
+  readonly heightM: number;
+  readonly barRadiusM: number;
+}
+
+/**
+ * A funbox (pyramid): a flat top `heightM` up, centred on the local origin, with each side
+ * a bank (at `bankAngleRad`, down to the ground), a wall, or a ledge (a wall whose top
+ * edge is chamfered and grindable). Two banks that meet at a corner make a hip. The whole
+ * box is ONE convex piece (the intersection of its faces' half-spaces), so the banks meet
+ * the top with no seam at all, and the bank toes are buried under the ground (ADR 0008).
+ */
+export interface FunboxShape {
+  readonly kind: "funbox";
+  /** Length of the flat top along local X, m. */
+  readonly topLengthM: number;
+  /** Width of the flat top along local Z, m. */
+  readonly topWidthM: number;
+  readonly heightM: number;
+  /** Angle of every bank side from the ground, rad. */
+  readonly bankAngleRad: number;
+  readonly sides: FunboxSides;
+  /** Size of the 45° chamfer on a ledge side's top edge, m. */
+  readonly edgeChamferM: number;
+  readonly topRail?: FunboxTopRail;
+  readonly bankRail?: FunboxBankRail;
+}
+
+/**
+ * A kinked handrail along local +X: a flat top part, a straight run down, and a flat
+ * bottom part (flat → down → flat), standing on posts from the ground (y = 0). Its local
+ * origin is under the start of the top flat. It is placed beside a stair set, whose
+ * nosings the run down follows.
+ */
+export interface KinkedRailShape {
+  readonly kind: "kinkedRail";
+  /** Length of the top flat, m. */
+  readonly flatTopM: number;
+  /** Horizontal length of the run down, m. */
+  readonly downRunM: number;
+  /** Height the run down drops, m. */
+  readonly dropM: number;
+  /** Length of the bottom flat, m. */
+  readonly flatBottomM: number;
+  /** Height of the top of the bar above the ground along the bottom flat, m. */
+  readonly heightM: number;
+  readonly barRadiusM: number;
+}
+
+/**
+ * A bank-to-ledge: a bank rising toward local +X from its toe at x = 0 up to
+ * `bankHeightM`, running into a concrete ledge block whose top stands `ledgeHeightM`
+ * above the bank's top edge. The ledge's two top edges (along Z) are chamfered and
+ * grindable; the one over the bank is the one you ride up to.
+ */
+export interface BankLedgeShape {
+  readonly kind: "bankLedge";
+  readonly angleRad: number;
+  /** Height of the top of the bank (where it meets the ledge's face), m. */
+  readonly bankHeightM: number;
+  /** Width along local Z, m. */
+  readonly widthM: number;
+  /** Height of the ledge top above the top of the bank, m. */
+  readonly ledgeHeightM: number;
+  /** Depth of the ledge block along +X, m. */
+  readonly ledgeDepthM: number;
+  /** Size of the 45° chamfer on the ledge's top edges, m. */
+  readonly edgeChamferM: number;
 }
 
 /** Obstacle geometry parameters, in the obstacle's local frame. */
@@ -138,7 +247,10 @@ export type ObstacleShape =
   | KickerShape
   | LedgeShape
   | RailShape
-  | StairsShape;
+  | StairsShape
+  | FunboxShape
+  | KinkedRailShape
+  | BankLedgeShape;
 
 /** Every shape kind. */
 export type ObstacleShapeKind = ObstacleShape["kind"];
@@ -264,6 +376,94 @@ function validate(shape: ObstacleShape): void {
         }
       }
       return;
+    case "funbox":
+      validateFunbox(shape);
+      return;
+    case "kinkedRail":
+      requirePositive(kind, "flatTopM", shape.flatTopM);
+      requirePositive(kind, "downRunM", shape.downRunM);
+      requirePositive(kind, "dropM", shape.dropM);
+      requirePositive(kind, "flatBottomM", shape.flatBottomM);
+      requirePositive(kind, "heightM", shape.heightM);
+      requirePositive(kind, "barRadiusM", shape.barRadiusM);
+      if (2 * shape.barRadiusM >= shape.heightM) {
+        throw new RangeError(`${kind}: the bar must sit above the ground (2·barRadiusM < heightM)`);
+      }
+      if (shape.dropM >= shape.downRunM) {
+        // Steeper than 45°: the grind lock could not carry on across the kinks (ADR 0009).
+        throw new RangeError(`${kind}: the run down is too steep (dropM < downRunM)`);
+      }
+      return;
+    case "bankLedge":
+      requirePositive(kind, "angleRad", shape.angleRad);
+      requirePositive(kind, "bankHeightM", shape.bankHeightM);
+      requirePositive(kind, "widthM", shape.widthM);
+      requirePositive(kind, "ledgeHeightM", shape.ledgeHeightM);
+      requirePositive(kind, "ledgeDepthM", shape.ledgeDepthM);
+      requirePositive(kind, "edgeChamferM", shape.edgeChamferM);
+      if (shape.angleRad >= Math.PI / 2) {
+        throw new RangeError(`${kind}: angleRad must be below 90°`);
+      }
+      if (2 * shape.edgeChamferM >= shape.ledgeDepthM || shape.edgeChamferM >= shape.ledgeHeightM) {
+        throw new RangeError(`${kind}: edgeChamferM is too large for the ledge`);
+      }
+      return;
+  }
+}
+
+const FUNBOX_SIDE_NAMES = ["plusX", "minusX", "plusZ", "minusZ"] as const;
+
+function validateFunbox(shape: FunboxShape): void {
+  const kind = shape.kind;
+  requirePositive(kind, "topLengthM", shape.topLengthM);
+  requirePositive(kind, "topWidthM", shape.topWidthM);
+  requirePositive(kind, "heightM", shape.heightM);
+  requirePositive(kind, "bankAngleRad", shape.bankAngleRad);
+  requirePositive(kind, "edgeChamferM", shape.edgeChamferM);
+  if (shape.bankAngleRad >= Math.PI / 2) {
+    throw new RangeError(`${kind}: bankAngleRad must be below 90°`);
+  }
+  for (const name of FUNBOX_SIDE_NAMES) {
+    const side = shape.sides[name];
+    if (side !== "bank" && side !== "wall" && side !== "ledge") {
+      throw new RangeError(`${kind}: sides.${name} must be bank, wall or ledge`);
+    }
+  }
+  if (2 * shape.edgeChamferM >= Math.min(shape.topLengthM, shape.topWidthM, shape.heightM)) {
+    throw new RangeError(`${kind}: edgeChamferM is too large for the funbox`);
+  }
+  const rail = shape.topRail;
+  if (rail !== undefined) {
+    requirePositive(kind, "topRail.lengthM", rail.lengthM);
+    requirePositive(kind, "topRail.heightM", rail.heightM);
+    requirePositive(kind, "topRail.barRadiusM", rail.barRadiusM);
+    if (rail.lengthM > shape.topLengthM) {
+      throw new RangeError(`${kind}: topRail.lengthM must fit on the top`);
+    }
+    if (Math.abs(rail.zM) + rail.barRadiusM >= shape.topWidthM / 2) {
+      throw new RangeError(`${kind}: topRail.zM must be on the top`);
+    }
+    if (2 * rail.barRadiusM >= rail.heightM) {
+      throw new RangeError(`${kind}: topRail.barRadiusM is too large for the rail`);
+    }
+  }
+  const down = shape.bankRail;
+  if (down !== undefined) {
+    requirePositive(kind, "bankRail.flatM", down.flatM);
+    requirePositive(kind, "bankRail.heightM", down.heightM);
+    requirePositive(kind, "bankRail.barRadiusM", down.barRadiusM);
+    if (shape.sides[down.side] !== "bank") {
+      throw new RangeError(`${kind}: bankRail.side must be a bank side`);
+    }
+    if (down.flatM > shape.topLengthM) {
+      throw new RangeError(`${kind}: bankRail.flatM must fit on the top`);
+    }
+    if (Math.abs(down.zM) + down.barRadiusM >= shape.topWidthM / 2) {
+      throw new RangeError(`${kind}: bankRail.zM must be on the top`);
+    }
+    if (2 * down.barRadiusM >= down.heightM) {
+      throw new RangeError(`${kind}: bankRail.barRadiusM is too large for the rail`);
+    }
   }
 }
 
@@ -284,4 +484,8 @@ export const ObstacleShape = Object.freeze({
   ledge: (p: Omit<LedgeShape, "kind">): LedgeShape => make({ kind: "ledge", ...p }),
   rail: (p: Omit<RailShape, "kind">): RailShape => make({ kind: "rail", ...p }),
   stairs: (p: Omit<StairsShape, "kind">): StairsShape => make({ kind: "stairs", ...p }),
+  funbox: (p: Omit<FunboxShape, "kind">): FunboxShape => make({ kind: "funbox", ...p }),
+  kinkedRail: (p: Omit<KinkedRailShape, "kind">): KinkedRailShape =>
+    make({ kind: "kinkedRail", ...p }),
+  bankLedge: (p: Omit<BankLedgeShape, "kind">): BankLedgeShape => make({ kind: "bankLedge", ...p }),
 });

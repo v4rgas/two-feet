@@ -5,10 +5,9 @@
  */
 import type { KeyPress } from "../../contexts/input";
 import type { RiderConfig } from "../../contexts/rider";
-import { createFlatGroundLevel, createSkateparkLevel, WORLD_CONFIG } from "../../contexts/world";
 import { GAME_CONFIG } from "../game.config";
 import type { MontageClip } from "../montage/clip";
-import { clipLevel } from "../montage/clip-run";
+import { baseClipLevel, clipLevel } from "../montage/clip-run";
 import { footKey, ScenarioHarness } from "./scenario-harness";
 import { heel, toe } from "./scenario-helpers";
 
@@ -96,10 +95,7 @@ export function jitterClip(
 }
 
 function levelSpawn(clip: MontageClip): NonNullable<MontageClip["spawn"]> {
-  const level =
-    clip.level === "park"
-      ? createSkateparkLevel(WORLD_CONFIG)
-      : createFlatGroundLevel(WORLD_CONFIG.flatGround);
+  const level = baseClipLevel(clip.level);
   const p = level.spawn.positionM;
   return { xM: p.x, yM: p.y, zM: p.z, headingRad: level.spawn.headingRad, speedMps: 0 };
 }

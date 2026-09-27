@@ -3,6 +3,7 @@ import { bs180KickflipFlat, nollieHeelflipFlat } from "./flat";
 import { ledgeBoardslide, railFiftyFifty } from "./grinds";
 import { quarterPipeFakie, treFlipKicker } from "./ramps";
 import { kickflipStairs, stairsTailslideHardflip, varialHeelflipStairs } from "./stairs";
+import { ollieSevenStair } from "./street";
 
 /**
  * Every montage clip, in playing order. To add one: write it in a file here (see
@@ -19,6 +20,7 @@ export const MONTAGE_CLIPS: readonly MontageClip[] = [
   quarterPipeFakie,
   railFiftyFifty,
   ledgeBoardslide,
+  ollieSevenStair,
 ];
 
 /** The clip with this id, or undefined. */

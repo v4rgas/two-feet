@@ -6,7 +6,10 @@ import type { Obstacle, ObstacleShape as Shape } from "./obstacle";
 import { ObstacleShape } from "./obstacle";
 import type { ConvexPiece } from "./obstacle-geometry";
 import {
+  bankLedgeRunM,
+  funboxBankRunM,
   kickerLipAngleRad,
+  kinkedRailTopLine,
   obstacleCollider,
   quarterPipeLipAngleRad,
   quarterPipeLipXM,
@@ -117,7 +120,57 @@ const STAIRS = ObstacleShape.stairs({
   handrail: { heightM: 0.8, barRadiusM: 0.024, offsetM: 0.3 },
 });
 
+const FUNBOX = ObstacleShape.funbox({
+  topLengthM: 5,
+  topWidthM: 3,
+  heightM: 0.5,
+  bankAngleRad: degToRad(20),
+  sides: { plusX: "bank", minusX: "bank", plusZ: "ledge", minusZ: "bank" },
+  edgeChamferM: 0.03,
+  topRail: { zM: -0.7, lengthM: 3.4, heightM: 0.3, barRadiusM: 0.024 },
+  bankRail: { side: "plusX", zM: 0.6, flatM: 1.2, heightM: 0.3, barRadiusM: 0.024 },
+});
+const HIP = ObstacleShape.funbox({
+  topLengthM: 2,
+  topWidthM: 2,
+  heightM: 0.7,
+  bankAngleRad: degToRad(22),
+  sides: { plusX: "wall", minusX: "bank", plusZ: "wall", minusZ: "bank" },
+  edgeChamferM: 0.03,
+});
+const KINKED = ObstacleShape.kinkedRail({
+  flatTopM: 2.2,
+  downRunM: 0.99,
+  dropM: 0.45,
+  flatBottomM: 2.5,
+  heightM: 0.35,
+  barRadiusM: 0.024,
+});
+const BANK_LEDGE = ObstacleShape.bankLedge({
+  angleRad: degToRad(25),
+  bankHeightM: 0.6,
+  widthM: 5,
+  ledgeHeightM: 0.3,
+  ledgeDepthM: 0.6,
+  edgeChamferM: 0.03,
+});
+const STAIRS_BOTH = ObstacleShape.stairs({
+  stepCount: 7,
+  riseM: 0.15,
+  runM: 0.33,
+  widthM: 4,
+  topDepthM: 7,
+  backSlopeRad: degToRad(14),
+  hubba: { widthM: 0.45, heightM: 0.35, edgeRadiusM: 0.02, flatTopM: 0.9, bothSides: true },
+  handrail: { heightM: 0.8, barRadiusM: 0.024, offsetM: 0.3, centered: true },
+});
+
 const ALL: readonly [string, Shape, SurfaceType][] = [
+  ["funbox", FUNBOX, "ramp"],
+  ["hip (funbox with two banks)", HIP, "ramp"],
+  ["kinked rail", KINKED, "grindable"],
+  ["bank to ledge", BANK_LEDGE, "ramp"],
+  ["stairs with two hubbas and a centred handrail", STAIRS_BOTH, "ground"],
   ["quarterPipe", QP, "ramp"],
   ["kicker", KICKER, "ramp"],
   ["bank", BANK, "ramp"],
@@ -360,6 +413,254 @@ describe("stairs", () => {
   });
 });
 
+/** The top facet of a bar (the face whose normal points most upward). */
+function barTop(piece: ConvexPiece): { point: Vec3; normal: Vec3 } {
+  const faces = faceNormals(piece).sort((a, b) => b.n.y - a.n.y);
+  const top = faces[0];
+  if (top === undefined) throw new Error("no faces");
+  return { point: centroid(top.points), normal: top.n };
+}
+
+/** Outward unit normals of a piece's faces, with their tones and points. */
+function faceNormals(piece: ConvexPiece): { n: Vec3; tone: string; points: Vec3[] }[] {
+  return piece.faces.map((f) => {
+    const points = facePoints(piece, f.indices);
+    return { n: Vec3.normalize(newell(points)), tone: f.tone, points };
+  });
+}
+
+describe("funbox", () => {
+  const { pieces } = shapeGeometry("ramp", FUNBOX);
+  const ramp = pieces.filter((p) => p.surface === "ramp");
+  const core = ramp[0] as ConvexPiece;
+  const run = funboxBankRunM(FUNBOX);
+  const a = degToRad(20);
+  const normals = faceNormals(core);
+  const crestT = G.bankCrestRadiusM * Math.tan(a / 2);
+  const toeT = G.bankToeRadiusM * Math.tan(a / 2);
+  const toeSegments = Math.ceil(a / G.maxSegmentAngleRad - 1e-9);
+  // Bank sides of FUNBOX: outward direction and half the top along it.
+  const banks = [
+    { out: Vec3.UNIT_X, half: 2.5 },
+    { out: Vec3.create(-1, 0, 0), half: 2.5 },
+    { out: Vec3.create(0, 0, -1), half: 1.5 },
+  ];
+  /** The toe fillet pieces of the bank facing `out`, from the ground up. */
+  const filletOf = (out: Vec3): ConvexPiece[] =>
+    ramp.slice(1).filter((p) => {
+      const n = topPlane(p).normal;
+      return Vec3.dot(Vec3.normalize(Vec3.create(n.x, 0, n.z)), out) > 0.9 || n.y > 0.9999;
+    });
+
+  it("one convex core (top, banks, rounded crests) plus a rounded toe fillet per bank", () => {
+    expect(ramp).toHaveLength(1 + 3 * toeSegments);
+    const b = bounds(core.verticesM);
+    expect(b.max.y).toBeCloseTo(0.5, 9);
+    expect(b.min.y).toBeCloseTo(-G.seamBuryM, 9); // the sharp toes are under the ground
+    expect(b.max.z).toBeCloseTo(1.5, 9); // the ledge side is a wall
+    // The flat top: the top's size less the rounded crest on each bank side (and the
+    // chamfer on the ledge side).
+    const top = normals.find((f) => f.n.y > 0.9999);
+    if (top === undefined) throw new Error("no top face");
+    const tb = bounds(top.points);
+    expect(tb.max.x - tb.min.x).toBeCloseTo(5 - 2 * crestT, 9);
+    expect(tb.max.z).toBeCloseTo(1.5 - 0.03, 9);
+    expect(tb.min.z).toBeCloseTo(-1.5 + crestT, 9);
+  });
+
+  it("each bank is a straight face at the bank angle between the rounded crest and toe", () => {
+    const straight = normals.filter((f) => Math.abs(Math.acos(f.n.y) - a) < 1e-9);
+    expect(straight).toHaveLength(3);
+    for (const { out, half } of banks) {
+      const face = straight.find((f) => Vec3.dot(f.n, out) > 0.3);
+      if (face === undefined) throw new Error("missing bank face");
+      const plane = { point: centroid(face.points), normal: face.n };
+      // Its plane runs through the sharp top edge and the sharp toe line.
+      expect(above(plane, Vec3.add(Vec3.scale(out, half), Vec3.create(0, 0.5, 0)))).toBeCloseTo(
+        0,
+        9,
+      );
+      expect(above(plane, Vec3.scale(out, half + run))).toBeCloseTo(0, 9);
+    }
+    // The crest facets turn from flat to the bank angle, each by at most `maxSegmentAngleRad`.
+    const crest = normals.filter(
+      (f) => f.n.y < 0.9999 && Math.acos(f.n.y) < a - 1e-9 && f.tone === "body",
+    );
+    expect(crest.length).toBeGreaterThanOrEqual(3 * Math.ceil(a / G.maxSegmentAngleRad - 1e-9) - 3);
+  });
+
+  it("the toe fillets meet the ground tangentially, have continuous seams, and bury every end edge", () => {
+    for (const { out, half } of banks) {
+      const fillet = filletOf(out);
+      expect(fillet).toHaveLength(toeSegments);
+      // Sort from the ground up (outermost first).
+      fillet.sort((p, q) => Math.acos(topPlane(p).normal.y) - Math.acos(topPlane(q).normal.y));
+      const first = fillet[0] as ConvexPiece;
+      const lastPiece = fillet[fillet.length - 1] as ConvexPiece;
+      // Leaves the ground at s = run + R·tan(a/2), nearly flat.
+      const groundPoint = Vec3.scale(out, half + run + toeT);
+      expect(above(topPlane(first), groundPoint)).toBeCloseTo(0, 9);
+      expect(Math.acos(topPlane(first).normal.y)).toBeLessThan(G.maxSegmentAngleRad);
+      expect(bounds(first.verticesM).min.y).toBeLessThan(-G.seamBuryM + 1e-9);
+      // Its last chord meets the straight bank R·tan(a/2) up the slope from the sharp toe.
+      const bankFace = normals.find(
+        (f) => Math.abs(Math.acos(f.n.y) - a) < 1e-9 && Vec3.dot(f.n, out) > 0.3,
+      );
+      if (bankFace === undefined) throw new Error("no bank face");
+      const bankPlane = { point: centroid(bankFace.points), normal: bankFace.n };
+      const tangent = Vec3.add(
+        Vec3.scale(out, half + run - toeT * Math.cos(a)),
+        Vec3.create(0, toeT * Math.sin(a), 0),
+      );
+      expect(above(topPlane(lastPiece), tangent)).toBeCloseTo(0, 9);
+      expect(above(bankPlane, tangent)).toBeCloseTo(0, 9);
+      // Its inner end runs on under the bank's straight face, buried ≥ seamBuryM.
+      const innerMost = lastPiece.verticesM.reduce((m, v) =>
+        Vec3.dot(v, out) < Vec3.dot(m, out) ? v : m,
+      );
+      expect(above(bankPlane, innerMost)).toBeLessThan(-G.seamBuryM + 1e-9);
+      for (let i = 0; i + 1 < fillet.length; i += 1) {
+        const p = topPlane(fillet[i] as ConvexPiece);
+        const q = fillet[i + 1] as ConvexPiece;
+        // Continuous: both top faces pass through the seam (on the arc) …
+        const seamS = half + run + toeT - G.bankToeRadiusM * Math.sin(((i + 1) * a) / toeSegments);
+        const seamY = G.bankToeRadiusM * (1 - Math.cos(((i + 1) * a) / toeSegments));
+        const seam = Vec3.add(Vec3.scale(out, seamS), Vec3.create(0, seamY, 0));
+        expect(above(p, seam)).toBeCloseTo(0, 9);
+        expect(above(topPlane(q), seam)).toBeCloseTo(0, 9);
+        // … and q's outer end (its top face's outermost edge) is buried under p's surface.
+        const qTop = faceNormals(q).find((f) => f.n.y > 0.5);
+        if (qTop === undefined) throw new Error("no top face");
+        const outer = qTop.points.reduce((m, v) => (Vec3.dot(v, out) > Vec3.dot(m, out) ? v : m));
+        expect(above(p, outer)).toBeLessThan(-G.seamBuryM + 1e-9);
+      }
+      // The bank's own sharp toe lies ≥ seamBuryM under the fillet (no exposed kink).
+      const sharpToe = Vec3.scale(out, half + run);
+      // (The surface there is the highest of the chords that reach over it.)
+      const depths = fillet
+        .filter((p) => {
+          const along = p.verticesM.map((v) => Vec3.dot(v, out));
+          return Math.min(...along) <= half + run && Math.max(...along) >= half + run;
+        })
+        .map((p) => above(topPlane(p), sharpToe));
+      expect(Math.min(...depths)).toBeLessThan(-G.seamBuryM);
+    }
+  });
+
+  it("the ledge side has a 45° chamfer in the edge tone along its top edge", () => {
+    const chamfer = normals.filter((f) => f.tone === "edge");
+    expect(chamfer).toHaveLength(1);
+    const n = chamfer[0]?.n ?? Vec3.ZERO;
+    expect(n.y).toBeCloseTo(Math.SQRT1_2, 9);
+    expect(n.z).toBeCloseTo(Math.SQRT1_2, 9);
+  });
+
+  it("carries a flat top rail and a down rail (a bar per straight run) on posts", () => {
+    const bars = pieces.filter((p) => p.surface === "grindable");
+    expect(bars).toHaveLength(3); // top rail + the down rail's flat part and run down
+    const topBar = bars[0] as ConvexPiece;
+    const tb = bounds(topBar.verticesM);
+    expect(tb.max.y).toBeCloseTo(0.5 + 0.3, 9);
+    expect(tb.max.x - tb.min.x).toBeCloseTo(3.4, 9);
+    // The run down follows the bank and ends over its toe, 0.3 m above the ground.
+    const down = barTop(bars[2] as ConvexPiece);
+    expect(Math.acos(down.normal.y)).toBeCloseTo(a, 9);
+    expect(down.normal.x).toBeGreaterThan(0);
+    expect(above(down, Vec3.create(2.5 + run, 0.3, 0.6))).toBeCloseTo(0, 9);
+    expect(pieces.filter((p) => p.surface === "ground")).toHaveLength(4); // 2 posts × 2 rails
+  });
+
+  it("hip: two banks meeting at a rounded ridge; walls on the other sides", () => {
+    const hip = shapeGeometry("ramp", HIP).pieces;
+    const hipA = degToRad(22);
+    expect(hip).toHaveLength(1 + 2 * Math.ceil(hipA / G.maxSegmentAngleRad - 1e-9));
+    const piece = hip[0] as ConvexPiece;
+    const faces = faceNormals(piece);
+    const straight = faces.filter((f) => Math.abs(Math.acos(f.n.y) - hipA) < 1e-9);
+    expect(straight).toHaveLength(2);
+    expect(Vec3.dot(straight[0]?.n ?? Vec3.ZERO, straight[1]?.n ?? Vec3.ZERO)).toBeLessThan(0.9);
+    // The ridge: facets facing out along the diagonal (−X and −Z at once), each turning
+    // at most `maxSegmentAngleRad` from the next.
+    const ridge = faces.filter((f) => f.n.x < -0.05 && f.n.z < -0.05 && f.n.y < 0.9999);
+    expect(ridge.length).toBeGreaterThanOrEqual(3);
+    const b = bounds(piece.verticesM);
+    expect(b.max.x).toBeCloseTo(1, 9);
+    expect(b.max.z).toBeCloseTo(1, 9);
+    expect(b.max.y).toBeCloseTo(0.7, 9);
+  });
+});
+
+describe("kinked rail", () => {
+  const { pieces } = shapeGeometry("grindable", KINKED);
+  const line = kinkedRailTopLine(KINKED);
+
+  it("is flat → down → flat: one grindable bar per run, its top on the line", () => {
+    const bars = pieces.filter((p) => p.surface === "grindable");
+    expect(bars).toHaveLength(3);
+    expect(line).toHaveLength(4);
+    expect(line[0]?.[1]).toBeCloseTo(0.8, 9);
+    expect(line[3]?.[1]).toBeCloseTo(0.35, 9);
+    bars.forEach((bar, i) => {
+      const plane = barTop(bar);
+      // Both ends of the run lie on its top face, so the bars meet at the kinks.
+      expect(above(plane, at2(line[i]))).toBeCloseTo(0, 9);
+      expect(above(plane, at2(line[i + 1]))).toBeCloseTo(0, 9);
+      expect(bar.faces.every((f) => f.tone === "metal")).toBe(true);
+    });
+    const down = barTop(bars[1] as ConvexPiece).normal;
+    expect(down.x).toBeGreaterThan(0); // it runs down toward +X
+    expect(Math.acos(down.y)).toBeCloseTo(Math.atan2(0.45, 0.99), 9);
+  });
+
+  it("stands on four posts: one near each end, one under each kink", () => {
+    const posts = pieces.filter((p) => p.surface === "ground");
+    expect(posts).toHaveLength(4);
+    for (const post of posts) expect(bounds(post.verticesM).min.y).toBe(0);
+  });
+});
+
+describe("bank to ledge", () => {
+  const { pieces } = shapeGeometry("ramp", BANK_LEDGE);
+  const run = bankLedgeRunM(BANK_LEDGE);
+
+  it("a 25° bank up to the ledge's face; the ledge top 0.3 m above the bank's top", () => {
+    const bank = pieces.find((p) => p.surface === "ramp");
+    const ledge = pieces.find((p) => p.surface === "ledge");
+    if (bank === undefined || ledge === undefined) throw new Error("pieces");
+    const plane = topPlane(bank);
+    expect(Math.acos(plane.normal.y)).toBeCloseTo(degToRad(25), 9);
+    expect(above(plane, Vec3.ZERO)).toBeCloseTo(0, 9);
+    expect(above(plane, Vec3.create(run, 0.6, 0))).toBeCloseTo(0, 9);
+    // The toe is buried under the ground and the top edge inside the ledge block.
+    const bb = bounds(bank.verticesM);
+    expect(bb.min.y).toBeLessThan(-G.seamBuryM + 1e-9);
+    expect(bb.max.x).toBeGreaterThan(run);
+    expect(bb.max.x).toBeLessThan(run + 0.6);
+    const lb = bounds(ledge.verticesM);
+    expect(lb.max.y).toBeCloseTo(0.9, 9);
+    expect(lb.min.x).toBeCloseTo(run, 9);
+    expect(lb.max.x - lb.min.x).toBeCloseTo(0.6, 9);
+    expect(ledge.faces.filter((f) => f.tone === "edge")).toHaveLength(2);
+  });
+});
+
+describe("stairs with a hubba on each side and a handrail down the middle", () => {
+  const { pieces } = shapeGeometry("ground", STAIRS_BOTH);
+
+  it("mirrors the hubba to −Z and centres the handrail", () => {
+    const hubbas = pieces.filter((p) => p.surface === "ledge");
+    expect(hubbas).toHaveLength(2);
+    const hb = hubbas.map((p) => bounds(p.verticesM));
+    expect(hb.some((b) => b.min.z >= 2 - 1e-9)).toBe(true);
+    expect(hb.some((b) => b.max.z <= -2 + 1e-9)).toBe(true);
+    const grind = pieces.filter((p) => p.surface === "grindable");
+    expect(grind).toHaveLength(5); // 2 × (flat + sloped steel edge) + the handrail
+    const rail = grind.find((p) => Math.abs(bounds(p.verticesM).max.z) < 0.1);
+    expect(rail).toBeDefined();
+    expect(stairsHeightM(STAIRS_BOTH)).toBeCloseTo(1.05, 9);
+  });
+});
+
 describe("validation", () => {
   it("rejects bad parameters in the factories", () => {
     expect(() => ObstacleShape.quarterPipe({ ...QP, heightM: 3 })).toThrow(/radiusM/);
@@ -370,6 +671,19 @@ describe("validation", () => {
     expect(() => ObstacleShape.rail({ ...RAIL, barRadiusM: 0.2 })).toThrow(/bar/);
     expect(() => ObstacleShape.stairs({ ...STAIRS, stepCount: 2.5 })).toThrow(/stepCount/);
     expect(() => ObstacleShape.box({ halfExtentsM: Vec3.create(1, 0, 1) })).toThrow(/halfExtents/);
+    expect(() => ObstacleShape.funbox({ ...FUNBOX, bankAngleRad: degToRad(90) })).toThrow(/bank/);
+    expect(() =>
+      ObstacleShape.funbox({ ...FUNBOX, sides: { ...FUNBOX.sides, plusX: "wall" } }),
+    ).toThrow(/bankRail.side/);
+    expect(() =>
+      ObstacleShape.funbox({
+        ...FUNBOX,
+        topRail: { zM: 0, lengthM: 9, heightM: 0.3, barRadiusM: 0.02 },
+      }),
+    ).toThrow(/topRail/);
+    expect(() => ObstacleShape.kinkedRail({ ...KINKED, dropM: 1.2 })).toThrow(/steep/);
+    expect(() => ObstacleShape.kinkedRail({ ...KINKED, flatTopM: 0 })).toThrow(/flatTopM/);
+    expect(() => ObstacleShape.bankLedge({ ...BANK_LEDGE, edgeChamferM: 0.4 })).toThrow(/edge/);
   });
 });
 

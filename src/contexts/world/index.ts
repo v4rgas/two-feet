@@ -13,11 +13,18 @@ export {
 export type { Spawn } from "./domain/level";
 export { Level } from "./domain/level";
 export type {
+  BankLedgeShape,
   BankShape,
   BoxShape,
+  FunboxBankRail,
+  FunboxShape,
+  FunboxSide,
+  FunboxSides,
+  FunboxTopRail,
   HandrailParams,
   HubbaParams,
   KickerShape,
+  KinkedRailShape,
   LedgeShape,
   Obstacle,
   ObstacleShapeKind,
@@ -36,8 +43,12 @@ export type {
   ObstacleGeometry,
 } from "./domain/obstacle-geometry";
 export {
+  bankLedgeRunM,
+  funboxBankRunM,
+  handrailZM,
   kickerLipAngleRad,
   kickerRadiusM,
+  kinkedRailTopLine,
   obstacleCollider,
   obstacleGeometry,
   quarterPipeCopingProfile,
@@ -49,5 +60,6 @@ export {
   stairsSlopeRad,
 } from "./domain/obstacle-geometry";
 export { createSkateparkLevel } from "./domain/skatepark";
+export { createStreetCourseLevel } from "./domain/street-course";
 export type { WorldConfig } from "./world.config";
 export { WORLD_CONFIG } from "./world.config";
