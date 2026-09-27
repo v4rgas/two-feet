@@ -53,3 +53,38 @@ export const NO_CONTACT: ContactState = Object.freeze({
   deck: false,
   trucks: false,
 });
+
+/** Folds a raw contact list into a `ContactState` (value object). */
+export function contactStateFrom(contacts: readonly BoardContact[]): ContactState {
+  if (contacts.length === 0) return NO_CONTACT;
+  const wheels: Record<WheelId, boolean> = { ...NO_WHEELS };
+  let tail = false;
+  let nose = false;
+  let deck = false;
+  let trucks = false;
+  for (const { part } of contacts) {
+    switch (part) {
+      case "tail":
+        tail = true;
+        break;
+      case "nose":
+        nose = true;
+        break;
+      case "deck":
+        deck = true;
+        break;
+      case "noseTruck":
+      case "tailTruck":
+        trucks = true;
+        break;
+      default:
+        wheels[part] = true;
+    }
+  }
+  return Object.freeze({ wheels: Object.freeze(wheels), tail, nose, deck, trucks });
+}
+
+/** Number of wheels touching in a contact state. */
+export function countWheelsDown(state: ContactState): number {
+  return Object.values(state.wheels).filter(Boolean).length;
+}
