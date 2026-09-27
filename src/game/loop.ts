@@ -60,6 +60,16 @@ export class GameLoop {
     });
   }
 
+  /** Latest board snapshot (read-only; dev tools and tests). */
+  get board(): BoardSnapshot {
+    return this.current;
+  }
+
+  /** Latest rider state (read-only; dev tools and tests). */
+  get rider() {
+    return this.systems.rider.state;
+  }
+
   /** Runs as many fixed steps as `elapsedS` of real time allows. Returns the count. */
   advance(elapsedS: number): number {
     const steps = this.accumulator.advance(elapsedS);

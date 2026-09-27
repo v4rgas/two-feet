@@ -9,7 +9,12 @@ if (import.meta.env.DEV && params.has("demo")) {
   // Dev-only synthetic scene for checking the renderer without physics.
   void import("./game/demo").then(({ startDemo }) => startDemo(canvas, params));
 } else {
-  bootstrap(canvas).catch((error: unknown) => {
-    console.error("Failed to start the game", error);
-  });
+  bootstrap(canvas)
+    .then((loop) => {
+      // Dev-only handle for browser checks (read-only getters on the loop).
+      if (import.meta.env.DEV) Object.assign(window, { __skate: loop });
+    })
+    .catch((error: unknown) => {
+      console.error("Failed to start the game", error);
+    });
 }
