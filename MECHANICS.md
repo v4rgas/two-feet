@@ -326,6 +326,105 @@ back:
   - no thrust (speed ≤ start + 0.3 m/s)
 - The expected recognizer name is asserted too, once the recognizer exists.
 
+## Grinds and slides (M4)
+
+Same approach as the tricks: physics stays real, and a **lock-on** helps the
+board sit on the edge. The same keys as on the ground pick what you do, so
+there's nothing new to learn.
+
+### Where
+Any obstacle edge whose surface is `grindable` (coping, rails, the hubba's
+steel edge) or `ledge` (ledge tops and edges). `SurfaceContactStarted`
+already reports the part (`noseTruck`, `tailTruck`, `deck`, `nose`, `tail`)
+and the surface. The world domain exposes each grindable edge as a line
+segment (start, end, outward normal) for the lock-on.
+
+### Lock-on
+While the board is airborne (after a pop) or rolling off a lip, and a part
+comes within `lockDistanceM` (≈ 6 cm) of an edge segment while moving
+toward it:
+- **Pick the stance on the edge** from the board's yaw relative to the edge
+  direction (`φ`) and from the keys held at that moment:
+
+  | Board vs edge | Nothing held | `↓` held (tail press) | `W` held (nose press) |
+  |---|---|---|---|
+  | parallel (φ within ±`parallelToleranceRad` ≈ 25°) | **50-50** (both trucks) | **5-0** (tail truck, nose up) | **Nosegrind** (nose truck, tail up) |
+  | perpendicular (φ within ±`perpToleranceRad` ≈ 35° of 90°) | **Boardslide** (deck middle) | **Tailslide** (tail on the edge) | **Noseslide** (nose on the edge) |
+
+  In nollie roles, `↓` and `W` swap with the pop foot as usual.
+- **Frontside or backside** comes from which side of the rider the edge is
+  on when locking in: toes toward the edge = frontside, heels toward the
+  edge = backside. Lipslides and bluntslides are later.
+- **Line up** with `Q`/`E` in the air (body spin): about 90° for slides, and
+  0° for grinds.
+- If no stance fits (φ between the bands, or no part near), there is no
+  lock. Physics just happens: you hang up, bounce or bail.
+
+### While locked
+- **Constraint:** a PD spring holds the locked contact point on the edge
+  line, along the edge's normal plane. It does not pull along the edge.
+  Another PD holds the stance's pitch (5-0, nose and tail with the kick
+  down) and yaw (parallel or 90°).
+- **Speed:** friction along the edge, `grindFriction` (≈ 0.08 × g, metal)
+  for grinds and `slideFriction` (≈ 0.2 × g, deck on concrete or steel) for
+  slides. Gravity along a sloped edge (the hubba, the handrail) keeps you
+  going. There is **no thrust**.
+- **Balance:** a balance value in [-1, 1] drifts with a random walk plus
+  the edge's slope and your speed, getting harder the longer you stay on.
+  Hold both feet the **same way** (`A` + `←` / `D` + `→`, like carving)
+  against it. The HUD shows a small balance bar. At |balance| > 1 you fall
+  toward that side, the lock releases, and physics decides the rest,
+  usually a bail.
+- **Feet:** they stay attached. The pose follows the stance: the tail foot
+  pressed for 5-0 and tailslide, for example.
+
+### Exits
+- **Pop out:** the same ollie gesture on the edge: load `↓`+`S`, release `↓`
+  (or the nollie version). Flips and shoves work during a pop out exactly
+  as from flat, so **"tailslide → hardflip out"** is load, release,
+  `A` + `→`, `Space`. The pop impulse is along the edge's outward normal
+  plus up, so you leave the obstacle.
+- **Roll off the end:** reaching the segment's end releases the lock with
+  the current velocity, then you land as normal. A slide needs rotating back
+  with `Q`/`E` or a pop out to land lined up, otherwise it lands sideways
+  and bails.
+- **Fall off:** balance is lost, see above.
+
+### Recognizer
+- **Grind names** are emitted as `GrindStarted`/`GrindEnded` events and
+  named "BS Tailslide", "FS 50-50", "Nosegrind" and so on, with the grind
+  time.
+- **A line** is the chain from a pop to the final clean landing, joined with
+  "→": "Kickflip → BS Tailslide → Hardflip out". Tricks into a grind are
+  named as usual. The pop out keeps its trick name with " out". The popup
+  shows the whole line on landing. Scoring and combos are M5.
+
+### Tunables (`rider.config.ts` → `grind` block)
+| Key | Start value |
+|---|---|
+| `lockDistanceM` | 0.06 |
+| `parallelToleranceRad` / `perpToleranceRad` | 0.44 / 0.61 |
+| `grindFrictionG` / `slideFrictionG` | 0.08 / 0.2 |
+| `balanceDriftPerS` / `balanceAssist` | 0.6 / 1.0 |
+| `lockSpring` / `lockDamping` | tune |
+
+### Acceptance scenarios (park, headless)
+- **G1:** ollie onto the flat rail parallel, nothing held. It's a 50-50 for
+  at least 0.5 s, rolls off the end, lands clean and is named "FS/BS 50-50".
+- **G2:** the same with `↓` held: "5-0".
+- **G3:** `Q`/`E` about 90° in the air onto the ledge: "Boardslide". With
+  `↓`: "Tailslide". With `W`: "Noseslide".
+- **G4:** the stairs line. Push, kickflip onto the hubba with `↓` held at
+  lock (Tailslide), then near the bottom load/release + `A` + `→`
+  (hardflip) + `Space`. It lands clean, named
+  "Kickflip → BS/FS Tailslide → Hardflip out". This is the montage clip.
+- **G5:** no input on a long rail. Balance is eventually lost and the board
+  falls off: a bail, no explosion.
+- **G6:** no thrust. Speed along the edge never rises except from the
+  slope's gravity.
+- **G7:** stays on the quarter-pipe coping in a 50-50 stall, and pops out
+  back into the transition.
+
 ## Tunables (`rider.config.ts` → `tricks` block)
 
 These are all first guesses. The dev tuning panel must expose them live.
