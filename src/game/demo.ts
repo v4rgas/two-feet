@@ -426,6 +426,7 @@ class DemoGame {
       alpha: this.accumulator.alpha,
       previousBoard: this.previous,
       currentBoard: this.current,
+      leanRad: 0,
       previousRider: rider,
       rider,
       intents: this.intents,

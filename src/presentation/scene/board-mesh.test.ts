@@ -21,7 +21,7 @@ describe("board mesh matches BoardSpec (the collider geometry)", () => {
 
   it("deck bounds equal the spec: length, width, underside of the flat section", () => {
     const mesh = buildBoardMesh(spec, PRESENTATION_CONFIG);
-    const deck = mesh.group.children[0];
+    const deck = mesh.deckPivot.children[0];
     if (!(deck instanceof THREE.Mesh)) throw new Error("no deck mesh");
     const geometry = deck.geometry;
     geometry.computeBoundingBox();
@@ -30,6 +30,14 @@ describe("board mesh matches BoardSpec (the collider geometry)", () => {
     expect(box?.min.x).toBeCloseTo(-spec.deck.lengthM / 2);
     expect(box?.max.z).toBeCloseTo(spec.deck.widthM / 2);
     expect(box?.min.y).toBeCloseTo(-spec.deck.thicknessM / 2);
+    mesh.dispose();
+  });
+
+  it("the deck (with its grip) leans on a pivot of its own; trucks and wheels do not", () => {
+    const mesh = buildBoardMesh(spec, PRESENTATION_CONFIG);
+    expect(mesh.deckPivot.parent).toBe(mesh.group);
+    expect(mesh.deckPivot.children).toHaveLength(2);
+    for (const wheel of mesh.wheels) expect(wheel.parent).toBe(mesh.group);
     mesh.dispose();
   });
 

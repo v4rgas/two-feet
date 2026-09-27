@@ -19,6 +19,11 @@ export interface BoardSystem {
    */
   readonly lastForces: readonly BoardForce[];
   /**
+   * Deck lean on the trucks, rad (+ = the +Z side down, ADR 0003). A model value: the
+   * rigid body does not tilt; the renderer tilts the deck by it.
+   */
+  readonly leanRad: number;
+  /**
    * Loop step 3 (before `PhysicsWorld.step`): the board's own forces — wheel grip,
    * rolling resistance, truck steering from lean.
    */

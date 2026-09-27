@@ -62,6 +62,7 @@ export function restingSnapshot(transform: Transform, tick = 0, timeS = 0): Boar
 export class StubBoardSystem implements BoardSystem {
   readonly body: RigidBodyHandle = new FakeRigidBodyHandle();
   readonly lastForces = [];
+  readonly leanRad = 0;
   snapshot: BoardSnapshot;
   private transform: Transform;
   constructor(spawn: Transform) {
