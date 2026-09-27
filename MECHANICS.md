@@ -572,6 +572,11 @@ the swipe sizes all stay the same.
 - **No thrust:** no assist raises horizontal speed except the pop-out's
   vertical impulse and the nudge's sideways component, which is at most
   0.35 m/s.
+- **Status:** implemented in [ADR 0012](docs/adr/0012-assists.md), which has the
+  tunables per level and the measured rates (`pnpm test:human`). G4H, the rail
+  and the kicker are below these targets. The limit is the along-path pop-time
+  window, which the assists (sideways and in time only) cannot widen. The hubba's
+  flat top now reaches 0.9 m back onto the platform.
 
 ## Tunables (`rider.config.ts` → `grind` block)
 | Key | Start value |
