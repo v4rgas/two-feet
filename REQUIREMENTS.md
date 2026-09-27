@@ -203,8 +203,10 @@ Other top-level folders:
 
 ```
 src/shared/        shared kernel
-src/presentation/  Three.js renderer, camera, HUD, debug overlay (reads snapshots only)
-src/game/          composition root: wires adapters, fixed-step loop, bootstraps
+src/presentation/  Three.js renderer, camera, HUD, debug overlay, menu (reads snapshots only)
+src/game/          composition root: wires adapters, fixed-step loop, bootstraps,
+                   and the game shell (src/game/shell: maps, menu, checkpoint, tutorial)
+src/maps/          one folder per playable map (GAME.md "Maps", ADR 0014)
 ```
 
 These rules are enforced by dependency-cruiser in CI:

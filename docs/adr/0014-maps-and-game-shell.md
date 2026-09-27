@@ -52,4 +52,42 @@ dimensions as local fixtures: they test kinds, not maps.
 
 ## Decision: the game shell
 
-See the "Game shell" section below.
+- **One application module, `src/game/shell/`.** `GameShell` owns the current map, the
+  simulation built for it, the checkpoint, the pause / menu state and the tutorial
+  progress. It is the only thing `bootstrap.ts` drives per frame (`advance(elapsedS)`).
+  The state machines are pure and unit-tested apart from it: `menu-model.ts` (screens,
+  selection, enabled rows, the action to run), `checkpoint.ts` (the rule: grounded on four
+  wheels, not bailed, not grinding), `tutorial.ts` (push → ollie → kickflip → outro →
+  done; only real events advance it; failures show the hint).
+- **Presentation draws, the game decides.** The menu (`presentation/menu`), the tutorial
+  card (`presentation/tutorial`) and the toast render read models built by the shell
+  (`MenuViewModel`, `TutorialCardView`, `KeyPart`s in the current stance). Mouse clicks
+  come back as `MenuIntent`s; the view never touches game state. The shell reaches the
+  renderer through a small `ShellView` port, so the shell runs headless in tests.
+- **Keyboard routing.** The shell listens on `window`; Esc, R, C and F3 are shell keys.
+  Every other key is re-dispatched to a private `EventTarget` that the game's
+  `KeyboardInputSource` listens on, only while the game runs. Opening the menu sends that
+  target a `blur` and resets the input, so nothing held or pressed during the pause leaks
+  into the simulation, and the simulation does not step while paused.
+- **Restart and checkpoints reuse the loop's reset path.** `GameLoop.resetTo(pose)` (board
+  pose and velocities, rider upright with feet on, tricks and input cleared) serves the
+  bail reset, `R` and the checkpoint; `setRespawn` makes the bail reset go to the
+  checkpoint. `BoardSystem.reset` takes optional velocities for it.
+- **A map switch rebuilds everything.** `composeSimulation` builds a new physics world,
+  board and systems for the new level (the same input source is reused); the old world
+  is disposed and the renderer rebuilds its scene (`setup` disposes the old meshes).
+  Tests count Rapier worlds, bodies and colliders across street ↔ flat; the dev handle
+  (`window.__skate.sceneStats()`) counts scene objects and GPU geometries.
+- **Persistence**: `LocalStorageShellRepository` (`skate.tutorialDone`,
+  `skate.lastMap`), every access in try/catch.
+- **Dev-only pieces stay out of production.** The tuning panel code is imported only
+  under `import.meta.env.DEV` (and built lazily on the first F3); `?montage` and `?demo`
+  are behind the same flag.
+
+## Consequences
+
+- Adding a map is a folder; adding a shell feature is a pure model plus a view.
+- The G4 line and the other park lines now measure on the Street Course (`pnpm
+  test:human`); the kicker has no street equivalent, so its lines moved to the euro gap.
+- The shell's own tests (`game-shell.scenario.test.ts`, `tutorial.scenario.test.ts`) play
+  the real keyboard adapter through the shell's routing with Rapier in Node.

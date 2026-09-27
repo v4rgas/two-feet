@@ -18,10 +18,10 @@ Owns the **physics port**. Wheel model: real wheel colliders plus a tyre model
 
 ## Public API (`index.ts`)
 
-- Ports: `PhysicsWorld` (`addStaticCollider`, `createBoard`, `step`, `raycast`, `dispose`), `RigidBodyHandle` (transform, velocities, velocity at point, COM, mass, `applyForceAtPoint`, `applyImpulseAtPoint`, `applyTorque`, `applyTorqueImpulse`, `resetTo`), `BoardBody` (`body`, `contacts()`).
+- Ports (`RapierPhysicsWorld` also has `stats()` for bodies/colliders and a static `liveWorlds` count: leak checks of a map switch): `PhysicsWorld` (`addStaticCollider`, `createBoard`, `step`, `raycast`, `dispose`), `RigidBodyHandle` (transform, velocities, velocity at point, COM, mass, `applyForceAtPoint`, `applyImpulseAtPoint`, `applyTorque`, `applyTorqueImpulse`, `resetTo`), `BoardBody` (`body`, `contacts()`).
 - Types: `BoardSpec` (VO + helpers), `BoardSnapshot`, `ContactState`, `BoardContact`, `BoardForce`, `BoardForceLabel`, `StaticColliderDesc`, `ColliderShape` (`box`, `convexHull`, or `compound`: convex-hull parts that each carry their own surface type, see ADR 0008), `ColliderPart`, `Ray`, `RaycastHit`, `RaycastOptions`, `BoardPartId`, `WheelId`.
 - Helpers: `contactStateFrom(contacts)`, `countWheelsDown(state)`.
-- Application: the `BoardSystem` interface (`body`, `snapshot`, `lastForces`, `prePhysics`, `postPhysics`, `reset`) and its implementation `PhysicsBoardSystem(boardBody, spec, config, bus)`, which also exposes `leanRad` and `steerRad`.
+- Application: the `BoardSystem` interface (`body`, `snapshot`, `lastForces`, `prePhysics`, `postPhysics`, `reset(transform, linearVelocity?, angularVelocity?)`: a checkpoint restores the board's velocity too, GAME.md) and its implementation `PhysicsBoardSystem(boardBody, spec, config, bus)`, which also exposes `leanRad` and `steerRad`.
 - Test double: `FakeRigidBodyHandle` (records applied forces). Config: `BOARD_CONFIG`, `NO_CONTACT`.
 - Infrastructure (imported only by `src/game`): `RapierPhysicsWorld.create(config)`. It is async because it loads WASM.
 
