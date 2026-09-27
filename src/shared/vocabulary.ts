@@ -61,3 +61,23 @@ export const WHEEL_IDS: readonly WheelId[] = Object.freeze([
 
 /** Stable identifier of a world obstacle / static collider. */
 export type ObstacleId = string;
+
+/**
+ * How the board sits on a grind edge (MECHANICS.md "Grinds and slides"). Owned by
+ * `rider`, named by `tricks`. Grinds (board along the edge): `fiftyFifty` (both trucks),
+ * `fiveO` (tail truck), `noseGrind` (nose truck). Slides (board across the edge):
+ * `boardslide` (deck middle), `tailslide`, `noseslide`.
+ */
+export type GrindKind =
+  | "fiftyFifty"
+  | "fiveO"
+  | "noseGrind"
+  | "boardslide"
+  | "tailslide"
+  | "noseslide";
+
+/** Toes toward the edge at lock-in = frontside, heels = backside. Owned by `rider`. */
+export type GrindSide = "frontside" | "backside";
+
+/** How a grind ended: a pop out, rolling off the end of the edge, or losing the balance. */
+export type GrindExit = "popOut" | "rollOff" | "fellOff";

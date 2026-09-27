@@ -15,6 +15,7 @@ export type {
 } from "./domain/trick-classifier";
 export { classifyTrick } from "./domain/trick-classifier";
 export type {
+  GrindNames,
   RotationStep,
   TrickDefinition,
   TrickPrefix,
@@ -22,4 +23,4 @@ export type {
 } from "./domain/trick-definition";
 export type { MotionSample, TrickOutcome, TrickRecognizer } from "./domain/trick-recognizer";
 export type { TricksConfig } from "./tricks.config";
-export { TRICK_TABLE, TRICKS_CONFIG } from "./tricks.config";
+export { GRIND_NAMES, TRICK_TABLE, TRICKS_CONFIG } from "./tricks.config";

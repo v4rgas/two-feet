@@ -170,6 +170,8 @@ export const PRESENTATION_CONFIG = deepFreeze({
     airtimeHoldS: 1.2,
     /** Airtime bar is full at this airtime, s. */
     airtimeFullScaleS: 1,
+    /** Grind balance bar: the marker warns from this |balance| on (falls off past 1). */
+    balanceDanger: 0.75,
   },
   debug: {
     /** Arrow length per newton of force, m/N. */

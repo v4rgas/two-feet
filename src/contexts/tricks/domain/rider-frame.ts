@@ -1,4 +1,4 @@
-import type { Stance } from "../../../shared";
+import type { GrindExit, GrindKind, GrindSide, Stance } from "../../../shared";
 import { Quat, Vec3 } from "../../../shared";
 
 /*
@@ -29,6 +29,17 @@ export interface RiderPose {
    * report it yet, so it counts as false.
    */
   readonly switchStance?: boolean;
+  /** The grind the board is locked in (M4), or null / absent. */
+  readonly grind?: {
+    readonly kind: GrindKind;
+    readonly side: GrindSide;
+    readonly obstacleId: string;
+    readonly surface: string;
+  } | null;
+  /** How the most recent grind ended. */
+  readonly lastGrindExit?: GrindExit | null;
+  /** The body's own turn at the last pop out (rad, + = counter-clockwise); not a trick. */
+  readonly popOutTurnRad?: number;
 }
 
 /** +1 when the rider's toe edge is the rider frame's +Z side (regular), −1 in goofy. */

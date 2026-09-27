@@ -12,6 +12,8 @@ export type {
   FootAttached,
   FootDetached,
   FootDetachReason,
+  GrindEnded,
+  GrindStarted,
   RiderBailed,
   RotationTotals,
   SurfaceContactEnded,
@@ -33,6 +35,9 @@ export { FixedStepAccumulator } from "./time/fixed-step";
 export type {
   BoardPartId,
   FootId,
+  GrindExit,
+  GrindKind,
+  GrindSide,
   Kick,
   ObstacleId,
   Stance,

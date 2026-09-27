@@ -119,6 +119,9 @@ export class StubRiderSystem implements RiderSystem {
       headingRad: 0,
       windUpRad: 0,
       bodySpinRateRadps: 0,
+      grind: null,
+      lastGrindExit: null,
+      popOutTurnRad: 0,
       bailed: false,
     };
   }

@@ -1,4 +1,4 @@
-import type { FootId, Kick } from "../../../shared";
+import type { FootId, GrindExit, Kick } from "../../../shared";
 import { FOOT_IDS, Quat, Transform, Vec3 } from "../../../shared";
 import type { RiderConfig } from "../rider.config";
 import {
@@ -20,9 +20,12 @@ import type {
   FootForceInput,
   FootForceModel,
   FootForceOutput,
+  GrindEdgeView,
   RiderControls,
 } from "./foot-force-model";
 import { stickMagnitude, toeSideSign } from "./foot-placement";
+import type { AirStart } from "./grind-controller";
+import { GrindController } from "./grind-controller";
 import type { RiderState } from "./rider-state";
 
 /** One foot's stick read as MECHANICS.md keys (stance resolved: toe/heel, not ±x). */
@@ -184,11 +187,21 @@ export class TrickController implements FootForceModel {
   private pushLocked = false;
   /** Ground height below the board this step (world y, m), for the airtime prediction. */
   private groundYM = 0;
+  /** Grind edges near the board this step. */
+  private edges: readonly GrindEdgeView[] = [];
+  /** Grinds and slides (M4): the lock-on, the locked assists and the balance. */
+  private readonly grind: GrindController;
+  /** Where and facing which way the current air began (grinds: frontside / backside). */
+  private airStart: AirStart | null = null;
+  /** The obstacle this air left a grind on: not a landing for the airtime prediction. */
+  private leftObstacleId: string | null = null;
 
   constructor(
     private readonly deck: DeckGeometry,
     private readonly config: RiderConfig,
-  ) {}
+  ) {
+    this.grind = new GrindController(deck, config);
+  }
 
   reset(): void {
     this.wasGrounded = true;
@@ -200,11 +213,15 @@ export class TrickController implements FootForceModel {
     this.landAssistLeftS = 0;
     this.pushCooldownS = 0;
     this.pushLocked = false;
+    this.grind.reset();
+    this.airStart = null;
   }
 
   computeForces(input: FootForceInput): FootForceOutput {
     const { controls, rider, board, dtS } = input;
     this.groundYM = input.groundBelowYM ?? 0;
+    this.edges = input.edgesNear ?? [];
+    this.grind.tick(dtS);
     const keys = this.readKeys(controls);
     const feetDownPressed = controls.feetDown && !this.feetDownBefore;
     const releasedNow = keys.released && !this.releasedBefore;
@@ -217,20 +234,33 @@ export class TrickController implements FootForceModel {
     const grounded = board.grounded;
     if (!grounded && controls.feetDown) this.pushLocked = true;
     if (!controls.feetDown) this.pushLocked = false;
+    if (rider.bailed) {
+      this.clearLoad();
+      this.grind.reset();
+      this.wasGrounded = grounded;
+      return { forces: [], popped: null, caught: false, loading: false, grind: null };
+    }
+    const frame = new BoardFrame(board, rider.headingRad);
+    const out: FootForce[] = [];
+    if (this.grind.locked) {
+      // On the edge the lock owns the board: wheel contacts (a ledge top) are no landing.
+      this.wasGrounded = grounded;
+      return this.grinding(input, keys, frame, out, false);
+    }
     if (grounded && !this.wasGrounded) {
       this.landAssistLeftS = this.config.tricks.landAssistS;
       this.endAir();
     }
+    if (!grounded && (this.wasGrounded || this.airStart === null)) {
+      this.airStart = { positionM: board.transform.positionM, headingRad: rider.headingRad };
+    }
     this.wasGrounded = grounded;
     this.landAssistLeftS = Math.max(0, this.landAssistLeftS - dtS);
 
-    if (rider.bailed) {
-      this.clearLoad();
-      return { forces: [], popped: null, caught: false, loading: false };
+    if (!grounded && this.tryLock(input, keys, frame)) {
+      return this.grinding(input, keys, frame, out, true);
     }
 
-    const frame = new BoardFrame(board, rider.headingRad);
-    const out: FootForce[] = [];
     let popped: Kick | null = null;
     let caught = false;
     if (grounded) {
@@ -243,7 +273,110 @@ export class TrickController implements FootForceModel {
       if (caught) this.catchRise(input, out);
       if (this.caught) this.catchAssist(input.mass, rider, frame, out);
     }
-    return { forces: out, popped, caught, loading: this.loadKick !== null };
+    return { forces: out, popped, caught, loading: this.loadKick !== null, grind: null };
+  }
+
+  // ── grinds and slides ─────────────────────────────────────────────────────
+
+  /** LOCK-ON (MECHANICS.md M4): the stance comes from the board's yaw and the keys held. */
+  private tryLock(input: FootForceInput, keys: Keys, frame: BoardFrame): boolean {
+    const locked = this.grind.tryLock({
+      board: input.board,
+      edges: this.edges,
+      tailHeld: this.onKick(keys, "tail"),
+      noseHeld: this.onKick(keys, "nose"),
+      facing: Vec3.dot(frame.forward, frame.riderForward) >= 0 ? 1 : -1,
+      toe: toeSideSign(input.controls.stance),
+      airStart: this.airStart,
+    });
+    if (locked) {
+      // The tricks into the grind are over: the lock takes the board (the feet go on).
+      this.endAir();
+      this.clearLoad();
+    }
+    return locked;
+  }
+
+  /**
+   * One step on the edge: the pop out (the same load and release as on the ground; the
+   * pop also leaves along the edge's outward normal), else the lock's assists. A roll off
+   * the end leaves in the air with the feet on (caught); a fall off lets go.
+   */
+  private grinding(
+    input: FootForceInput,
+    keys: Keys,
+    frame: BoardFrame,
+    out: FootForce[],
+    lockedNow: boolean,
+  ): FootForceOutput {
+    const { mass, rider, board } = input;
+    const outward = this.grind.outward ?? Vec3.ZERO;
+    const report = this.grind.report;
+    const kick = lockedNow ? null : this.loadAndPop(input, keys, frame, out);
+    if (kick !== null) {
+      this.leftObstacleId = report?.obstacleId ?? null;
+      this.grind.release();
+      out.push(
+        impulseAt(
+          popFootOf(kick),
+          "pop",
+          Vec3.scale(outward, mass.massKg * this.config.grind.popOutSpeedMps),
+          mass.centerOfMassWorldM,
+        ),
+      );
+      this.airStart = { positionM: board.transform.positionM, headingRad: rider.headingRad };
+      // The rider turns to line up with the travel after the pop (the pop out adds the
+      // outward push): out of a slide that is a quarter turn back; forward is preferred,
+      // fakie when that is clearly nearer.
+      let realignRad = 0;
+      const v = Vec3.add(
+        board.linearVelocityMps,
+        Vec3.scale(outward, this.config.grind.popOutSpeedMps),
+      );
+      if (Math.hypot(v.x, v.z) > this.config.torso.headingTravelMinSpeedMps) {
+        realignRad = wrapPi(Math.atan2(-v.z, v.x) - rider.headingRad);
+        if (Math.abs(realignRad) > Math.PI / 2 + this.config.tricks.landYawToleranceRad) {
+          realignRad = wrapPi(realignRad - Math.PI);
+        }
+      }
+      return {
+        forces: out,
+        popped: kick,
+        caught: false,
+        loading: false,
+        grind: null,
+        grindExit: "popOut",
+        realignRad,
+      };
+    }
+    const lean = carveLean(input.controls, rider, this.config.stance.carveMinStickX);
+    const toe = toeSideSign(input.controls.stance);
+    const exit: GrindExit | null = this.grind.hold(
+      {
+        board,
+        mass,
+        edges: this.edges,
+        dtS: input.dtS,
+        leanToe: lean * toe,
+        riderSide: frame.riderSide,
+        toe,
+      },
+      out,
+    );
+    if (exit !== null) {
+      this.leftObstacleId = report?.obstacleId ?? null;
+      this.airStart = { positionM: board.transform.positionM, headingRad: rider.headingRad };
+      // Rolled off: the feet are still on, so the board is "caught" for the landing.
+      this.caught = exit === "rollOff";
+    }
+    return {
+      forces: out,
+      popped: null,
+      caught: lockedNow,
+      loading: this.loadKick !== null,
+      grind: this.grind.report,
+      grindExit: exit,
+    };
   }
 
   // ── keys ──────────────────────────────────────────────────────────────────
@@ -298,6 +431,24 @@ export class TrickController implements FootForceModel {
     frame: BoardFrame,
     out: FootForce[],
   ): Kick | null {
+    const popped = this.loadAndPop(input, keys, frame, out);
+    if (popped !== null) return popped;
+    const pressKick = this.loadKick === null ? this.pressKick(keys) : null;
+    this.stance(input, frame, pressKick, out);
+    if (pressKick !== null) {
+      this.manual(pressKick, input.rider.headingRad, input.mass, frame, out);
+    }
+    this.push(input, frame, out);
+    return null;
+  }
+
+  /** LOAD and POP (see `ground`); also the pop out of a grind. Returns the kick that popped. */
+  private loadAndPop(
+    input: FootForceInput,
+    keys: Keys,
+    frame: BoardFrame,
+    out: FootForce[],
+  ): Kick | null {
     const { tricks } = this.config;
     const dtS = input.dtS;
     const kick = this.loadKick;
@@ -314,22 +465,16 @@ export class TrickController implements FootForceModel {
         // The pop grows with how long both were held together.
         this.loadS += dtS;
       }
-    } else {
-      // The first kick to be loaded wins; checked tail first only to break an exact tie.
-      for (const k of KICKS) {
-        if (this.onKick(keys, k) && this.isSet(keys, k)) {
-          this.loadKick = k;
-          this.loadS = dtS;
-          break;
-        }
+      return null;
+    }
+    // The first kick to be loaded wins; checked tail first only to break an exact tie.
+    for (const k of KICKS) {
+      if (this.onKick(keys, k) && this.isSet(keys, k)) {
+        this.loadKick = k;
+        this.loadS = dtS;
+        break;
       }
     }
-    const pressKick = this.loadKick === null ? this.pressKick(keys) : null;
-    this.stance(input, frame, pressKick, out);
-    if (pressKick !== null) {
-      this.manual(pressKick, input.rider.headingRad, input.mass, frame, out);
-    }
-    this.push(input, frame, out);
     return null;
   }
 
@@ -440,7 +585,9 @@ export class TrickController implements FootForceModel {
     const fraction = clamp01((loadS - t.loadMinS) / Math.max(1e-6, t.loadMaxS - t.loadMinS));
     const heightM = t.popMinHeightM + (t.popMaxHeightM - t.popMinHeightM) * fraction;
     const speedMps = Math.sqrt(2 * t.gravityMps2 * heightM);
-    const deltaMps = speedMps - Math.max(0, frame.board.linearVelocityMps.y);
+    // Off a grind the pop is relative to the edge: sliding down a hubba does not eat it.
+    const vy = frame.board.linearVelocityMps.y;
+    const deltaMps = speedMps - (this.grind.locked ? vy : Math.max(0, vy));
     out.push(
       impulseAt(foot, "pop", Vec3.create(0, mass.massKg * deltaMps, 0), mass.centerOfMassWorldM),
     );
@@ -862,11 +1009,22 @@ export class TrickController implements FootForceModel {
    */
   private remainingAirtimeS(board: BoardKinematics): number {
     const { gravityMps2: g, landingMarginM, minAirtimeS } = this.config.tricks;
-    const landingY = this.groundYM + restHeightM(this.deck) + landingMarginM;
-    const heightM = Math.max(0, board.transform.positionM.y - landingY);
-    const vy = board.linearVelocityMps.y;
-    const airS = (vy + Math.sqrt(vy * vy + 2 * g * heightM)) / g;
-    return Math.max(airS, minAirtimeS);
+    let landingY = this.groundYM + restHeightM(this.deck) + landingMarginM;
+    // A grind edge on the board's path is where it comes down (onto a rail, the hubba):
+    // the path is the horizontal travel over the airtime to the ground.
+    const p = board.transform.positionM;
+    const v = board.linearVelocityMps;
+    const groundAirS = airtimeTo(p.y - landingY, v.y, g);
+    const path = Vec3.create(v.x * groundAirS, 0, v.z * groundAirS);
+    for (const edge of this.edges) {
+      if (edge.obstacleId === this.leftObstacleId) continue;
+      const c = closestToPath(edge.startM, edge.endM, p, path);
+      if (c === null || c.distanceM > this.config.grind.airtimeEdgeRadiusM) continue;
+      // Only an edge the board rises above (its apex) can be landed on.
+      if (c.edgeM.y + landingMarginM >= p.y + Math.max(0, v.y) ** 2 / (2 * g)) continue;
+      landingY = Math.max(landingY, c.edgeM.y + landingMarginM);
+    }
+    return Math.max(airtimeTo(p.y - landingY, v.y, g), minAirtimeS);
   }
 
   // ── catch ─────────────────────────────────────────────────────────────────
@@ -944,6 +1102,7 @@ export class TrickController implements FootForceModel {
   }
 
   private endAir(): void {
+    this.leftObstacleId = null;
     this.popKick = null;
     this.sincePopS = Number.POSITIVE_INFINITY;
     this.popSpeedMps = 0;
@@ -961,6 +1120,39 @@ export class TrickController implements FootForceModel {
 }
 
 const KICKS: readonly Kick[] = ["tail", "nose"];
+
+/** Ballistic time to fall `heightM` (≥ 0) starting at vertical speed `vy`, s. */
+function airtimeTo(heightM: number, vy: number, g: number): number {
+  const h = Math.max(0, heightM);
+  return (vy + Math.sqrt(vy * vy + 2 * g * h)) / g;
+}
+
+/**
+ * The point of segment [a, b] closest (horizontally) to the path from `p` along `path`
+ * (horizontal), and that horizontal distance; null for a degenerate segment. Sampled
+ * along the edge: edges are short and this runs once per trick.
+ */
+function closestToPath(
+  a: Vec3,
+  b: Vec3,
+  p: Vec3,
+  path: Vec3,
+): { edgeM: Vec3; distanceM: number } | null {
+  if (Vec3.distance(a, b) < 1e-6) return null;
+  const pathSq = path.x * path.x + path.z * path.z;
+  let best: { edgeM: Vec3; distanceM: number } | null = null;
+  const samples = 32;
+  for (let i = 0; i <= samples; i += 1) {
+    const e = Vec3.lerp(a, b, i / samples);
+    const t =
+      pathSq < 1e-9
+        ? 0
+        : Math.max(0, Math.min(1, ((e.x - p.x) * path.x + (e.z - p.z) * path.z) / pathSq));
+    const distanceM = Math.hypot(e.x - (p.x + path.x * t), e.z - (p.z + path.z * t));
+    if (best === null || distanceM < best.distanceM) best = { edgeM: e, distanceM };
+  }
+  return best;
+}
 const TAU = 2 * Math.PI;
 
 /** One trick channel (flip or shove): see `TrickController.flipChannel`. */

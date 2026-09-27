@@ -3,6 +3,7 @@ import type {
   FootDetached,
   FootDetachReason,
   FootId,
+  GrindExit,
   RiderBailed,
 } from "../../../shared";
 import { FOOT_IDS, Quat, Vec3 } from "../../../shared";
@@ -22,7 +23,7 @@ import { clampToDeck, deckTopPointLocal, isOnDeck } from "./deck-surface";
 import { Foot, type FootMotionLimits } from "./foot";
 import type { BoardKinematics, DeckGeometry, RiderControls } from "./foot-force-model";
 import { feetPressure, targetDeckPosition } from "./foot-placement";
-import type { RiderState } from "./rider-state";
+import type { RiderGrind, RiderState } from "./rider-state";
 
 export { boardUp, tiltRad } from "./board-geometry";
 
@@ -69,6 +70,11 @@ export class Rider {
   private headingRad = 0;
   private windUpRad = 0;
   private bodySpinRateRadps = 0;
+  /** A pop out of a slide turns the body back this much more (rad, signed). */
+  private realignLeftRad = 0;
+  private popOutTurnRad = 0;
+  private grind: RiderGrind | null = null;
+  private lastGrindExit: GrindExit | null = null;
   private bailed = false;
   private bothFeetOffOnWheelsS = 0;
   private upsideDownRestingS = 0;
@@ -103,6 +109,9 @@ export class Rider {
       windUpRad: this.windUpRad,
       bodySpinRateRadps: this.bodySpinRateRadps,
       bailed: this.bailed,
+      grind: this.grind,
+      lastGrindExit: this.lastGrindExit,
+      popOutTurnRad: this.popOutTurnRad,
     });
     return this.cachedState;
   }
@@ -111,10 +120,12 @@ export class Rider {
    * The pop: the rider jumps and both feet leave the deck. The stored wind-up becomes the
    * initial body spin (`windUpSpinRadps` × the wind-up fraction).
    */
-  liftFeet(): readonly RiderChange[] {
+  liftFeet(realignRad = 0): readonly RiderChange[] {
     const { windUpMaxRad, windUpSpinRadps } = this.config.tricks;
     this.bodySpinRateRadps = (this.windUpRad / windUpMaxRad) * windUpSpinRadps;
     this.windUpRad = 0;
+    this.realignLeftRad = realignRad;
+    this.popOutTurnRad = realignRad;
     this.cachedState = null;
     return this.detachAll("jumped");
   }
@@ -138,6 +149,30 @@ export class Rider {
     }
     this.cachedState = null;
     return changes;
+  }
+
+  /**
+   * The grind lock this step (MECHANICS.md M4), from the trick model: the read model shows
+   * it, the heading lines up with the board while locked, and losing the balance
+   * (`fellOff`) is a bail.
+   */
+  setGrind(grind: RiderGrind | null, exit: GrindExit | null): readonly RiderChange[] {
+    if (grind !== null) {
+      this.grind = {
+        kind: grind.kind,
+        side: grind.side,
+        obstacleId: grind.obstacleId,
+        surface: grind.surface,
+        balance: grind.balance,
+      };
+      this.lastGrindExit = null;
+    } else {
+      this.grind = null;
+    }
+    if (exit !== null) this.lastGrindExit = exit;
+    this.cachedState = null;
+    if (exit === "fellOff" && !this.bailed) return [this.bail("lostBalance")];
+    return [];
   }
 
   /** Loop step 5: moves the torso and feet and checks for a bail. */
@@ -222,6 +257,10 @@ export class Rider {
     this.headingRad = boardHeadingRad(board) ?? 0;
     this.windUpRad = 0;
     this.bodySpinRateRadps = 0;
+    this.realignLeftRad = 0;
+    this.popOutTurnRad = 0;
+    this.grind = null;
+    this.lastGrindExit = null;
     this.torsoPositionM = this.torsoTarget(board);
     this.torsoVelocityMps = board.linearVelocityMps;
     for (const id of FOOT_IDS) {
@@ -345,11 +384,26 @@ export class Rider {
    * - only when slow does it follow the board's long axis (again either way round).
    */
   private updateHeading(controls: RiderControls, board: BoardKinematics, dtS: number): void {
+    if (this.grind !== null) {
+      // Locked on an edge: the body lines up with the board (either way round).
+      this.bodySpinRateRadps = 0;
+      const heading = boardHeadingRad(board);
+      if (heading === null) return;
+      const { headingMaxRateRadps, headingFollowPerS } = this.config.torso;
+      const error = axisErrorRad(heading - this.headingRad);
+      const rate = Math.max(
+        -2 * headingMaxRateRadps,
+        Math.min(2 * headingMaxRateRadps, error * headingFollowPerS),
+      );
+      this.headingRad = wrapPi(this.headingRad + rate * dtS);
+      return;
+    }
     if (!board.grounded) {
       this.spinBody(controls, dtS);
       return;
     }
     this.bodySpinRateRadps = 0;
+    this.realignLeftRad = 0;
     const { headingFollowPerS, headingMaxRateRadps, headingTravelMinSpeedMps } = this.config.torso;
     const v = board.linearVelocityMps;
     const target =
@@ -373,11 +427,23 @@ export class Rider {
   private spinBody(controls: RiderControls, dtS: number): void {
     const { bodySpinRateRadps, bodySpinAccelRadps2 } = this.config.tricks;
     // Q (spin −1) turns left: counter-clockwise seen from above = +heading.
-    const wanted = -(controls.spin ?? 0) * bodySpinRateRadps;
+    let wanted = -(controls.spin ?? 0) * bodySpinRateRadps;
+    // Out of a slide: turn back toward the travel, easing to a stop on the quarter turn.
+    const left = this.realignLeftRad;
+    if (left !== 0) {
+      wanted +=
+        Math.sign(left) *
+        Math.min(bodySpinRateRadps, Math.sqrt(2 * bodySpinAccelRadps2 * Math.abs(left)));
+    }
     const step = bodySpinAccelRadps2 * dtS;
     const change = Math.max(-step, Math.min(step, wanted - this.bodySpinRateRadps));
     this.bodySpinRateRadps += change;
-    this.headingRad = wrapPi(this.headingRad + this.bodySpinRateRadps * dtS);
+    const turn = this.bodySpinRateRadps * dtS;
+    this.headingRad = wrapPi(this.headingRad + turn);
+    if (left !== 0) {
+      const rest = left - turn;
+      this.realignLeftRad = Math.sign(rest) === Math.sign(left) ? rest : 0;
+    }
   }
 
   /**

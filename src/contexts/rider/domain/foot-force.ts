@@ -21,7 +21,9 @@ export type FootForceLabel =
   /** Body follow: in the air the feet steer the board's yaw toward the rider heading. */
   | "body"
   /** Landing assist: damps bounce and rocking. */
-  | "land";
+  | "land"
+  /** Grind lock: holds the board on the edge, its stance, friction, falling off (M4). */
+  | "grind";
 
 /**
  * A force, impulse, torque or angular impulse the rider applies to the board (value

@@ -183,7 +183,78 @@ export const RIDER_CONFIG = deepFreeze({
   /** MECHANICS.md "Grinds and slides" (M4): lock-on, stances, balance, exits. ADR 0009. */
   grind: {
     /** Edges within this distance of the board centre are considered each step, m. */
-    queryRadiusM: 1,
+    queryRadiusM: 3,
+    /** A board part this close to an edge (moving toward it) locks on, m. */
+    lockDistanceM: 0.06,
+    /** Board yaw within this of the edge's direction: a grind (50-50, 5-0, nosegrind), rad. */
+    parallelToleranceRad: 0.44,
+    /** …within this of square to it: a slide (boardslide, tailslide, noseslide), rad. */
+    perpToleranceRad: 0.61,
+    /** No lock when the board is tilted more than this from the edge's up (mid-flip), rad. */
+    lockMaxTiltRad: 0.7,
+    /** A part more than this BELOW the edge line (passing under a rail) does not lock, m. */
+    lockBelowM: 0.03,
+    /** Friction along the edge, × g: trucks on metal / deck on concrete or steel. */
+    grindFrictionG: 0.08,
+    slideFrictionG: 0.2,
+    /** Below this speed along the edge the friction fades out (a stall holds still), m/s. */
+    frictionFadeSpeedMps: 0.05,
+    /**
+     * LOCK PD: the locked point is driven onto the edge line (in the plane square to the
+     * edge, never along it) with this rate, 1/s, capped at `lockMaxSpeedMps`, applied as
+     * this fraction of the velocity error per step; gravity square to the edge is carried.
+     */
+    lockOmegaPerS: 25,
+    lockGain: 0.6,
+    lockMaxSpeedMps: 1.5,
+    /** The locked point floats this far above the edge (no collider contact), m. */
+    hoverM: 0.004,
+    /** Hanger bottom below the axle (the part that grinds), m. */
+    hangerBelowAxleM: 0.01,
+    /** One-sided edge (ledge, hubba, coping): the inner wheel rides this far clear of it, m. */
+    wheelClearM: 0.006,
+    /** Stance PD (pitch, yaw, roll toward the stance): natural frequency, rad/s. */
+    stanceOmegaRadps: 25,
+    /** 5-0 / nosegrind: the free end up by this, rad. */
+    grindPitchRad: 0.16,
+    /** Tailslide / noseslide: the free end up by this, rad. */
+    slidePitchRad: 0.2,
+    /** Boardslide over a top surface: the end over it tilts up so its wheels clear, + this, rad. */
+    boardslideClearRad: 0.03,
+    /** Deck middle for a boardslide: |along| up to this (clear of the wheels), m. */
+    boardslideHalfM: 0.12,
+    /** Tail / nose for a slide: |along| from this to the tip, m. */
+    kickPartFromM: 0.24,
+    /** At the end of an edge, a next edge of the same obstacle starting this close continues the lock, m. */
+    continueGapM: 0.25,
+    /** After a lock ends, no new lock for this long, s. */
+    relockCooldownS: 0.3,
+    /** Pop out: extra speed along the edge's outward normal, m/s. */
+    popOutSpeedMps: 1,
+    /**
+     * BALANCE in [−1, 1] (+ = toward the toe side). Its drift rate does a random walk of
+     * `balanceDriftPerS`/√s, decaying at `balanceRateDecayPerS`, scaled up by the slope
+     * (× `balanceSlopeFactor` per unit of the edge's sin slope), the speed (× 1 +
+     * `balanceSpeedFactor` per m/s) and the time on the edge (doubling every
+     * `balanceHardenS`); the balance runs away by `balanceInstabilityPerS` × itself. Both
+     * feet leaning the same way push it at `balanceAssist` × `balanceLeanRatePerS`.
+     */
+    balanceDriftPerS: 0.6,
+    balanceRateDecayPerS: 1,
+    balanceSlopeFactor: 1.5,
+    balanceSpeedFactor: 0.1,
+    balanceHardenS: 2,
+    balanceInstabilityPerS: 0.8,
+    balanceAssist: 1,
+    balanceLeanRatePerS: 2.5,
+    /** Seed of the balance's random walk (mixed with the lock's step count). */
+    balanceSeed: 20260926,
+    /** The board rolls this much toward the side the balance leans, rad (visual). */
+    balanceLeanRad: 0.1,
+    /** Falling off: the board is pushed toward the fall side at this speed, m/s. */
+    fallOffSpeedMps: 0.8,
+    /** Edges within this horizontal distance count as a landing for the airtime prediction, m. */
+    airtimeEdgeRadiusM: 0.5,
   },
   torso: {
     /** Torso height above the deck when standing, m. */

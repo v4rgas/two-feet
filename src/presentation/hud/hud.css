@@ -239,3 +239,51 @@
 .skate-debug-panel[hidden] {
   display: none;
 }
+
+/* ── Grind balance, above the airtime (M4) ──────────────────────────── */
+.skate-balance {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  width: 200px;
+  transform: translateX(-50%);
+  opacity: 0;
+  text-align: center;
+  transition: opacity 120ms linear;
+}
+
+.skate-balance[data-on="true"] {
+  opacity: 1;
+}
+
+.skate-balance-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.skate-balance-track {
+  position: relative;
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(28 27 25 / 0.12);
+}
+
+.skate-balance-mark {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 4px;
+  height: 12px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--ink);
+  will-change: transform;
+}
+
+.skate-balance[data-danger="true"] .skate-balance-mark {
+  background: var(--warn);
+}

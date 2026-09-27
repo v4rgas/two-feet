@@ -4,6 +4,9 @@ import { Vec3 } from "../../shared";
 import { PRESENTATION_CONFIG } from "../presentation.config";
 import {
   AirtimeModel,
+  balanceInDanger,
+  balanceMarkerX,
+  grindLabel,
   isPressingTail,
   nextTrailIntensity,
   PopupModel,
@@ -126,5 +129,30 @@ describe("spinIndicator", () => {
     expect(spinIndicator(1, 0, 0)).toBe("↻ spin");
     // Released but still easing out.
     expect(spinIndicator(0, 0, -5)).toBe("↻ spin");
+  });
+});
+
+describe("grind balance bar", () => {
+  it("puts the marker toward the toe side: screen right in regular, left in goofy", () => {
+    expect(balanceMarkerX(0.5, "regular")).toBe(0.5);
+    expect(balanceMarkerX(0.5, "goofy")).toBe(-0.5);
+    expect(balanceMarkerX(3, "regular")).toBe(1);
+  });
+
+  it("warns near the fall and names the latest grind", () => {
+    expect(balanceInDanger(0.8, PRESENTATION_CONFIG.hud)).toBe(true);
+    expect(balanceInDanger(-0.2, PRESENTATION_CONFIG.hud)).toBe(false);
+    const started = {
+      type: "GrindStarted",
+      tick: 1,
+      timeS: 0.1,
+      grind: "tailslide",
+      side: "backside",
+      name: "BS Tailslide",
+      obstacleId: "ledge",
+      surface: "ledge",
+    } as const;
+    expect(grindLabel([started], "")).toBe("BS Tailslide");
+    expect(grindLabel([], "BS Tailslide")).toBe("BS Tailslide");
   });
 });

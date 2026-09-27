@@ -22,8 +22,8 @@ export const DECK: DeckGeometry = {
     kickLengthM: 0.15,
     kickAngleRad: degToRad(19),
   },
-  trucks: { wheelbaseM: 0.36, heightM: 0.053 },
-  wheels: { radiusM: 0.027 },
+  trucks: { wheelbaseM: 0.36, heightM: 0.053, axleTrackM: 0.18 },
+  wheels: { radiusM: 0.027, widthM: 0.032 },
 };
 
 export const REST_Y = 0.027 + 0.053 + 0.006;

@@ -1,5 +1,5 @@
 import { deepFreeze } from "../../shared";
-import type { TrickTable } from "./domain/trick-definition";
+import type { GrindNames, TrickTable } from "./domain/trick-definition";
 
 /**
  * Every tunable constant of the `tricks` context (REQUIREMENTS §2.5). Rotations are
@@ -29,6 +29,14 @@ export const TRICKS_CONFIG = deepFreeze({
     flipRad: 0.6,
     shoveRad: 0.6,
     bodyRad: 0.6,
+  },
+  /** Grinds and lines (MECHANICS.md M4). */
+  grind: {
+    /**
+     * The trick into a grind is named this long after the lock-on: the stance assist
+     * finishes the last bit of the flip, which then counts, s.
+     */
+    entrySettleS: 0.15,
   },
   landing: {
     /** Max angle between board up and world up at touchdown for a clean landing, rad. */
@@ -91,4 +99,20 @@ export const TRICK_TABLE: TrickTable = deepFreeze<TrickTable>({
   ],
   prefixes: { switch: "Switch", fakie: "Fakie", nollie: "Nollie" },
   genericJoiner: " + ",
+});
+
+/** Grind and slide names and how lines are written (MECHANICS.md M4 "Recognizer"). */
+export const GRIND_NAMES: GrindNames = deepFreeze<GrindNames>({
+  kinds: {
+    fiftyFifty: "50-50",
+    fiveO: "5-0",
+    noseGrind: "Nosegrind",
+    boardslide: "Boardslide",
+    tailslide: "Tailslide",
+    noseslide: "Noseslide",
+  },
+  sides: { frontside: "FS", backside: "BS" },
+  lineJoiner: " → ",
+  outSuffix: " out",
+  silentInLine: ["ollie"],
 });

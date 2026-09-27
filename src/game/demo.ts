@@ -370,6 +370,9 @@ class DemoGame {
       headingRad: 0,
       windUpRad: 0,
       bodySpinRateRadps: 0,
+      grind: null,
+      lastGrindExit: null,
+      popOutTurnRad: 0,
       bailed,
     };
     const vectors: DebugVector[] = [];

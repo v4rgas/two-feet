@@ -1,3 +1,5 @@
+import type { GrindKind, GrindSide } from "../../../shared";
+
 /*
  * The trick table as DATA (REQUIREMENTS §1.5, MECHANICS.md "Names the recognizer must
  * produce"). A trick is one step on each of three independent rotation channels plus
@@ -61,4 +63,21 @@ export interface TrickTable {
   };
   /** Joins the flip and shove names of a generic cell, e.g. " + ". */
   readonly genericJoiner: string;
+}
+
+/**
+ * Grind and slide names (MECHANICS.md M4) as data: the stance words, the side words and
+ * how a line of tricks is written.
+ */
+export interface GrindNames {
+  /** Stance word per grind kind, e.g. `tailslide` → "Tailslide". */
+  readonly kinds: Readonly<Record<GrindKind, string>>;
+  /** Side words: frontside → "FS", backside → "BS". */
+  readonly sides: Readonly<Record<GrindSide, string>>;
+  /** Joins the parts of a line: "Kickflip → BS Tailslide → Hardflip out". */
+  readonly lineJoiner: string;
+  /** Appended to the trick that pops out of a grind: "Hardflip out". */
+  readonly outSuffix: string;
+  /** Trick ids left out of a line when they only carry the board in or out (a plain ollie). */
+  readonly silentInLine: readonly string[];
 }

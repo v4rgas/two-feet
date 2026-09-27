@@ -20,13 +20,16 @@ export type {
   FootForceModel,
   FootForceOutput,
   GrindEdgeView,
+  GrindReport,
   RiderControls,
 } from "./domain/foot-force-model";
 export type { FeetPressure } from "./domain/foot-placement";
 export { feetPressure, targetDeckPosition, toeSideSign } from "./domain/foot-placement";
+export type { AirStart } from "./domain/grind-controller";
+export { GrindController } from "./domain/grind-controller";
 export type { RiderChange } from "./domain/rider";
 export { NEUTRAL_CONTROLS, Rider } from "./domain/rider";
-export type { RiderState } from "./domain/rider-state";
+export type { RiderGrind, RiderState } from "./domain/rider-state";
 export { TrickController } from "./domain/trick-controller";
 export type { RiderConfig } from "./rider.config";
 export { RIDER_CONFIG } from "./rider.config";

@@ -1,5 +1,15 @@
 import type { Vec3 } from "../math/vec3";
-import type { BoardPartId, FootId, Kick, ObstacleId, Stance, SurfaceType } from "../vocabulary";
+import type {
+  BoardPartId,
+  FootId,
+  GrindExit,
+  GrindKind,
+  GrindSide,
+  Kick,
+  ObstacleId,
+  Stance,
+  SurfaceType,
+} from "../vocabulary";
 
 /**
  * Domain events: the only way bounded contexts react to each other (REQUIREMENTS §2.2).
@@ -38,7 +48,9 @@ export type BailReason =
   /** The board landed too far off level (tilt beyond threshold). */
   | "offAngle"
   /** A trick's flip, shove or body spin ended too far from a whole turn (tricks only). */
-  | "underRotated";
+  | "underRotated"
+  /** The balance on a grind or slide was lost: the rider fell off the edge (M4). */
+  | "lostBalance";
 
 /** Rotation accumulated around the board's local axes during an air session (rad, signed). */
 export interface RotationTotals {
@@ -153,6 +165,29 @@ export interface SurfaceContactEnded extends EventMeta {
   readonly obstacleId: ObstacleId;
 }
 
+/** Emitted by `tricks` when the board locks onto a grind edge (MECHANICS.md M4). */
+export interface GrindStarted extends EventMeta {
+  readonly type: "GrindStarted";
+  readonly grind: GrindKind;
+  readonly side: GrindSide;
+  /** Display name, e.g. "BS Tailslide", "FS 50-50". */
+  readonly name: string;
+  readonly obstacleId: ObstacleId;
+  readonly surface: SurfaceType;
+}
+
+/** Emitted by `tricks` when the lock on a grind edge ends. */
+export interface GrindEnded extends EventMeta {
+  readonly type: "GrindEnded";
+  readonly grind: GrindKind;
+  readonly side: GrindSide;
+  readonly name: string;
+  readonly obstacleId: ObstacleId;
+  /** Time locked on the edge, s. */
+  readonly durationS: number;
+  readonly exit: GrindExit;
+}
+
 /** Discriminated union (on `type`) of every domain event. */
 export type DomainEvent =
   | BoardPopped
@@ -164,7 +199,9 @@ export type DomainEvent =
   | TrickBailed
   | RiderBailed
   | SurfaceContactStarted
-  | SurfaceContactEnded;
+  | SurfaceContactEnded
+  | GrindStarted
+  | GrindEnded;
 
 /** The `type` tag of a domain event. */
 export type DomainEventType = DomainEvent["type"];

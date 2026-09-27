@@ -1,4 +1,13 @@
-import type { DomainEvent, Quat, Stance, TrickBailed, TrickLanded, Vec3 } from "../../../shared";
+import type {
+  DomainEvent,
+  GrindEnded,
+  GrindStarted,
+  Quat,
+  Stance,
+  TrickBailed,
+  TrickLanded,
+  Vec3,
+} from "../../../shared";
 import type { AirSession } from "./air-session";
 import type { RiderPose } from "./rider-frame";
 
@@ -18,7 +27,7 @@ export interface MotionSample {
 }
 
 /** Events the recognizer produces. */
-export type TrickOutcome = TrickLanded | TrickBailed;
+export type TrickOutcome = TrickLanded | TrickBailed | GrindStarted | GrindEnded;
 
 /**
  * Domain service (REQUIREMENTS §1.5). Pure logic: it NEVER moves the board.

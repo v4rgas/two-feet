@@ -165,3 +165,25 @@ export class AirtimeModel {
     return Math.min(1, this.shownS / this.config.airtimeFullScaleS);
   }
 }
+
+/**
+ * Grind balance bar (MECHANICS.md M4): the marker's position in [−1, 1] of the half
+ * width, + = screen right. The balance is + toward the rider's toe side, which is screen
+ * right in regular (the camera looks along the board) and screen left in goofy.
+ */
+export function balanceMarkerX(balance: number, stance: Stance): number {
+  const x = Math.max(-1, Math.min(1, balance));
+  return stance === "regular" ? x : -x;
+}
+
+/** The balance is close to falling off: the bar warns. */
+export function balanceInDanger(balance: number, config: HudConfig): boolean {
+  return Math.abs(balance) >= config.balanceDanger;
+}
+
+/** The grind name to show above the bar: the latest `GrindStarted` name, else the previous. */
+export function grindLabel(events: readonly DomainEvent[], previous: string): string {
+  let label = previous;
+  for (const e of events) if (e.type === "GrindStarted") label = e.name;
+  return label;
+}

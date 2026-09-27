@@ -5,6 +5,9 @@ import "./hud.css";
 import type { PadLayout } from "./hud-model";
 import {
   AirtimeModel,
+  balanceInDanger,
+  balanceMarkerX,
+  grindLabel,
   isPressingTail,
   nextTrailIntensity,
   PopupModel,
@@ -142,6 +145,12 @@ export class Hud {
   private lastStance = "";
   private readonly spin: HTMLDivElement;
   private lastSpin = "";
+  private readonly balance: HTMLDivElement;
+  private readonly balanceName: HTMLDivElement;
+  private readonly balanceMark: HTMLDivElement;
+  private balanceLabel = "";
+  private lastBalanceKey = "";
+  private readonly config: PresentationConfig;
   private readonly popupModel: PopupModel;
   private readonly airtimeModel: AirtimeModel;
   private layout: PadLayout | null = null;
@@ -167,6 +176,12 @@ export class Hud {
     this.airtimeValue = el("span", "skate-airtime-value", row);
     const bar = el("div", "skate-airtime-bar", this.airtime);
     this.airtimeFill = el("div", "skate-airtime-fill", bar);
+
+    this.balance = el("div", "skate-balance", this.root);
+    this.balanceName = el("div", "skate-balance-name", this.balance);
+    const track = el("div", "skate-balance-track", this.balance);
+    this.balanceMark = el("div", "skate-balance-mark", track);
+    this.config = config;
 
     this.stance = el("div", "skate-stance", this.root);
     this.spin = el("div", "skate-spin", this.root);
@@ -197,6 +212,27 @@ export class Hud {
     this.rightPad.update(frame, this.layout.right, dtS);
     this.updatePopup(frame, dtS);
     this.updateAirtime(frame, dtS);
+    this.updateBalance(frame);
+  }
+
+  /** Grind balance bar (M4): shown while locked on an edge; the marker drifts with it. */
+  private updateBalance(frame: RenderFrame): void {
+    const label = grindLabel(frame.recentEvents, this.balanceLabel);
+    if (label !== this.balanceLabel) {
+      this.balanceLabel = label;
+      this.balanceName.textContent = label;
+    }
+    const grind = frame.rider.grind;
+    const on = grind !== null;
+    const x = on ? balanceMarkerX(grind.balance, frame.stance) : 0;
+    const danger = on && balanceInDanger(grind.balance, this.config.hud);
+    const key = `${on}|${x.toFixed(3)}|${danger}`;
+    if (key === this.lastBalanceKey) return;
+    this.lastBalanceKey = key;
+    this.balance.dataset.on = String(on);
+    this.balance.dataset.danger = String(danger);
+    // Half the track (100 px) at full balance.
+    this.balanceMark.style.transform = `translateX(${(x * 98).toFixed(1)}px)`;
   }
 
   private updatePopup(frame: RenderFrame, dtS: number): void {

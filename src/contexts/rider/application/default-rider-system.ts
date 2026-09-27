@@ -84,6 +84,8 @@ export class DefaultRiderSystem implements RiderSystem {
     };
     this.bus.subscribe("BoardLanded", (event) => {
       // Tilt against the landing surface (a bank, a transition), not world up.
+      // Wheels touching the top of a ledge while locked on its edge are no landing.
+      if (this.rider.state.grind !== null) return;
       const upDot = event.surfaceUpDot ?? event.upDot;
       this.publish(this.rider.land(upDot, this.lastBoard), event.tick, event.timeS);
     });
@@ -129,9 +131,10 @@ export class DefaultRiderSystem implements RiderSystem {
         impulseNs: pop?.kind === "impulse" ? Vec3.length(pop.impulseNs) : 0,
         pointWorldM: pop?.kind === "impulse" ? pop.pointWorldM : board.transform.positionM,
       });
-      this.publish(this.rider.liftFeet(), tick, timeS);
+      this.publish(this.rider.liftFeet(output.realignRad ?? 0), tick, timeS);
     }
     if (output.caught) this.publish(this.rider.catchFeet(board), tick, timeS);
+    this.publish(this.rider.setGrind(output.grind ?? null, output.grindExit ?? null), tick, timeS);
   }
 
   postPhysics(board: BoardSnapshot, dtS: number): void {

@@ -1,4 +1,13 @@
-import type { FootId, Kick, Stance, Transform, Vec3 } from "../../../shared";
+import type {
+  FootId,
+  GrindExit,
+  GrindKind,
+  GrindSide,
+  Kick,
+  Stance,
+  Transform,
+  Vec3,
+} from "../../../shared";
 import type { FootForce } from "./foot-force";
 import type { RiderState } from "./rider-state";
 
@@ -78,8 +87,13 @@ export interface DeckGeometry {
     readonly kickLengthM: number;
     readonly kickAngleRad: number;
   };
-  readonly trucks: { readonly wheelbaseM: number; readonly heightM: number };
-  readonly wheels: { readonly radiusM: number };
+  readonly trucks: {
+    readonly wheelbaseM: number;
+    readonly heightM: number;
+    /** Wheel-centre to wheel-centre across one axle, m (grinds: where the wheels hang). */
+    readonly axleTrackM: number;
+  };
+  readonly wheels: { readonly radiusM: number; readonly widthM: number };
 }
 
 /**
@@ -117,6 +131,18 @@ export interface FootForceInput {
   readonly edgesNear?: readonly GrindEdgeView[];
 }
 
+/** What the rider sees of a grind lock this step (read model data). */
+export interface GrindReport {
+  readonly kind: GrindKind;
+  readonly side: GrindSide;
+  readonly obstacleId: string;
+  readonly surface: string;
+  /** Balance in [−1, 1], + = toward the rider's toe side. */
+  readonly balance: number;
+  /** A slide (the board across the edge) rather than a grind (along it). */
+  readonly slide: boolean;
+}
+
 /** What the model decided this step: forces for the board, cues for the `Rider`. */
 export interface FootForceOutput {
   readonly forces: readonly FootForce[];
@@ -126,6 +152,15 @@ export interface FootForceOutput {
   readonly caught: boolean;
   /** A pop is loaded (both feet crouched on a kick): Q / E wind up the body. */
   readonly loading?: boolean;
+  /** The board is locked on a grind edge this step (MECHANICS.md M4), or null / absent. */
+  readonly grind?: GrindReport | null;
+  /** The lock ended this step, and how. */
+  readonly grindExit?: GrindExit | null;
+  /**
+   * A pop out of a slide: the rider turns back this much (rad, + = counter-clockwise from
+   * above) in the air to line up with the travel again.
+   */
+  readonly realignRad?: number;
 }
 
 /**
