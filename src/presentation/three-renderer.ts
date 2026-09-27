@@ -169,7 +169,7 @@ export class ThreeRenderer implements Renderer {
     this.updateSun();
     if (this.spec !== null) {
       this.headingQuat.setFromAxisAngle(Y_AXIS, this.rig.headingRad);
-      this.feet.update(frame.rider, this.spec, this.boardPivot, this.headingQuat);
+      this.feet.update(frame.rider, this.spec, this.boardPivot, this.headingQuat, frame.stance);
     }
     this.debug.update(frame, dtS);
     this.hud.update(frame, dtS);
