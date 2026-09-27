@@ -27,6 +27,8 @@ export interface FootControl {
   readonly stick: { readonly x: number; readonly y: number };
   /** 1/s. */
   readonly stickVelocityPerS: { readonly x: number; readonly y: number };
+  /** The keys held, per axis in {−1, 0, 1} (same axes as `stick`); absent = unknown. */
+  readonly held?: { readonly x: number; readonly y: number };
 }
 
 /** Both feet's controls (satisfied by input's `IntentFrame`). */

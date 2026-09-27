@@ -129,7 +129,7 @@ line and level (`pnpm test:human`, ≈ 70 s), with floors just under the measure
 | G4H kickflip → FS tailslide → hardflip out | ≥ 80 % | 4 % | 14 % | 20 % |
 | kickflip down the 5-stair | ≥ 90 % | 44 % | 96 % | 100 % |
 | ollie to 50-50 on the rail | ≥ 90 % | 24 % | 50 % | 50 % |
-| 360 flip off the kicker | ≥ 90 % | 38 % | 42 % | 44 % |
+| 360 flip off the kicker | ≥ 90 % | 44 % | 54 % | 58 % |
 
 ## Consequences
 
@@ -146,10 +146,21 @@ line and level (`pnpm test:human`, ≈ 70 s), with floors just under the measure
   - **Rail:** the along-path pop window for an in-line approach is ≈ 0.26 s (pops at
     0.84–1.10 s), against ± 0.11 s of pop jitter plus ± 0.3 m/s over a 3.8 m run-up. Boards
     that lock in the first ~10 cm put the tail truck into the bar's end and stall.
-  - **Kicker:** half of the misses read no flip and no shove. A diagonal stick (↓ + → while
-    pre-positioning the 360) has an along component of only 0.71, which is under
-    `popReleaseStick` (0.85), so pressing → during the load pops at once. That is a gesture
-    conflict in the input model, the same at pro, and is left for a separate change.
+  - **Kicker:** half of the misses read no flip and no shove. This was first put down to a
+    diagonal stick (↓ + →) reading ↓ at only 0.71 and popping at once; measured, that is
+    not so: the keyboard's virtual stick is per axis, so ↓ + → is (1, −1) and the pop comes
+    at the ↓ key-up (checked headless and in the browser). The real cause: ↓ let go just
+    before the lip pops ≈ 25 ms later (the stick's fall to `popReleaseStick`), by which time
+    the wheels had left the kicker. The pop was then skipped, the load was kept, and it
+    popped at the NEXT touchdown (a surprise pop, named "Ollie"). Fixed for every level
+    (2026-09-27): a load carried off a lip still pops within `tricks.popLipGraceS`
+    (0.04 s, the stick's release lag) and the recognizer takes a pop up to
+    `session.popAfterTakeoffWindowS` (0.05 s) after takeoff as that air's; later the load
+    is dropped and never pops at touchdown. Also, a READY load whose key is still held
+    never pops, whatever its stick does (`FootIntent.held`), which covers an analog stick
+    whose diagonal does read 0.71. The rates rose from 38 / 42 / 44 % to 44 / 54 / 58 %;
+    the remaining misses release ↓ well after the lip, or time the flick and sweep out of
+    their windows.
 - Every existing scenario passes at `pro` and at `normal` (`pnpm test` runs the scenario suites
   in both projects), and `montage:verify` is 9/9 at `pro`.
 - Pro is unchanged: every assist is gated on its tunable being non-zero, apart from the

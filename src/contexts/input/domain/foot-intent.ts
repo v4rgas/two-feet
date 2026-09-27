@@ -8,6 +8,13 @@ export interface FootIntent {
   readonly stick: StickValue;
   /** Smoothed stick velocity, 1/s — a fast sideways flick has a large |x|. */
   readonly stickVelocityPerS: StickVelocity;
+  /**
+   * The keys held this step, per axis in {−1, 0, 1} (the target the stick springs toward;
+   * board axes like `stick`). A diagonal (↓ + →) is (1, −1): each key on its own axis. The
+   * rider pops on the pop foot's key being RELEASED, never on the smoothed value dipping.
+   * Absent for a source without digital keys.
+   */
+  readonly held?: StickValue;
 }
 
 /** Both feet's intents plus non-foot actions for one fixed step. */

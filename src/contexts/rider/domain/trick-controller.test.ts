@@ -97,6 +97,34 @@ describe("TrickController — rolling", () => {
           }
   });
 
+  it("a loaded pop fires only when the pop foot's key is let go, not when its stick dips (a diagonal)", () => {
+    // ↓ + S loaded, then → joins ↓: an analog stick on its rim reads (0.71, −0.71). With ↓
+    // still held the load holds; letting ↓ go pops.
+    const { step } = setup();
+    steps(step, { by: -1, fy: -1, backHeld: { x: 0, y: -1 } }, 12);
+    const diagonal = { bx: Math.SQRT1_2, by: -Math.SQRT1_2, fy: -1, backHeld: { x: 1, y: -1 } };
+    expect(steps(step, diagonal, 30).popped).toBeNull();
+    for (let i = 0; i < 30; i += 1) expect(step(diagonal).popped).toBeNull();
+    expect(step({ bx: 1, by: -0.6, fy: -1, backHeld: { x: 1, y: 0 } }).popped).toBe("tail");
+  });
+
+  it("a load carried off a lip pops just past it (popLipGraceS); later it is dropped and never pops at touchdown", () => {
+    const off = (airtimeS: number) =>
+      board({ grounded: false, airtimeS, linearVelocityMps: Vec3.create(4, 1, 0) });
+    const lip = setup();
+    steps(lip.step, { by: -1, fy: -1, backHeld: { x: 0, y: -1 } }, 12);
+    expect(lip.step({ fy: -1, backHeld: { x: 0, y: 0 } }, off(T.popLipGraceS / 2)).popped).toBe(
+      "tail",
+    );
+
+    const late = setup();
+    steps(late.step, { by: -1, fy: -1, backHeld: { x: 0, y: -1 } }, 12);
+    late.step({ by: -1, fy: -1, backHeld: { x: 0, y: -1 } }, off(T.popLipGraceS + 0.02));
+    expect(late.step({ fy: -1, backHeld: { x: 0, y: 0 } }, off(0.2)).popped).toBeNull();
+    // Touchdown with the key let go: the stale load does not pop.
+    for (let i = 0; i < 10; i += 1) expect(late.step({ fy: -1 }).popped).toBeNull();
+  });
+
   it("pushes along the heading only on the ground, with a cooldown", () => {
     const { step } = setup();
     const first = step({ feetDown: true }).forces.filter((f) => f.label === "push");

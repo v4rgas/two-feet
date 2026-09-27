@@ -317,7 +317,11 @@ export class DefaultTrickRecognizer implements TrickRecognizer {
         const pop = this.popState(event);
         // A pop out of a grind: the air already began when the lock let go.
         const s = this.session;
-        if (s?.fromGrind && s.pop === null && this.grind === null) {
+        // Or a pop just past a lip (a kicker): the rider's `popLipGraceS`.
+        const lipPop =
+          s !== null &&
+          event.timeS - s.startedAtS <= this.config.session.popAfterTakeoffWindowS + 1e-9;
+        if ((s?.fromGrind === true || lipPop) && s?.pop === null && this.grind === null) {
           s.pop = pop;
           s.turnOutRad = this.pose?.popOutTurnRad ?? 0;
           return [];

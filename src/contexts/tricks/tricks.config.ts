@@ -10,6 +10,11 @@ export const TRICKS_CONFIG = deepFreeze({
   session: {
     /** A pop counts for the air session if it happened at most this long before takeoff, s. */
     popToTakeoffWindowS: 0.25,
+    /**
+     * A pop up to this long AFTER takeoff belongs to that air (a load carried off a lip
+     * pops just past it: the rider's `tricks.popLipGraceS`), s.
+     */
+    popAfterTakeoffWindowS: 0.05,
     /** Popped airs shorter than this are hops, not tricks: no outcome, s. */
     minAirtimeS: 0.15,
     /** Rolling backwards (vs the rider heading) faster than this at the pop = fakie, m/s. */

@@ -22,6 +22,11 @@ export class DefaultInputSystem implements InputSystem {
   private readonly spinStick: VirtualStick;
   private currentStance: Stance;
   private last: IntentFrame;
+  /** The keys held at the last sample, per cluster. */
+  private held: Record<ControlCluster, StickValue> = {
+    left: StickValue.NEUTRAL,
+    right: StickValue.NEUTRAL,
+  };
 
   constructor(
     private readonly source: InputSource,
@@ -48,6 +53,7 @@ export class DefaultInputSystem implements InputSystem {
     this.sticks.left.update(sample.left, dtS);
     this.sticks.right.update(sample.right, dtS);
     this.spinStick.update(StickValue.create(sample.spin, 0), dtS);
+    this.held = { left: sample.left, right: sample.right };
     this.last = this.buildFrame(sample.feetDown);
     return this.last;
   }
@@ -63,6 +69,7 @@ export class DefaultInputSystem implements InputSystem {
     this.sticks.left.reset();
     this.sticks.right.reset();
     this.spinStick.reset();
+    this.held = { left: StickValue.NEUTRAL, right: StickValue.NEUTRAL };
     this.last = this.buildFrame(false);
   }
 
@@ -77,7 +84,13 @@ export class DefaultInputSystem implements InputSystem {
   }
 
   private intentFor(foot: FootId): FootIntent {
-    const stick = this.sticks[clusterForFoot(this.currentStance, foot)];
-    return Object.freeze({ foot, stick: stick.value, stickVelocityPerS: stick.velocityPerS });
+    const cluster = clusterForFoot(this.currentStance, foot);
+    const stick = this.sticks[cluster];
+    return Object.freeze({
+      foot,
+      stick: stick.value,
+      stickVelocityPerS: stick.velocityPerS,
+      held: this.held[cluster],
+    });
   }
 }

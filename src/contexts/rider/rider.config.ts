@@ -129,6 +129,12 @@ export const RIDER_CONFIG = deepFreeze({
      * so the pop fires ≈ 25 ms after the key-up instead of waiting for the stick to relax.
      */
     popReleaseStick: 0.85,
+    /**
+     * A load carried off a lip still pops if the pop foot leaves its kick within this long
+     * after the wheels left (the stick crosses `popReleaseStick` ≈ 25 ms after the key-up);
+     * later the load is dropped, so it never pops at the next touchdown, s.
+     */
+    popLipGraceS: 0.04,
     /** Both sticks within this radius in the air = "all foot keys released" (catch). */
     releasedRadius: 0.35,
 

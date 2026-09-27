@@ -47,6 +47,23 @@ describe("DefaultInputSystem", () => {
     expect(system.lastIntents.feetDown).toBe(false);
   });
 
+  it("a diagonal (↓ + →) is each key on its own axis: the stick and the held keys keep ↓ at −1", () => {
+    const source = new ScriptedSource();
+    const system = new DefaultInputSystem(source, new MemoryStanceRepository(), INPUT_CONFIG);
+    source.current = { ...source.current, right: StickValue.create(0, -1) };
+    settle(system);
+    source.current = { ...source.current, right: StickValue.create(1, -1) };
+    for (let i = 0; i < 60; i += 1) {
+      system.step(DT);
+      const back = system.lastIntents.back;
+      expect(back.held).toEqual({ x: 1, y: -1 });
+      expect(back.stick.y).toBeLessThan(-0.95);
+    }
+    expect(system.lastIntents.back.stick.x).toBeGreaterThan(0.95);
+    system.reset();
+    expect(system.lastIntents.back.held).toEqual({ x: 0, y: 0 });
+  });
+
   it("regular: WASD drives the front foot and arrows the back foot", () => {
     const source = new ScriptedSource();
     const system = new DefaultInputSystem(source, new MemoryStanceRepository(), INPUT_CONFIG);

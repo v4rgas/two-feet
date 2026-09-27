@@ -233,6 +233,43 @@ describe("swipe size: one unit or two", () => {
   }
 });
 
+describe("a 360's diagonal load (↓ + → / ↓ + ←) pops only when the pop key is released", () => {
+  for (const stance of STANCES) {
+    for (const kick of KICKS) {
+      for (const pre of ["toe", "heel"] as const) {
+        const to = pre === "toe" ? "heel" : "toe";
+        // BS / FS follow the tail: from the nose the heel-side sweep is FS.
+        const bs = (kick === "tail") === (to === "heel");
+        const name = nollie(kick, bs ? "360 Shove-it" : "FS 360 Shove-it");
+        const label = `${stance} ${kick === "tail" ? "ollie" : "nollie"}, pre-positioned ${pre}`;
+
+        it(
+          `${label}: the load held 0.8 s with the pop foot on the diagonal never pops; releasing the kick key pops; the swipe across is a ${name}`,
+          async () => {
+            const h = await start(stance);
+            const t0 = h.timeS;
+            const popAtS = 0.8;
+            loadAndPop(h, popAtS, kick);
+            h.foot(guideFoot(kick), awayFrom(kick), popAtS + 0.05, 0.1);
+            // The side key goes down 0.1 s into the load and stays down past the pop.
+            swipe(h, popFoot(kick), to, popAtS + 0.05, 2, 0.1);
+            h.run(popAtS - 0.01);
+            expect(h.eventsOf("BoardPopped")).toEqual([]);
+            h.run(0.08);
+            const popped = h.eventsOf("BoardPopped");
+            expect(popped.map((e) => e.kick)).toEqual([kick]);
+            expect((popped[0]?.timeS ?? 0) - t0).toBeGreaterThanOrEqual(popAtS);
+            finish(h, t0, 0, 0, TAU);
+            expect(Math.abs(Math.abs(airSummary(h, t0).yawRad) - TAU)).toBeLessThan(0.4);
+            expect(names(h, t0)).toEqual([name]);
+          },
+          T,
+        );
+      }
+    }
+  }
+});
+
 /** Space once the board is near level (an ollie's catch). */
 function catchWhenLevel(h: ScenarioHarness): void {
   for (let i = 0; i < 60 && !h.board.grounded && h.tiltRad() > 0.15; i += 1) h.run(1 / 120);

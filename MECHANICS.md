@@ -93,7 +93,10 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 ### Pop
 - **Gesture:** release `↓` while loaded, with `S` still held. Releasing both at
   the same time also pops. Releasing `S` first must **not** be required.
-- **Condition:** the board must be on its wheels.
+- **Condition:** the board must be on its wheels, or have just left them off a lip
+  (within `popLipGraceS` ≈ 0.04 s, the stick's release lag). A load still held later in
+  the air is dropped: it never pops at the next touchdown. While `↓` is held a loaded
+  board never pops, whatever else is pressed (`↓` + `→` for a 360 is still `↓`).
 - **Physics:**
   - Target height `h = lerp(popMinHeightM, popMaxHeightM, loadFraction)`. Start
     around 0.18 → 0.40 m.

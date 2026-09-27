@@ -43,6 +43,8 @@ interface Air {
   readonly wheelsDown?: number;
   /** Rider bails at this air step instead of landing. */
   readonly riderBailsAtStep?: number;
+  /** The pop comes this many steps after takeoff (a load carried off a lip), not before. */
+  readonly popAfterTakeoffSteps?: number;
 }
 
 function toeSide(stance: Stance): 1 | -1 {
@@ -101,7 +103,16 @@ function fly(air: Air): TrickOutcome[] {
 
   let tick = 0;
   observe(sample(tick, q, velocity, true));
-  if (air.popped ?? true) {
+  const popEvent = (): DomainEvent => ({
+    type: "BoardPopped",
+    tick,
+    timeS: tick * DT,
+    foot: kick === "tail" ? "back" : "front",
+    kick,
+    impulseNs: 1,
+    pointWorldM: Vec3.ZERO,
+  });
+  if ((air.popped ?? true) && air.popAfterTakeoffSteps === undefined) {
     emit({
       type: "BoardPopped",
       tick,
@@ -137,6 +148,7 @@ function fly(air: Air): TrickOutcome[] {
       break;
     }
     observe(sample(tick, q, velocity, false));
+    if (i + 1 === air.popAfterTakeoffSteps) emit(popEvent());
     if (i === air.riderBailsAtStep) {
       emit({ type: "RiderBailed", tick, timeS: tick * DT, reason: "upsideDown" });
       return out;
@@ -318,6 +330,16 @@ describe("recognizer: landings that fail", () => {
 
   it("an unpopped air (rolled off an edge) is not named", () => {
     expect(fly({ stance: "regular", popped: false })).toEqual([]);
+  });
+
+  it("a pop just past the lip (a load carried off a kicker) belongs to that air", () => {
+    const window = TRICKS_CONFIG.session.popAfterTakeoffWindowS;
+    const early = Math.floor(window / DT);
+    expect(landedName({ stance: "regular", flipTurns: 1, popAfterTakeoffSteps: early })).toBe(
+      "Kickflip",
+    );
+    // Well into the air it is no pop of this air.
+    expect(fly({ stance: "regular", flipTurns: 1, popAfterTakeoffSteps: early + 12 })).toEqual([]);
   });
 });
 

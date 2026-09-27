@@ -38,6 +38,8 @@ interface FootKeys {
   readonly side: number;
   /** Toward the toe edge (+1) / heel edge (−1) past the key threshold, else 0. */
   readonly edge: -1 | 0 | 1;
+  /** The key held along (+1 toward the nose, −1 toward the tail, 0 none), or null if unknown. */
+  readonly heldAlong: number | null;
 }
 
 /** Both feet read as keys, plus "all released". */
@@ -411,6 +413,14 @@ export class TrickController implements FootForceModel {
       popped = this.ground(input, keys, frame, out);
       if (this.landAssistLeftS > 0) this.landAssist(input.mass, frame, out);
     } else {
+      // A load carried off a lip (a kicker, a ledge, the stairs): the pop still counts just
+      // past it (`popLipGraceS`: the stick's release lag), then the load is dropped — it
+      // never pops later, at the next touchdown.
+      if (this.loadKick !== null) {
+        if ((board.airtimeS ?? 0) <= this.config.tricks.popLipGraceS + 1e-9) {
+          popped = this.loadAndPop(input, keys, frame, out);
+        } else this.clearLoad();
+      }
       this.air(input, keys, frame, out);
       this.trackAirLoad(keys, dtS);
       // A catch attempt: Space pressed (or, in easy mode, every foot key let go). With the
@@ -573,19 +583,21 @@ export class TrickController implements FootForceModel {
   private readKeys(controls: RiderControls): Keys {
     const { keyDownStick, releasedRadius } = this.config.tricks;
     const toe = toeSideSign(controls.stance);
-    const read = (stick: { readonly x: number; readonly y: number }): FootKeys => {
+    const read = (control: RiderControls["front"]): FootKeys => {
+      const { stick, held } = control;
       const side = stick.x * toe;
       return {
         along: stick.y,
         side,
         edge: side >= keyDownStick ? 1 : side <= -keyDownStick ? -1 : 0,
+        heldAlong: held === undefined ? null : Math.sign(held.y),
       };
     };
     const front = controls.front.stick;
     const back = controls.back.stick;
     return {
-      front: read(front),
-      back: read(back),
+      front: read(controls.front),
+      back: read(controls.back),
       released: stickMagnitude(front) <= releasedRadius && stickMagnitude(back) <= releasedRadius,
     };
   }
@@ -598,6 +610,11 @@ export class TrickController implements FootForceModel {
   /** The pop foot has left `kick` (the pop), with an early threshold for a snappy pop. */
   private offKick(keys: Keys, kick: Kick): boolean {
     return keys[popFootOf(kick)].along * kickSign(kick) < this.config.tricks.popReleaseStick;
+  }
+
+  /** The pop foot's KEY on `kick` is still held (↓ for the tail), when the keys are known. */
+  private kickKeyHeld(keys: Keys, kick: Kick): boolean {
+    return keys[popFootOf(kick)].heldAlong === kickSign(kick);
   }
 
   /**
@@ -647,7 +664,11 @@ export class TrickController implements FootForceModel {
     const dtS = input.dtS;
     const kick = this.loadKick;
     if (kick !== null) {
-      if (this.offKick(keys, kick)) {
+      // A loaded kick whose key is still held never pops, whatever its stick does: the pop
+      // is the key being let go (a 360's ↓ + → loads like ↓ alone, even on an analog
+      // stick whose diagonal reads ↓ at 0.71).
+      const holding = this.loadS >= tricks.loadMinS && this.kickKeyHeld(keys, kick);
+      if (this.offKick(keys, kick) && !holding) {
         const ready = this.loadS >= tricks.loadMinS;
         const loadS = this.loadS;
         this.clearLoad();

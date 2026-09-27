@@ -53,6 +53,8 @@ export interface Sticks {
   readonly by?: number;
   readonly feetDown?: boolean;
   readonly stance?: Stance;
+  /** The back foot's held keys (per axis in {−1, 0, 1}); absent = unknown. */
+  readonly backHeld?: { readonly x: number; readonly y: number };
 }
 
 export function controls({
@@ -62,10 +64,16 @@ export function controls({
   by = 0,
   feetDown = false,
   stance = "regular",
+  backHeld,
 }: Sticks = {}): RiderControls {
   return {
     front: { foot: "front", stick: { x: fx, y: fy }, stickVelocityPerS: { x: 0, y: 0 } },
-    back: { foot: "back", stick: { x: bx, y: by }, stickVelocityPerS: { x: 0, y: 0 } },
+    back: {
+      foot: "back",
+      stick: { x: bx, y: by },
+      stickVelocityPerS: { x: 0, y: 0 },
+      ...(backHeld === undefined ? {} : { held: backHeld }),
+    },
     feetDown,
     stance,
   };

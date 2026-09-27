@@ -25,7 +25,7 @@ import { HUMAN_JITTER, jitterRuns, landedRate } from "./human-jitter";
  * | G4H kickflip → tailslide → hardflip | ≥ 80 %        | 4 % | 14 %   | 20 % |
  * | kickflip down the 5-stair          | ≥ 90 %        | 44 % | 96 %  | 100 % |
  * | ollie to 50-50 on the rail         | ≥ 90 %        | 24 % | 50 %  | 50 % |
- * | 360 flip off the kicker            | ≥ 90 %        | 38 % | 42 %  | 44 % |
+ * | 360 flip off the kicker            | ≥ 90 %        | 44 % | 54 %  | 58 % |
  *
  * Each 50-run batch takes ≈ 5–7 s; the whole file ≈ 40 s, so it runs in `pnpm test`.
  */
@@ -61,7 +61,7 @@ const LINES: readonly Line[] = [
   {
     name: "360 flip off the kicker",
     clip: treFlipKicker,
-    floors: { pro: 0.34, normal: 0.38, easy: 0.4 },
+    floors: { pro: 0.42, normal: 0.52, easy: 0.56 },
   },
 ];
 

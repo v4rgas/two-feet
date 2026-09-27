@@ -24,6 +24,9 @@ velocity (the flick threshold in rider is 8 /s). `value` has a rescaled deadzone
 ## Public API (`index.ts`)
 
 - Types: `FootId`, `Stance`, `StickValue` (VO), `StickVelocity`, `FootIntent`, `IntentFrame`, `VirtualStick`, `ControlCluster`, `RawInputSample`, `InputConfig`, `StickTuning`, `VirtualStickFactory`.
+- `FootIntent.held`: the keys held this step, per axis in {−1, 0, 1} (the stick's target). The
+  sticks are per axis, so a diagonal (`↓` + `→`) is (1, −1); the rider pops a loaded kick only
+  once its key is let go, never on a dip of the smoothed value.
 - Ports: `InputSource` (`sample(): RawInputSample` — both clusters, `feetDown`, `spin`), `StanceRepository` (`load`/`save`).
 - Domain: `SpringVirtualStick` (the `VirtualStick` implementation), `footForCluster`, `clusterForFoot`.
 - Application: `InputSystem` (interface: `step(dtS): IntentFrame`, `lastIntents`, `stance`, `setStance`, `reset`) and its implementation `DefaultInputSystem(source, stanceRepository, config, createStick?)`.
