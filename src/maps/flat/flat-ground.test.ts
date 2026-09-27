@@ -3,7 +3,7 @@ import type { Obstacle } from "../../contexts/world";
 import { obstacleGeometry, obstacleGrindEdges } from "../../contexts/world";
 import { Transform } from "../../shared";
 import { FLAT_CONFIG } from "./flat.config";
-import { createFlatGroundLevel } from "./flat-ground";
+import { createFlatGroundLevel, createFlatMapLevel } from "./flat-ground";
 import { map } from "./map";
 
 /** World x/z extent of an obstacle. */
@@ -65,5 +65,18 @@ describe("flat map", () => {
     expect(bannered.some((o) => sponsor(o) === "v4rgas")).toBe(true);
     // Only the real sponsors: no house banners.
     for (const o of bannered) expect(["bipbop", "v4rgas"]).toContain(sponsor(o));
+  });
+
+  it("has 3–5 floor graffiti pieces, none in the push lane ahead of the spawn", () => {
+    const pieces = createFlatMapLevel().graffiti ?? [];
+    expect(pieces.length).toBeGreaterThanOrEqual(3);
+    expect(pieces.length).toBeLessThanOrEqual(5);
+    const s = FLAT_CONFIG.spawn;
+    for (const g of pieces) {
+      expect(g.normal.y).toBeCloseTo(1, 9);
+      // Clear of a 4 m wide lane from the spawn out to the far wall.
+      const inLane = g.positionM.x > s.xM - 2 && Math.abs(g.positionM.z - s.zM) < 2 + g.sizeM / 2;
+      expect(inLane, g.pieceId).toBe(false);
+    }
   });
 });

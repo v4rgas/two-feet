@@ -6,6 +6,8 @@ import type {
 } from "../../contexts/world";
 import {
   graffitiOnFace,
+  graffitiOnGround,
+  graffitiOnObstacleSurface,
   ObstacleShape,
   perimeterBarriers,
   quarterPipeLipXM,
@@ -90,7 +92,11 @@ export function streetDeckFence(s: StreetConfig, qp: QuarterPipeShape): Obstacle
   );
 }
 
-/** The course's graffiti: the 7-stair deck's side and the SW corner. */
+/**
+ * The course's graffiti: the 7-stair deck's side wall and the SW corner barrier, the
+ * funbox's banks, the quarter pipe's transition and deck, the bank-to-ledge, the hip, the
+ * gap platform's top, and the open ground (a landing target, two floor pieces).
+ */
 export function streetGraffiti(
   s: StreetConfig,
   obstacles: readonly Obstacle[],
@@ -112,5 +118,9 @@ export function streetGraffiti(
   return [
     graffitiOnFace(byId("big-stairs"), g.stairDeck),
     ...(corner === undefined ? [] : [graffitiOnFace(corner, g.corner)]),
+    ...g.surfaces.map(({ obstacleId, ...o }) =>
+      graffitiOnObstacleSurface(byId(obstacleId), { ...o, frame: "world" }),
+    ),
+    ...g.ground.map((o) => graffitiOnGround(o)),
   ];
 }

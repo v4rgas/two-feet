@@ -83,11 +83,20 @@ front and back.
   is plain concrete (an unknown sponsor id also renders plain). No neon, no motion.
 - **The deck's penguin art** (`deck-penguin.jpg`) is the deck decal ONLY: never a
   banner, a graffiti piece or any other surface (enforced by a dependency-cruiser rule).
-- **Graffiti:** a couple of pieces per map, never everywhere. Only our own marks
-  (the v4rgas pixel penguin and lettering, never the deck art), sprayed: soft overspray halo,
-  rough outline, a few drips, speckle. Multiplied into the wall so the concrete
-  shows through, a little faded. Palette colours only (moss, blue, deck red, a
-  muted gold, ink).
+- **Graffiti:** a healthy amount, on walls AND on the ground and ramp faces
+  (banks, quarter pipe transitions and decks, platform tops): about 8–14 pieces on
+  the street, 6–10 on El Toro, 3–5 on flat. Only our own marks (the v4rgas pixel
+  penguin, v4rgas lettering, generic doodles: stars, crowns, arrows, a target;
+  never the deck art, BipBop's marks or game taglines), sprayed: soft overspray
+  halo, rough outline, a few drips, speckle. Multiplied into the surface so the
+  concrete shows through, a little faded. Palette colours only (moss, blue, deck
+  red, a muted gold, ink). Keep it readable:
+  - never over a grind edge or coping: the edges must stay readable (a piece
+    stays ≥ 3 cm clear of every grind edge; tested);
+  - landing zones stay calm: at most a quiet mark (the thin `landing-target`),
+    never a busy piece where the rider lands;
+  - on a ramp the art's up points up the slope; floor pieces read from where
+    the rider usually comes from.
 - Proportions follow the real board, with the physics values as the source of
   truth: deck about 0.80 × 0.21 m, wheelbase about 0.36 m, wheels 54 mm.
   Rendering must match the collider shapes exactly, because the player reads

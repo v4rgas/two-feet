@@ -1,5 +1,11 @@
 import type { Obstacle, PerimeterSide } from "../../contexts/world";
-import { groundObstacle, Level, ObstacleShape, perimeterBarriers } from "../../contexts/world";
+import {
+  graffitiOnGround,
+  groundObstacle,
+  Level,
+  ObstacleShape,
+  perimeterBarriers,
+} from "../../contexts/world";
 import { Vec3 } from "../../shared";
 import type { FlatConfig } from "./flat.config";
 import { FLAT_CONFIG } from "./flat.config";
@@ -53,7 +59,7 @@ function flatPerimeter(config: FlatConfig): Obstacle[] {
 
 /**
  * The flat map (`?map=flat`, where the tutorial runs): the ground slab and a small plaza
- * of low barriers round the spawn, with a few banners.
+ * of low barriers round the spawn, with a few banners and floor graffiti.
  */
 export function createFlatMapLevel(config: FlatConfig = FLAT_CONFIG): Level {
   const ground = createFlatGroundLevel(config);
@@ -62,5 +68,6 @@ export function createFlatMapLevel(config: FlatConfig = FLAT_CONFIG): Level {
     name: ground.name,
     obstacles: [...ground.obstacles, ...flatPerimeter(config)],
     spawn: ground.spawn,
+    graffiti: config.graffiti.map((g) => graffitiOnGround(g)),
   });
 }

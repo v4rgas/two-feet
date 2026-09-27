@@ -357,12 +357,522 @@ async function paintPenguinKing(ctx: Ctx, w: number, h: number, rng: Rng): Promi
   );
 }
 
+const HAND_FONT = "Sedgwick Ave";
+const CREAM = "#f7f5f0";
+
+/** An arrowhead (a filled triangle) at `(x, y)` pointing along `angle`, `size` px long. */
+function arrowHead(ctx: Ctx, x: number, y: number, angle: number, size: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x + Math.cos(angle) * size, y + Math.sin(angle) * size);
+  ctx.lineTo(x + Math.cos(angle + 2.4) * size * 0.8, y + Math.sin(angle + 2.4) * size * 0.8);
+  ctx.lineTo(x + Math.cos(angle - 2.4) * size * 0.8, y + Math.sin(angle - 2.4) * size * 0.8);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A hand-sprayed line through `pts`: a slightly wobbly round-capped stroke. */
+function wobblyLine(
+  ctx: Ctx,
+  pts: readonly (readonly [number, number])[],
+  width: number,
+  color: string,
+  rng: Rng,
+): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => {
+    const jx = (rng() - 0.5) * width * 0.4;
+    const jy = (rng() - 0.5) * width * 0.4;
+    if (i === 0) ctx.moveTo(x + jx, y + jy);
+    else ctx.lineTo(x + jx, y + jy);
+  });
+  ctx.stroke();
+}
+
+/** Points along a circle (for sprayed rings), with a little hand wobble in the radius. */
+function ringPoints(
+  cx: number,
+  cy: number,
+  r: number,
+  rng: Rng,
+  steps = 48,
+): (readonly [number, number])[] {
+  const pts: (readonly [number, number])[] = [];
+  const phase = rng() * Math.PI * 2;
+  for (let i = 0; i <= steps; i += 1) {
+    const a = phase + (i / steps) * Math.PI * 2.04;
+    const rr = r * (1 + (rng() - 0.5) * 0.025);
+    pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]);
+  }
+  return pts;
+}
+
+/**
+ * The big floor piece: "v4rgas" in wild bubble letters, crowded and tilted, with a 3D
+ * block shadow, a split blue / moss fill with a shine per letter, and arrows flying off the
+ * first and last letters. Few drips (it lies on the ground), plenty of overspray.
+ */
+async function paintWildstyle(ctx: Ctx, w: number, h: number, rng: Rng): Promise<void> {
+  await loadFont(TAG_FONT, "400", publicUrl("fonts/BagelFatOne-Regular.latin.woff2"));
+  spray(
+    ctx,
+    w,
+    h,
+    (c) => {
+      // As big as fits: the word fills ≈ 80 % of the width, at most 0.7 of the height.
+      c.font = `400 ${h}px "${TAG_FONT}", system-ui, sans-serif`;
+      const fullW = c.measureText("v4rgas").width * 0.9;
+      const size = Math.min(h * 0.7, (h * w * 0.8) / fullW);
+      c.font = `400 ${size}px "${TAG_FONT}", system-ui, sans-serif`;
+      c.textAlign = "center";
+      c.textBaseline = "alphabetic";
+      const letters = "v4rgas".split("");
+      const widths = letters.map((l) => c.measureText(l).width * 0.9);
+      const total = widths.reduce((a, b) => a + b, 0);
+      const base = h / 2 + size * 0.36;
+      const placed = letters.map((l, i) => ({
+        l,
+        x: w / 2 - total / 2 + widths.slice(0, i).reduce((a, b) => a + b, 0) + (widths[i] ?? 0) / 2,
+        y: base + (rng() - 0.5) * h * 0.1,
+        r: (rng() - 0.5) * 0.24,
+      }));
+      const draw = (dx: number, dy: number, paint: (p: (typeof placed)[number]) => void) => {
+        for (const p of placed) {
+          c.save();
+          c.translate(p.x + dx, p.y + dy);
+          c.rotate(p.r);
+          paint(p);
+          c.restore();
+        }
+      };
+      // Block shadow: the letters stacked down-right in ink.
+      const depth = size * 0.06;
+      for (let k = 4; k >= 1; k -= 1) {
+        draw((depth * k) / 4, (depth * k) / 4, (p) => {
+          c.fillStyle = INK;
+          c.fillText(p.l, 0, 0);
+          c.lineWidth = size * 0.08;
+          c.strokeStyle = INK;
+          c.strokeText(p.l, 0, 0);
+        });
+      }
+      draw(0, 0, (p) => {
+        c.lineJoin = "round";
+        c.lineWidth = size * 0.08;
+        c.strokeStyle = INK;
+        c.strokeText(p.l, 0, 0);
+        const g = c.createLinearGradient(0, -size * 0.75, 0, 0);
+        g.addColorStop(0, "#7fa9d6");
+        g.addColorStop(0.48, BLUE);
+        g.addColorStop(0.52, MOSS);
+        g.addColorStop(1, "#8fc47f");
+        c.fillStyle = g;
+        c.fillText(p.l, 0, 0);
+      });
+      // A shine on each letter.
+      draw(0, 0, () => {
+        c.save();
+        c.globalCompositeOperation = "source-atop";
+        c.fillStyle = CREAM;
+        c.beginPath();
+        c.ellipse(-size * 0.1, -size * 0.58, size * 0.06, size * 0.025, -0.5, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      });
+      // Arrows off the ends.
+      c.fillStyle = DECK;
+      c.strokeStyle = DECK;
+      c.lineWidth = h * 0.035;
+      c.lineCap = "round";
+      const first = placed[0];
+      const last = placed[placed.length - 1];
+      if (first !== undefined) {
+        c.beginPath();
+        c.moveTo(first.x - size * 0.3, first.y - size * 0.35);
+        c.quadraticCurveTo(
+          first.x - size * 0.5,
+          first.y - size * 0.9,
+          first.x - size * 0.15,
+          h * 0.1,
+        );
+        c.stroke();
+        arrowHead(c, first.x - size * 0.15, h * 0.1, -0.4, h * 0.08);
+      }
+      if (last !== undefined) {
+        c.beginPath();
+        c.moveTo(last.x + size * 0.25, last.y - size * 0.1);
+        const tipX = Math.min(last.x + size * 0.5, w - h * 0.1);
+        c.quadraticCurveTo(tipX + size * 0.05, last.y, tipX, h * 0.88);
+        c.stroke();
+        arrowHead(c, tipX, h * 0.88, 1.7, h * 0.08);
+      }
+      star(c, w * 0.08, h * 0.25, h * 0.06, GOLD);
+      star(c, w * 0.93, h * 0.2, h * 0.05, GOLD);
+    },
+    {
+      haloColor: BLUE,
+      haloBlurPx: h * 0.04,
+      haloAlpha: 0.4,
+      outlineColor: CREAM,
+      outlinePx: h * 0.012,
+      drips: 3,
+      dripMinPx: h * 0.02,
+      dripMaxPx: h * 0.06,
+      dripWidthPx: h * 0.01,
+      speckles: 380,
+    },
+    rng,
+  );
+}
+
+/**
+ * The pixel penguin as a one-colour stencil: its dark pixels sprayed in ink through a
+ * cut card (crisp edges, the light pixels left bare as the stencil's bridges), with the
+ * card's soft rectangular overspray around it and a couple of drips.
+ */
+async function paintPenguinStencil(ctx: Ctx, w: number, h: number, rng: Rng): Promise<void> {
+  const px = await penguinPixels();
+  const cell = Math.floor((Math.min(w, h) * 0.78) / 32);
+  const size = cell * 32;
+  const x0 = Math.round((w - size) / 2);
+  const y0 = Math.round((h - size) / 2);
+  // The card's overspray: fine dots, densest just inside the card's edge.
+  const pad = cell * 2;
+  for (let i = 0; i < 9000; i += 1) {
+    const x = x0 - pad + rng() * (size + pad * 2);
+    const y = y0 - pad + rng() * (size + pad * 2);
+    const edge = Math.min(x - (x0 - pad), x0 + size + pad - x, y - (y0 - pad), y0 + size + pad - y);
+    if (rng() > Math.max(0.08, 1 - edge / (pad * 1.4))) continue;
+    ctx.globalAlpha = 0.1 + rng() * 0.15;
+    ctx.fillStyle = INK;
+    ctx.fillRect(x, y, 1 + rng() * 2, 1 + rng() * 2);
+  }
+  ctx.globalAlpha = 1;
+  const mask = layer(w, h);
+  for (let y = 0; y < 32; y += 1) {
+    for (let x = 0; x < 32; x += 1) {
+      const i = (y * 32 + x) * 4;
+      if ((px[i + 3] ?? 0) < 128) continue;
+      const lum = ((px[i] ?? 0) + (px[i + 1] ?? 0) + (px[i + 2] ?? 0)) / (3 * 255);
+      if (lum > 0.75) continue; // the stencil's bridges (the white belly and eyes)
+      mask.ctx.fillStyle = INK;
+      mask.ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
+    }
+  }
+  // A thin hard overspray just round the cut edges, then the paint itself.
+  const soft = layer(w, h);
+  soft.ctx.filter = `blur(${cell * 0.35}px)`;
+  soft.ctx.drawImage(mask.canvas, 0, 0);
+  soft.ctx.filter = "none";
+  ctx.globalAlpha = 0.35;
+  ctx.drawImage(soft.canvas, 0, 0);
+  ctx.globalAlpha = 0.92;
+  ctx.drawImage(mask.canvas, 0, 0);
+  ctx.globalAlpha = 1;
+  drips(
+    ctx,
+    mask.canvas,
+    {
+      haloColor: INK,
+      haloBlurPx: 0,
+      haloAlpha: 0,
+      outlineColor: INK,
+      outlinePx: 0,
+      drips: 3,
+      dripMinPx: h * 0.03,
+      dripMaxPx: h * 0.09,
+      dripWidthPx: cell * 0.35,
+      speckles: 0,
+    },
+    rng,
+  );
+}
+
+/**
+ * Tags and scribbles: a handstyle "v4rgas" tag in ink with a swoosh under it, a smaller
+ * blue "v4" and a crown doodle beside it, all thin and quick, a few drips.
+ */
+async function paintTags(ctx: Ctx, w: number, h: number, rng: Rng): Promise<void> {
+  await loadFont(HAND_FONT, "400", publicUrl("fonts/SedgwickAve-Regular.latin.woff2"));
+  spray(
+    ctx,
+    w,
+    h,
+    (c) => {
+      c.textAlign = "left";
+      c.textBaseline = "alphabetic";
+      c.save();
+      c.translate(w * 0.06, h * 0.62);
+      c.rotate(-0.08);
+      c.font = `400 ${h * 0.5}px "${HAND_FONT}", cursive`;
+      c.fillStyle = INK;
+      c.fillText("v4rgas", 0, 0);
+      const tagW = c.measureText("v4rgas").width;
+      c.restore();
+      wobblyLine(
+        c,
+        [
+          [w * 0.05, h * 0.78],
+          [w * 0.05 + tagW * 0.45, h * 0.74],
+          [w * 0.05 + tagW * 0.95, h * 0.64],
+        ],
+        h * 0.025,
+        INK,
+        rng,
+      );
+      c.save();
+      c.translate(w * 0.72, h * 0.5);
+      c.rotate(0.12);
+      c.font = `400 ${h * 0.34}px "${HAND_FONT}", cursive`;
+      c.fillStyle = BLUE;
+      c.fillText("v4", 0, 0);
+      c.restore();
+      // A quick crown doodle over the "v4", outline only.
+      const cx = w * 0.8;
+      const base = h * 0.26;
+      const cw = h * 0.22;
+      wobblyLine(
+        c,
+        [
+          [cx - cw / 2, base],
+          [cx - cw / 2, base - cw * 0.35],
+          [cx - cw / 4, base - cw * 0.15],
+          [cx, base - cw * 0.55],
+          [cx + cw / 4, base - cw * 0.15],
+          [cx + cw / 2, base - cw * 0.35],
+          [cx + cw / 2, base],
+          [cx - cw / 2, base],
+        ],
+        h * 0.018,
+        INK,
+        rng,
+      );
+      // Two little scribble ticks.
+      wobblyLine(
+        c,
+        [
+          [w * 0.9, h * 0.72],
+          [w * 0.93, h * 0.62],
+          [w * 0.95, h * 0.74],
+        ],
+        h * 0.015,
+        BLUE,
+        rng,
+      );
+    },
+    {
+      haloColor: INK,
+      haloBlurPx: h * 0.02,
+      haloAlpha: 0.22,
+      outlineColor: INK,
+      outlinePx: 0,
+      drips: 6,
+      dripMinPx: h * 0.04,
+      dripMaxPx: h * 0.16,
+      dripWidthPx: h * 0.008,
+      speckles: 140,
+    },
+    rng,
+  );
+}
+
+/**
+ * A sticker-bomb cluster of sprayed doodles: stars, crowns, arrows and dots in the
+ * palette colours, each outlined in ink, packed round a small pixel penguin.
+ */
+async function paintStickerBomb(ctx: Ctx, w: number, h: number, rng: Rng): Promise<void> {
+  const px = await penguinPixels();
+  const cell = Math.floor((h * 0.34) / 32);
+  const colours = [GOLD, DECK, BLUE, MOSS] as const;
+  spray(
+    ctx,
+    w,
+    h,
+    (c) => {
+      const pick = (): string => colours[Math.floor(rng() * colours.length)] ?? GOLD;
+      // Ring of doodles round the centre.
+      const n = 11;
+      for (let i = 0; i < n; i += 1) {
+        const a = (i / n) * Math.PI * 2 + rng() * 0.3;
+        const r = 0.3 + rng() * 0.08;
+        const x = w / 2 + Math.cos(a) * w * r;
+        const y = h / 2 + Math.sin(a) * h * r * 0.95;
+        const kind = i % 4;
+        const s = h * (0.07 + rng() * 0.05);
+        if (kind === 0) star(c, x, y, s, pick());
+        else if (kind === 1) crown(c, x, y + s * 0.4, s * 1.6, GOLD);
+        else if (kind === 2) {
+          c.fillStyle = pick();
+          c.strokeStyle = c.fillStyle;
+          c.lineWidth = s * 0.3;
+          c.lineCap = "round";
+          const dir = a + Math.PI / 2 + (rng() - 0.5);
+          c.beginPath();
+          c.moveTo(x - Math.cos(dir) * s, y - Math.sin(dir) * s);
+          c.lineTo(x + Math.cos(dir) * s * 0.6, y + Math.sin(dir) * s * 0.6);
+          c.stroke();
+          arrowHead(c, x + Math.cos(dir) * s * 0.6, y + Math.sin(dir) * s * 0.6, dir, s * 0.7);
+        } else {
+          c.fillStyle = pick();
+          c.beginPath();
+          c.arc(x, y, s * 0.55, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = CREAM;
+          c.beginPath();
+          c.arc(x, y, s * 0.22, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+      drawPixelPenguin(c, px, (w - cell * 32) / 2, (h - cell * 32) / 2, cell);
+    },
+    {
+      haloColor: GOLD,
+      haloBlurPx: h * 0.03,
+      haloAlpha: 0.35,
+      outlineColor: INK,
+      outlinePx: h * 0.012,
+      drips: 5,
+      dripMinPx: h * 0.03,
+      dripMaxPx: h * 0.1,
+      dripWidthPx: h * 0.008,
+      speckles: 260,
+    },
+    rng,
+  );
+}
+
+/**
+ * A landing mark: a sprayed target (two thin rings) with a big X through it, calm and
+ * low-contrast (it lies in a landing zone): ink rings, a muted deck-red X, no drips.
+ */
+async function paintLandingTarget(ctx: Ctx, w: number, h: number, rng: Rng): Promise<void> {
+  const r = Math.min(w, h) * 0.4;
+  spray(
+    ctx,
+    w,
+    h,
+    (c) => {
+      c.globalAlpha = 0.75;
+      wobblyLine(c, ringPoints(w / 2, h / 2, r, rng), r * 0.05, INK, rng);
+      wobblyLine(c, ringPoints(w / 2, h / 2, r * 0.55, rng), r * 0.04, INK, rng);
+      c.globalAlpha = 0.85;
+      const d = r * 0.62;
+      wobblyLine(
+        c,
+        [
+          [w / 2 - d, h / 2 - d],
+          [w / 2, h / 2],
+          [w / 2 + d, h / 2 + d],
+        ],
+        r * 0.11,
+        DECK,
+        rng,
+      );
+      wobblyLine(
+        c,
+        [
+          [w / 2 + d, h / 2 - d],
+          [w / 2, h / 2],
+          [w / 2 - d, h / 2 + d],
+        ],
+        r * 0.11,
+        DECK,
+        rng,
+      );
+      c.globalAlpha = 1;
+    },
+    {
+      haloColor: DECK,
+      haloBlurPx: r * 0.06,
+      haloAlpha: 0.25,
+      outlineColor: INK,
+      outlinePx: 0,
+      drips: 0,
+      dripMinPx: 0,
+      dripMaxPx: 0,
+      dripWidthPx: 0,
+      speckles: 160,
+    },
+    rng,
+  );
+}
+
+/**
+ * A flow arrow for the floor: one fat curved arrow in blue with an ink outline, a gold
+ * dashed centre line and a few stars in its wake.
+ */
+async function paintFlowArrow(ctx: Ctx, w: number, h: number, rng: Rng): Promise<void> {
+  spray(
+    ctx,
+    w,
+    h,
+    (c) => {
+      const body = h * 0.2;
+      const x0 = w * 0.1;
+      const x1 = w * 0.76;
+      const curve = (t: number): [number, number] => [
+        x0 + (x1 - x0) * t,
+        h * 0.62 - Math.sin(t * Math.PI) * h * 0.22,
+      ];
+      c.strokeStyle = BLUE;
+      c.lineWidth = body;
+      c.lineCap = "butt";
+      c.beginPath();
+      for (let i = 0; i <= 40; i += 1) {
+        const [x, y] = curve(i / 40);
+        if (i === 0) c.moveTo(x, y);
+        else c.lineTo(x, y);
+      }
+      c.stroke();
+      c.fillStyle = BLUE;
+      const [ex, ey] = curve(1);
+      arrowHead(c, ex + body * 0.2, ey, 0.25, body * 1.6);
+      // Dashed centre line.
+      c.strokeStyle = GOLD;
+      c.lineWidth = body * 0.14;
+      c.lineCap = "round";
+      for (let i = 0; i < 8; i += 1) {
+        const [ax, ay] = curve(0.06 + i * 0.115);
+        const [bx, by] = curve(0.06 + i * 0.115 + 0.06);
+        c.beginPath();
+        c.moveTo(ax, ay);
+        c.lineTo(bx, by);
+        c.stroke();
+      }
+      star(c, w * 0.08, h * 0.25, h * 0.07, GOLD);
+      star(c, w * 0.2, h * 0.14, h * 0.045, MOSS);
+    },
+    {
+      haloColor: BLUE,
+      haloBlurPx: h * 0.035,
+      haloAlpha: 0.35,
+      outlineColor: INK,
+      outlinePx: h * 0.016,
+      drips: 2,
+      dripMinPx: h * 0.02,
+      dripMaxPx: h * 0.06,
+      dripWidthPx: h * 0.01,
+      speckles: 220,
+    },
+    rng,
+  );
+}
+
 const PAINTERS: Readonly<
   Record<string, (ctx: Ctx, w: number, h: number, rng: Rng) => Promise<void>>
 > = Object.freeze({
   "v4rgas-throwup": paintThrowup,
   "pixel-penguin": paintPixelPenguin,
   "penguin-king": paintPenguinKing,
+  "v4rgas-wildstyle": paintWildstyle,
+  "penguin-stencil": paintPenguinStencil,
+  "tag-scribbles": paintTags,
+  "sticker-bomb": paintStickerBomb,
+  "landing-target": paintLandingTarget,
+  "flow-arrow": paintFlowArrow,
 });
 
 /** Ids that have a painter (the tests check the registry against it). */

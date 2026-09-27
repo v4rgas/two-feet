@@ -138,8 +138,16 @@ export const PRESENTATION_CONFIG = deepFreeze({
     canvasPx: 1024,
     /** Paint strength: 1 = full colour, lower lets more wall through. */
     opacity: 0.85,
-    /** How far the decal quad floats off the wall (plus polygon offset), m. */
+    /** How far the decal floats off the surface, along its normal (plus polygon offset), m. */
     liftM: 0.003,
+    /**
+     * Half depth of a decal's projector box along its normal, m: the surfaces it paints
+     * (a curved transition's sag under a 1.5 m piece is ≈ 0.13 m on the street's 2.2 m
+     * quarter pipe). Keep it small so a piece never reaches a surface behind or below.
+     */
+    projectHalfDepthM: 0.25,
+    /** A surface takes paint only where its normal · the decal's ≥ this (≈ 72°). */
+    minFacing: 0.3,
   },
   ground: {
     /** Spacing of the concrete slab joints drawn on ground surfaces, m. */

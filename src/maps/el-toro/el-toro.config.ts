@@ -1,7 +1,15 @@
-import type { GraffitiOnFaceOptions, PerimeterSide } from "../../contexts/world";
+import type {
+  GraffitiOnFaceOptions,
+  GraffitiOnGroundOptions,
+  GraffitiOnSurfaceOptions,
+  PerimeterSide,
+} from "../../contexts/world";
 import { deepFreeze, degToRad } from "../../shared";
 
 /** A sponsor's spot on the fence line (see `fence.spots`). */
+/** A graffiti piece on an obstacle's riding surface (`graffitiOnObstacleSurface`). */
+export type SurfaceGraffiti = GraffitiOnSurfaceOptions & { readonly obstacleId: string };
+
 export interface BannerSpot {
   readonly side: PerimeterSide;
   readonly atM: number;
@@ -300,7 +308,10 @@ export const EL_TORO = deepFreeze({
       { id: "wall-banner-south", zM: -4.2, lengthM: 2.8, sponsorId: "v4rgas" },
     ],
   },
-  /** A couple of graffiti pieces (STYLE.md): walls only, never the stairs or a riding surface. */
+  /**
+   * Graffiti (STYLE.md "Graffiti", DESIGN.md): walls, the quad floor, the walkway ramp and
+   * the courtyard ground; never the stairs, a handrail or a ledge's edge. World X/Z.
+   */
   graffiti: {
     /** The south wing's end wall (x = 0), the backdrop of the 4-stair's landing. */
     endWall: {
@@ -318,6 +329,28 @@ export const EL_TORO = deepFreeze({
       heightM: 2.5,
       rotationRad: 0.04,
     } satisfies GraffitiOnFaceOptions,
+    /** On raised riding surfaces (projected onto them). */
+    surfaces: [
+      // The quad floor, west of the lunch tables' line: the penguin stencil.
+      { obstacleId: "plaza", pieceId: "penguin-stencil", sizeM: 1.4, xM: -12, zM: 0.5 },
+      // The quad's run-up to the 20-stair: an arrow toward the drop (+X), off the line.
+      { obstacleId: "plaza", pieceId: "flow-arrow", sizeM: 2.2, xM: -6, zM: -1.4 },
+      // The walkway ramp, read pushing up it (its up is up the slope, −X).
+      { obstacleId: "ada-ramp", pieceId: "tag-scribbles", sizeM: 2, xM: -2, zM: 7.1 },
+    ] satisfies SurfaceGraffiti[],
+    /** On the courtyard (y = 0). */
+    ground: [
+      // A calm target in the 20-stair's landing, read from the top (its up toward +X).
+      { pieceId: "landing-target", xM: 8.8, zM: 0, sizeM: 1.5, rotationRad: -Math.PI / 2 },
+      // The big floor piece in the open north-east of the courtyard, read from the stairs.
+      {
+        pieceId: "v4rgas-wildstyle",
+        xM: 18.5,
+        zM: 8,
+        sizeM: 3.6,
+        rotationRad: -Math.PI / 2,
+      },
+    ] satisfies GraffitiOnGroundOptions[],
   },
 });
 

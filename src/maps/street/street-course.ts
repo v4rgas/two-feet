@@ -27,7 +27,7 @@ function placed(xM: number, zM: number, headingRad = 0): Transform {
  *   in the corner;
  * - south lanes: a long ledge; a euro-gap platform, an up-ledge and a bank-to-ledge.
  * Around it: the perimeter barriers with the sponsor banners, a banner fence on
- * the quarter pipe's deck, and a couple of graffiti pieces (`street-dressing.ts`).
+ * the quarter pipe's deck, and graffiti on walls, ramps and the ground (`street-dressing.ts`).
  * Every obstacle is data; `obstacleGeometry` builds the pieces.
  */
 export function createStreetCourseLevel(s: StreetConfig = STREET_CONFIG): Level {

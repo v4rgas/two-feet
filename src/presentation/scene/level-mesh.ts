@@ -171,6 +171,8 @@ export function buildLevelMesh(
 
   const merged: Record<string, number[]> = { body: [], edge: [], metal: [] };
   const banners = new Map<string, { positions: number[]; uvs: number[] }>();
+  /** World triangles of the ground slabs' surfaces (graffiti projects onto them too). */
+  const groundWorld: number[] = [];
   for (const obstacle of level.obstacles) {
     const geometry = obstacleGeometry(obstacle);
     if (!isGroundSlab(obstacle)) {
@@ -202,6 +204,7 @@ export function buildLevelMesh(
     appendTone(local, geometry, "body", Transform.IDENTITY);
     const world: number[] = [];
     appendTone(world, geometry, "body", obstacle.transform);
+    for (const v of world) groundWorld.push(v);
     const slab = toGeometry(local, worldBoxUvs(world, surfaces.metresPerRepeat("ground")));
     if (slab !== null) {
       const mesh = new THREE.Mesh(slab, surfaces.get("ground"));
@@ -233,7 +236,15 @@ export function buildLevelMesh(
     if (geometry === null || material === undefined) continue;
     shadowed(new THREE.Mesh(geometry, material)).name = `banner:${sponsorId}`;
   }
-  for (const mesh of buildGraffitiMeshes(level.graffiti ?? [], assets.graffiti, config)) {
+  // Graffiti is projected onto the concrete (body and edge faces, the ground slabs): never
+  // onto rails (metal) or banner art. Visual only: no collider, nothing per frame.
+  const paintable = [...(merged.body ?? []), ...(merged.edge ?? []), ...groundWorld];
+  for (const mesh of buildGraffitiMeshes(
+    level.graffiti ?? [],
+    paintable,
+    assets.graffiti,
+    config,
+  )) {
     group.add(mesh);
   }
 

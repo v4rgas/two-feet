@@ -15,7 +15,7 @@ export { EL_TORO } from "./el-toro.config";
  * courtyard with a long roll-out; a 10° walkway ramp back up along the north retaining
  * wall; and the smaller spots a real campus has (a 4-stair off a lower terrace, a planter
  * ledge, a curb), all inside the school fence line (sponsor banners on its
- * barriers, banner boards on the retaining walls, a couple of graffiti pieces:
+ * barriers, banner boards on the retaining walls, graffiti on walls, floors and the ramp:
  * `el-toro-dressing.ts`). Built only from the world context's obstacle kinds; the parameters are
  * in `el-toro.config.ts`, the research and the choices in DESIGN.md.
  *

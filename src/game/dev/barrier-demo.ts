@@ -1,5 +1,11 @@
 import type { Obstacle } from "../../contexts/world";
-import { graffitiOnFace, Level, ObstacleShape, perimeterBarriers } from "../../contexts/world";
+import {
+  graffitiOnFace,
+  graffitiOnGround,
+  Level,
+  ObstacleShape,
+  perimeterBarriers,
+} from "../../contexts/world";
 import { createFlatGroundLevel } from "../../maps/flat/flat-ground";
 import { Quat, Transform, Vec3 } from "../../shared";
 
@@ -33,7 +39,7 @@ export function createBarrierDemoLevel(): Level {
   };
   const plain = ring.filter((o) => o.shape.kind === "barrier" && o.shape.banner === undefined);
   const graffiti = [
-    graffitiOnFace(ledge, { pieceId: "v4rgas-throwup", face: "-z", sizeM: 0.7, alongM: -1.2 }),
+    graffitiOnFace(ledge, { pieceId: "v4rgas-throwup", face: "-z", sizeM: 0.6, alongM: -1.2 }),
     graffitiOnFace(ledge, { pieceId: "pixel-penguin", face: "-z", sizeM: 0.34, alongM: 1.3 }),
     ...plain.slice(0, 2).map((o, i) =>
       graffitiOnFace(o, {
@@ -43,6 +49,8 @@ export function createBarrierDemoLevel(): Level {
         rotationRad: i === 0 ? 0.05 : -0.04,
       }),
     ),
+    // On the floor (the renderer projects it onto the ground).
+    graffitiOnGround({ pieceId: "v4rgas-wildstyle", xM: 3, zM: 4.5, sizeM: 2.6 }),
   ];
   return Level.create({
     id: "barrier-demo",

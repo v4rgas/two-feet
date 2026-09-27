@@ -23,7 +23,7 @@ Levels, obstacles, surface types.
 - **Grind edge** (VO, `grind-edges.ts`, pure, M4): `obstacleGrindEdges(obstacle)` gives every edge a board can grind or slide on as a straight segment on top of the edge's profile, in the world frame: `startM`, `endM`, `outwardNormal` (horizontal, away from the obstacle), `surface`, `obstacleId`, `twoSided` (a bar: rail, handrail) and `halfWidthM`. Rail bar, coping (out over the transition), hubba steel edge (a flat segment on the platform and a sloped one), ledge top edges (where the top face meets the chamfers) and handrail. Queries: `grindEdgesNear(edges, point, radius)` (nearest first), `nearestGrindEdge`, `closestOnEdge`. See [ADR 0009](../../../docs/adr/0009-grinds.md).
 - **Surface type** (VO): `ground | ramp | grindable | ledge`. Contacts and `SurfaceContact*` events carry it per piece, for example `grindable` for a truck on the coping or a rail.
 - **Spawn** (VO): a ground point plus a heading. The board adds its own rest height.
-- **Graffiti placement** (VO, `graffiti.ts`, pure): `{ pieceId, positionM, normal, sizeM, rotationRad? }` in the world frame, listed in `Level.graffiti` (optional input, defaults to `[]`, validated by `Level.create`). Pure decoration: the renderer paints the piece as a decal; it is never a collider and never touches physics.
+- **Graffiti placement** (VO, `graffiti.ts`, pure): `{ pieceId, positionM, normal, sizeM, rotationRad? }` in the world frame, listed in `Level.graffiti` (optional input, defaults to `[]`, validated by `Level.create`). Pure decoration: the renderer projects the piece along `−normal` onto whatever concrete is there (wall, ground, bank, curved transition) as a decal; it is never a collider and never touches physics.
 
 ## Barriers, sponsors and graffiti: how a map places them
 
@@ -42,8 +42,12 @@ const ring = perimeterBarriers(
   },
 );
 const graffiti = [
-  graffitiOnFace(someLedge, { pieceId: "v4rgas-throwup", face: "-z", sizeM: 0.7, alongM: -1 }),
+  graffitiOnFace(someLedge, { pieceId: "v4rgas-throwup", face: "-z", sizeM: 0.6, alongM: -1 }),
   graffitiOnFace(ring[3], { pieceId: "penguin-king", face: "+z", sizeM: 1 }), // a plain segment
+  graffitiOnGround({ pieceId: "v4rgas-wildstyle", xM: 4, zM: -3, sizeM: 3 }), // on the floor
+  graffitiOnObstacleSurface(someQuarterPipe, {                                 // on the transition
+    pieceId: "sticker-bomb", sizeM: 1.2, xM: 1.1, zM: -2,                     // obstacle-local X/Z
+  }),
 ];
 return Level.create({ id, name, obstacles: [...ground, ...course, ...ring], spawn, graffiti });
 ```
@@ -59,12 +63,22 @@ return Level.create({ id, name, obstacles: [...ground, ...course, ...ring], spaw
   Labs, bipbop.cl) and `v4rgas` (v4rgas.com), the only banners. An unknown id renders as
   a plain barrier. Never invent a real brand.
 - **Graffiti pieces** live in `src/presentation/graffiti/graffiti-registry.ts`:
-  `v4rgas-throwup`, `pixel-penguin`, `penguin-king`.
+  `v4rgas-throwup`, `pixel-penguin`, `penguin-king`, `v4rgas-wildstyle`, `penguin-stencil`,
+  `tag-scribbles`, `sticker-bomb`, `landing-target`, `flow-arrow`.
   `graffitiOnFace(obstacle, { pieceId, face: "+x" | "-x" | "+z" | "-z", sizeM, alongM?, heightM?, rotationRad? })`
   puts one on the outermost face looking that way (a ledge side, a funbox wall, a stair
   set's side wall, a quarter pipe's back, a plain barrier); `createGraffiti` takes a raw
-  world position + normal. Keep it to a couple of pieces per map (STYLE.md). On a
-  bannered barrier the `+z` face is the banner plate: paint the back or a plain segment.
+  world position + normal. If `alongM` moves the piece past a step in the side, it lands
+  on the face actually under it.
+  `graffitiOnGround({ pieceId, xM, zM, sizeM, rotationRad?, yM? })` lays one flat on the
+  ground (at rotation 0 its up is world −Z).
+  `graffitiOnObstacleSurface(obstacle, { pieceId, sizeM, xM, zM, frame?: "local" | "world", rotationRad? })`
+  drops a ray at X/Z onto the obstacle's highest upward-facing face (a deck, a funbox
+  bank, a quarter pipe's transition, a platform top) and uses that face's normal; the art's
+  up points up the slope. The renderer projects every piece, so it follows slopes and
+  curves. STYLE.md: a healthy amount per map, never over a grind edge or coping, calm
+  landing zones. On a bannered barrier the `+z` face is the banner plate: paint the back
+  or a plain segment.
 - Dev demo of all of it: `?level=barrier-demo` (`src/game/dev/barrier-demo.ts`).
 
 ## Levels and maps
@@ -88,7 +102,7 @@ built from these kinds.
 ## Public API (`index.ts`)
 
 - Types: `Level` (+ `Level.create`), `Obstacle`, `ObstacleShape` (+ factories), the shape interfaces (incl. `BarrierShape`, `BarrierBanner`), `Spawn`, `SurfaceType`, `ObstacleId`, `ConvexPiece`, `GeometryFace`, `FaceTone` (`body | edge | metal | banner`), `ObstacleGeometry`, `ObstacleColliderDesc`, `GraffitiPlacement`, `PerimeterBounds`, `PerimeterOpening`, `PerimeterOptions`.
-- Perimeter and decoration: `perimeterBarriers`, `graffitiOnFace`, `createGraffiti`.
+- Perimeter and decoration: `perimeterBarriers`, `graffitiOnFace`, `graffitiOnGround`, `graffitiOnObstacleSurface`, `createGraffiti` (types `GraffitiOnFaceOptions`, `GraffitiOnGroundOptions`, `GraffitiOnSurfaceOptions`).
 - Grind edges: `GrindEdge`, `GrindEdgeHit`, `obstacleGrindEdges`, `levelGrindEdges`, `grindEdgesNear`, `nearestGrindEdge`, `closestOnEdge`.
 - Maps: `MapDefinition`, `isMapDefinition`, `groundObstacle`, `GroundParams`.
 - Functions: `obstacleGeometry`, `shapeGeometry`, `obstacleCollider`, and shape helpers (`quarterPipeLipXM`, `quarterPipeLipAngleRad`, `quarterPipeCopingProfile`, `kickerRadiusM`, `kickerLipAngleRad`, `stairsHeightM`, `stairsSlopeRad`, `stairsFootXM`, `handrailZM`, `handrailSpanXM`, `funboxBankRunM`, `kinkedRailTopLine`, `bankLedgeRunM`).

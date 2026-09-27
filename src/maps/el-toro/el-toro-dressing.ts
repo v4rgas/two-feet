@@ -1,5 +1,11 @@
 import type { GraffitiPlacement, Obstacle, PerimeterSide } from "../../contexts/world";
-import { graffitiOnFace, ObstacleShape, perimeterBarriers } from "../../contexts/world";
+import {
+  graffitiOnFace,
+  graffitiOnGround,
+  graffitiOnObstacleSurface,
+  ObstacleShape,
+  perimeterBarriers,
+} from "../../contexts/world";
 import { Quat, Transform, Vec3 } from "../../shared";
 import type { BannerSpot, ElToroParams } from "./el-toro.config";
 
@@ -79,7 +85,10 @@ export function elToroWallBanners(p: ElToroParams, wallXM: number): Obstacle[] {
   );
 }
 
-/** El Toro's graffiti: the south wing's end wall and the quad's wall above the ramp. */
+/**
+ * El Toro's graffiti: the south wing's end wall and the quad's wall above the ramp, the
+ * quad floor, the walkway ramp, and the courtyard ground (a landing target, a big piece).
+ */
 export function elToroGraffiti(
   p: ElToroParams,
   obstacles: readonly Obstacle[],
@@ -92,5 +101,9 @@ export function elToroGraffiti(
   return [
     graffitiOnFace(byId("building-south"), p.graffiti.endWall),
     graffitiOnFace(byId("plaza"), p.graffiti.rampWall),
+    ...p.graffiti.surfaces.map(({ obstacleId, ...o }) =>
+      graffitiOnObstacleSurface(byId(obstacleId), { ...o, frame: "world" }),
+    ),
+    ...p.graffiti.ground.map((o) => graffitiOnGround(o)),
   ];
 }
