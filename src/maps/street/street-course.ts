@@ -16,23 +16,25 @@ function placed(xM: number, zM: number, headingRad = 0): Transform {
 }
 
 /**
- * The contest-style street course (`?map=street`): a big plaza built for lines, laid out
- * along world X between two quarter pipes (see `STREET_CONFIG`):
- * - west: the 7-stair (hubba each side, handrail down the middle), spawn on its landing;
- * - middle: the funbox (banks on three sides, a ledge on the fourth, a flat rail over the
- *   top and a down rail on the +X bank);
- * - north: a 3-stair with a kinked handrail down its middle, two manual pads, a hip in
- *   the corner;
- * - south: a long ledge, a flat bar, a bank-to-ledge; a euro-gap platform and an up-ledge.
+ * The contest-style street course (`?map=street`): a tight plaza built for lines along
+ * world X (see `STREET_CONFIG` and `DESIGN.md`):
+ * - centre lane: the 7-stair (hubba each side, handrail down the middle, spawn on its deck)
+ *   rolling out into the funbox (banks on three sides, a ledge on the fourth, a flat rail
+ *   over the top and a down rail on the +X bank), then the east quarter pipe;
+ * - middle lane: the flat bar between the two stair sets;
+ * - north lane: a 3-stair with a kinked handrail down its middle, two manual pads, a hip
+ *   in the corner;
+ * - south lanes: a long ledge; a euro-gap platform, an up-ledge and a bank-to-ledge.
  * Every obstacle is data; `obstacleGeometry` builds the pieces.
  */
 export function createStreetCourseLevel(s: StreetConfig = STREET_CONFIG): Level {
+  const qp = s.quarterPipe;
   const qpShape = ObstacleShape.quarterPipe({
-    radiusM: s.quarterPipes.radiusM,
-    heightM: s.quarterPipes.heightM,
-    widthM: s.quarterPipes.widthM,
-    deckDepthM: s.quarterPipes.deckDepthM,
-    copingRadiusM: s.quarterPipes.copingRadiusM,
+    radiusM: qp.radiusM,
+    heightM: qp.heightM,
+    widthM: qp.widthM,
+    deckDepthM: qp.deckDepthM,
+    copingRadiusM: qp.copingRadiusM,
   });
 
   const big = s.bigStairs;
@@ -72,18 +74,10 @@ export function createStreetCourseLevel(s: StreetConfig = STREET_CONFIG): Level 
   const obstacles: Obstacle[] = [
     groundObstacle(s.ground),
     {
-      id: "qp-west",
-      name: "Quarter pipe (west)",
-      surface: "ramp",
-      // Turned 180° about +Y: it rises toward world −X.
-      transform: placed(-s.quarterPipes.toeXM, 0, Math.PI),
-      shape: qpShape,
-    },
-    {
       id: "qp-east",
       name: "Quarter pipe (east)",
       surface: "ramp",
-      transform: placed(s.quarterPipes.toeXM, 0),
+      transform: placed(qp.toeXM, 0),
       shape: qpShape,
     },
     {

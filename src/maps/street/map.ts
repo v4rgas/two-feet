@@ -8,7 +8,7 @@ export const map: MapDefinition = {
   id: "street",
   name: "Street Course",
   description:
-    "A contest plaza: a 7-stair with hubbas, rails, ledges, a funbox and two quarter pipes.",
+    "A tight contest plaza: a 7-stair with hubbas into a funbox, rails, ledges, pads and a quarter pipe.",
   spawn: level.spawn,
   createLevel: () => createStreetCourseLevel(),
 };

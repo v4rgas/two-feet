@@ -91,10 +91,10 @@ export const varialHeelflipStairs: MontageClip = {
  * 7-stair's +Z hubba (0.28 m), timed like a person would (ADR 0012: the middle of each
  * window, 0.12 s taps, a full load): rolling at 3.5 m/s on the landing, 5 m behind the top
  * nosing and 0.37 m inside the hubba's steel edge; ↓ + S from 0.3 s, the pop at 0.75 s
- * (x ≈ −10.4; pops ≈ 0.16 s either side land the line); W + A kickflip; ↓ again at 1.0 s,
+ * (x ≈ −8.9; pops ≈ 0.16 s either side land the line); W + A kickflip; ↓ again at 1.0 s,
  * held (the tailslide); Q at 1.0 s, a frontside quarter turn so the tail swings over the
  * hubba; Space at 1.25 s; the tailslide locks at ≈ 1.37 s on the hubba's flat top and
- * slides onto its slope; S from 1.53 s, release ↓ at 1.78 s: the pop out (x ≈ −7.2, a
+ * slides onto its slope; S from 1.53 s, release ↓ at 1.78 s: the pop out (x ≈ −5.7, a
  * third of the way down); W + A + → hardflip, the body turns back on its own; Space at
  * 2.31 s (≈ 2.13–2.37 s land); it lands past the stairs.
  */
@@ -106,7 +106,7 @@ export const stairsTailslideHardflip: MontageClip = {
   spawn: {
     xM: stairs.xM - 5,
     yM: LANDING_M,
-    zM: stairs.widthM / 2 - 0.37,
+    zM: stairs.zM + stairs.widthM / 2 - 0.37,
     headingRad: 0,
     speedMps: 3.5,
   },
@@ -135,7 +135,7 @@ export const stairsTailslideHardflip: MontageClip = {
       fromS: 1.9,
       shot: {
         kind: "fixedTripod",
-        positionM: [FOOT_X + 3.3, 0.55, stairs.widthM / 2 - 2.35],
+        positionM: [FOOT_X + 3.3, 0.55, stairs.zM + stairs.widthM / 2 - 2.35],
         fovStartDeg: 48,
         fovEndDeg: 34,
         zoomS: 3,

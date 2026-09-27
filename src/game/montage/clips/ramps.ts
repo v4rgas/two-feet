@@ -5,7 +5,7 @@ import { KeyTimeline } from "../timeline";
 /* Street launch and transition clips: the euro gap and the east quarter pipe (see STREET_CONFIG). */
 
 const gap = STREET_CONFIG.gapPlatform;
-const qp = STREET_CONFIG.quarterPipes;
+const qp = STREET_CONFIG.quarterPipe;
 
 /**
  * 360 flip off the euro gap (the kicker's launch on the street: the park had a kicker): rolling at

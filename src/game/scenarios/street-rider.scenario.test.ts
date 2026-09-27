@@ -33,7 +33,7 @@ afterEach(() => {
 const T = 20_000;
 const STREET = createStreetCourseLevel();
 const S = STREET_CONFIG;
-const QP_TOE_X = S.quarterPipes.toeXM;
+const QP_TOE_X = S.quarterPipe.toeXM;
 const GAP = S.gapPlatform;
 const STAIRS_FOOT_X = S.bigStairs.xM + (S.bigStairs.stepCount - 1) * S.bigStairs.runM;
 
@@ -81,7 +81,7 @@ describe("rider on the street course's transitions and drops", () => {
     "rides up the bank-to-ledge's 25° bank at 3.3 m/s and rolls back down (fakie), no bail",
     async () => {
       // 3.3 m/s stops just short of the ledge block on top of the 0.6 m bank.
-      const h = await streetAt(S.bankLedge.xM - 4, 0, S.bankLedge.zM + 2.5);
+      const h = await streetAt(S.bankLedge.xM - 4, 0, S.bankLedge.zM + 1.5);
       const t0 = h.timeS;
       h.launch(3.3);
       h.run(4);
@@ -97,7 +97,7 @@ describe("rider on the street course's transitions and drops", () => {
   it(
     "climbs the east quarter pipe at 4 m/s, stalls and comes back fakie, no bail",
     async () => {
-      const h = await streetAt(QP_TOE_X - 2, 0, 5);
+      const h = await streetAt(QP_TOE_X - 2, 0, 1);
       const t0 = h.timeS;
       h.launch(4);
       h.run(4);
@@ -147,7 +147,8 @@ describe("rider on the street course's transitions and drops", () => {
       h.foot("front", heel(h.stance), 0.25, 0.08);
       h.run(0.3);
       spaceWhenDone(h, tPop, 2 * Math.PI, 0);
-      h.run(2);
+      // Down and rolling out, before the roll-out carries it up the funbox's bank.
+      h.run(1.2);
       const air = airSummary(h, tPop);
       expect(Math.abs(Math.abs(air.rollRad) - 2 * Math.PI)).toBeLessThan(0.4);
       expect(bails(h)).toEqual([]);
@@ -172,7 +173,7 @@ describe("rider on the street course's transitions and drops", () => {
     it(
       `carves (${edge} edge) into the east quarter pipe at ${headingRad} rad and back out, no bail`,
       async () => {
-        const h = await streetAt(QP_TOE_X - 3, 0, 5, headingRad);
+        const h = await streetAt(QP_TOE_X - 3, 0, 1, headingRad);
         h.launch(4.5);
         const dir = edge === "toe" ? toe(h.stance) : heel(h.stance);
         h.foot("front", dir, 0.1, 1.5);

@@ -127,7 +127,8 @@ describe("rider on the street course", () => {
       loadAndPop(h, 0.2);
       h.foot("front", awayFrom("tail"), 0.25, 0.15);
       catchAt(h, 0.5);
-      h.run(2.5);
+      // Down and rolling out, before the roll-out carries it up the funbox's bank.
+      h.run(1.8);
       expect(h.eventsOf("BoardPopped").filter((e) => e.timeS >= t0)).toHaveLength(1);
       expect(h.eventsOf("TrickLanded").map((e) => e.name)).toEqual(["Ollie"]);
       expect(bails(h)).toEqual([]);
@@ -146,7 +147,7 @@ describe("rider on the street course", () => {
     async () => {
       // G1's approach: 0.15 m beside the rail, heading 0.03 rad toward it, full load.
       const railZ = S.funbox.zM + S.funbox.topRail.zM;
-      const h = await streetAt(0, 0, railZ + 0.15, 0.03);
+      const h = await streetAt(S.funbox.xM - 8, 0, railZ + 0.15, 0.03);
       h.launch(5);
       const railStartX = S.funbox.xM - S.funbox.topRail.lengthM / 2;
       runUntilX(h, railStartX - 1.0, 0.34);
@@ -252,7 +253,7 @@ describe("rider on the street course", () => {
       if (flat === undefined || down === undefined) throw new Error("no down rail");
       // Up the −X bank onto the top, 0.15 m beside the rail, heading 0.03 rad toward it;
       // the pop 0.9 m before the rail (it locks for pops 0.6–1.2 m before it at 5 m/s).
-      const h = await streetAt(0, 0, railZ + 0.15, 0.03);
+      const h = await streetAt(S.funbox.xM - 8, 0, railZ + 0.15, 0.03);
       h.launch(5);
       runUntilX(h, flat.startM.x - 0.9, 0.34);
       loadAndPop(h, 0.32);
@@ -297,7 +298,7 @@ describe("rider on the street course", () => {
       runUntilX(h, rail.startM.x - 0.68, 0.34);
       loadAndPop(h, 0.32);
       h.foot("front", awayFrom("tail"), 0.37, 0.15);
-      h.run(3.5);
+      h.run(2.6);
       const [start, ...more] = h.eventsOf("GrindStarted");
       expect(more).toEqual([]);
       expect(start?.obstacleId).toBe("big-stairs");
@@ -352,7 +353,10 @@ describe("rider on the street course", () => {
       // Mid-pad: in the manual (nose up), on the pad.
       expect(h.pitchRad()).toBeGreaterThan(0.08);
       expect(h.board.transform.positionM.y).toBeGreaterThan(pad.heightM);
-      h.run(2.4);
+      // Rolls off onto the flat (the high pad is 2.25 m on: a player ollies up onto it).
+      const offX = pad.xM + pad.lengthM / 2 + 1;
+      for (let i = 0; i < 480 && h.board.transform.positionM.x <= offX; i += 1) h.run(1 / 120);
+      h.run(0.1);
       expect(h.eventsOf("BoardPopped").filter((e) => e.timeS >= t0)).toEqual([]);
       expect(bails(h)).toEqual([]);
       // Off the end, rolling on the ground on four wheels, feet on.
