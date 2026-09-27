@@ -25,6 +25,9 @@ the core.
 
 ### 1.2 Controls
 
+> **Superseded for tricks by [`MECHANICS.md`](MECHANICS.md)** (load, pop, level,
+> kickflip, shove-it, catch). The table below is kept for context.
+
 | Keys | Foot (regular stance) | Foot (goofy stance) |
 |---|---|---|
 | `W A S D` | Left = **front** foot | Left = **back** foot |
