@@ -74,8 +74,14 @@ export const BOARD_CONFIG = deepFreeze({
     bushingStiffnessNmPerRad: 60,
     /** Time constant of the bushings following the load moment, s. */
     leanResponseTimeS: 0.06,
-    /** Friction of deck/tail/nose/trucks against the world (tune). */
+    /** Friction of the flat deck and the trucks against the world (tune). */
     deckFrictionCoeff: 0.5,
+    /**
+     * Friction of the kicked tail and nose against the world. Low: a pop strike loads the
+     * tail with a huge, brief normal force, and full wood-on-concrete friction there would
+     * brake the board and flip its nose up (ADR 0005).
+     */
+    kickFrictionCoeff: 0.1,
     /** Restitution of deck/tail/nose — governs how much a pop bounces (tune). */
     deckRestitution: 0.3,
     /** Wheels have no solver friction; grip and rolling come from the tyre model. */

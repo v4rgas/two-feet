@@ -348,10 +348,9 @@ export class RapierPhysicsWorld implements PhysicsWorld {
     const deckLengthAlongM = 2 * halfFlat + 2 * deck.kickLengthM;
 
     const deckPart = (part: BoardPartId, desc: RapierColliderDesc): void => {
-      out.push({
-        part,
-        desc: desc.setFriction(physics.deckFrictionCoeff).setRestitution(physics.deckRestitution),
-      });
+      const friction =
+        part === "tail" || part === "nose" ? physics.kickFrictionCoeff : physics.deckFrictionCoeff;
+      out.push({ part, desc: desc.setFriction(friction).setRestitution(physics.deckRestitution) });
     };
 
     // Flat section.
@@ -371,14 +370,12 @@ export class RapierPhysicsWorld implements PhysicsWorld {
       const a = deck.kickAngleRad;
       const cx = s * (halfFlat + (deck.kickLengthM / 2) * Math.cos(a));
       const cy = (deck.kickLengthM / 2) * Math.sin(a);
+      // Plain (not rounded) boxes: a rounded box striking flat ground edge-on gets a
+      // one-point manifold at a corner, and that off-centre pop impulse rolls the board.
+      // A plain box gets the whole edge (symmetric strike).
       deckPart(
         end,
-        RAPIER.ColliderDesc.roundCuboid(
-          deck.kickLengthM / 2 - round,
-          halfT - round,
-          halfW - round,
-          round,
-        )
+        RAPIER.ColliderDesc.cuboid(deck.kickLengthM / 2, halfT, halfW)
           .setTranslation(cx, cy, 0)
           .setRotation(toRapierQuat(Quat.fromAxisAngle(Vec3.UNIT_Z, s * a)))
           .setMass(kickMassKg),

@@ -41,11 +41,11 @@ export function createTunableConfigs(): TunableConfigs {
 /**
  * Loads lil-gui lazily and builds the panel. Call only when `import.meta.env.DEV`.
  *
- * Live today: `presentation` (injected into the ThreeRenderer, read every frame).
- * INTEGRATION HOOK: to make physics/input/rider/tricks values live, inject
- * `configs.board` / `configs.rider` / … into those systems in `bootstrap.ts` instead of
- * the frozen defaults. Values baked at construction time (e.g. `BoardSpec`, colliders)
- * need a rebuild; handle that in `onTuningChange` below.
+ * Live: `presentation` (ThreeRenderer), `board`, `rider`, `input`, `game` — `bootstrap.ts`
+ * injects these very clones into the systems, which read them every step. `tricks` is
+ * not wired yet (M2). Values baked at construction need a page reload: `board.spec`
+ * (body + colliders), `board.colliders`, `board.physics.gravityMps2`, `solverIterations`,
+ * the collider friction/restitution, `input.keys`, `game.loop.fixedStepS`.
  */
 export async function installDevTuningPanel(configs: TunableConfigs): Promise<void> {
   const { createTuningPanel } = await import("../presentation/tuning-panel");
@@ -62,7 +62,17 @@ export async function installDevTuningPanel(configs: TunableConfigs): Promise<vo
   );
 }
 
-/** INTEGRATION HOOK: react to edits that need more than a new value (rebuilds, resets). */
-function onTuningChange(_section: string, _path: string, _value: unknown): void {
-  // e.g. section === "board" && path.startsWith("spec.") → rebuild the board body + mesh.
+/** Edits of values that are baked at construction (see above): they apply after a reload. */
+const BAKED = [
+  /^board\.spec\./,
+  /^board\.colliders\./,
+  /^board\.physics\.(gravityMps2|solverIterations|deckFrictionCoeff|kickFrictionCoeff|deckRestitution|wheelFrictionCoeff|wheelRestitution|surfaceFriction)/,
+  /^game\.loop\./,
+];
+
+function onTuningChange(section: string, path: string, _value: unknown): void {
+  const key = `${section}.${path}`;
+  if (BAKED.some((re) => re.test(key))) {
+    document.title = `Skate — reload to apply ${key}`;
+  }
 }
