@@ -99,6 +99,15 @@ export const PRESENTATION_CONFIG = deepFreeze({
      */
     frontFootYawRad: degToRad(20),
     backFootYawRad: degToRad(8),
+    /**
+     * Ankle tilt in the air (STYLE.md): sideways stick tilts the shoe about its width axis,
+     * toe down toward the toe edge, toe up toward the heel edge, at most this much, rad…
+     */
+    ankleTiltMaxRad: 0.45,
+    /** …smoothed with this time constant, s. */
+    ankleTiltResponseS: 0.06,
+    /** Tilt pivot: the ball of the foot, as a fraction of the length from the centre toward the toe. */
+    ankleBallFraction: 0.25,
     /** Opacity of a detached (airborne) foot. */
     detachedOpacity: 0.4,
     /** Vertical squash at full pressure (0.15 = 15 % shorter). */

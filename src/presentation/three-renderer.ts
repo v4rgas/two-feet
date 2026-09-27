@@ -182,6 +182,11 @@ export class ThreeRenderer implements Renderer {
         frame.alpha,
         this.headingQuat,
         frame.stance,
+        {
+          stickX: { front: frame.intents.front.stick.x, back: frame.intents.back.stick.x },
+          airborne: !board.grounded,
+          dtS,
+        },
       );
     }
     this.debug.update(frame, dtS);

@@ -6,6 +6,15 @@ import { flatMaterial } from "./materials";
 import { buildShoeGeometry, createShoeMaterials, shoeAnkleLocal } from "./shoe-geometry";
 
 const UP = new THREE.Vector3(0, 1, 0);
+const WIDTH_AXIS = new THREE.Vector3(0, 0, 1);
+
+/** What the feet need besides the rider state: the sticks (ankle tilt) and air/ground. */
+export interface FeetInputs {
+  /** Each foot's stick x (+1 = board +Z side, the toe edge in regular). */
+  readonly stickX: Readonly<Record<FootId, number>>;
+  readonly airborne: boolean;
+  readonly dtS: number;
+}
 
 /** One shoe + leg stub. */
 class FootView {
@@ -14,6 +23,9 @@ class FootView {
   private readonly solid: THREE.MeshStandardMaterial[];
   private readonly ghost: THREE.MeshStandardMaterial[];
   private readonly yaw = new THREE.Quaternion();
+  private readonly tilt = new THREE.Quaternion();
+  private readonly pivot = new THREE.Vector3();
+  private tiltRad = 0;
   private readonly toTorso = new THREE.Vector3();
   private readonly ankle = new THREE.Vector3();
 
@@ -50,6 +62,7 @@ class FootView {
     headingQuat: THREE.Quaternion,
     torso: THREE.Vector3,
     stance: Stance,
+    inputs: FeetInputs,
   ): void {
     const f = this.config.feet;
     const attached = foot.contact === "attached";
@@ -71,6 +84,7 @@ class FootView {
       a.z + (b.z - a.z) * alpha,
     );
     this.shoe.quaternion.copy(headingQuat).multiply(this.yaw);
+    this.applyAnkleTilt(stance, inputs);
     this.shoe.material = attached ? this.solid : this.ghost;
     this.shoe.scale.set(1, squash, 1);
 
@@ -85,6 +99,32 @@ class FootView {
     this.leg.quaternion.setFromUnitVectors(UP, this.toTorso);
     this.leg.position.copy(this.ankle).addScaledVector(this.toTorso, f.legLengthM / 2);
     this.leg.visible = attached;
+  }
+
+  /**
+   * Ankle tilt (STYLE.md, visual only): in the air, the sideways stick tilts the shoe about
+   * its width axis around the ball of the foot — toward the toe edge the toe points down,
+   * toward the heel edge the toe lifts; flat on the ground. The shoe is raised just enough
+   * that no part of the sole goes below the sole's resting plane (never into the deck).
+   */
+  private applyAnkleTilt(stance: Stance, inputs: FeetInputs): void {
+    const f = this.config.feet;
+    const towardToe = inputs.stickX[this.id] * (stance === "regular" ? 1 : -1);
+    const wanted = inputs.airborne ? -Math.max(-1, Math.min(1, towardToe)) * f.ankleTiltMaxRad : 0;
+    const k = inputs.dtS > 0 ? 1 - Math.exp(-inputs.dtS / f.ankleTiltResponseS) : 0;
+    this.tiltRad += (wanted - this.tiltRad) * k;
+    if (Math.abs(this.tiltRad) < 1e-4) return;
+    const half = f.shoe.lengthM / 2;
+    const ballX = half * f.ankleBallFraction;
+    const sin = Math.sin(this.tiltRad);
+    // Lowest sole end after tilting about the ball (heel at −half, toe at +half).
+    const lowest = Math.min((-half - ballX) * sin, (half - ballX) * sin, 0);
+    this.tilt.setFromAxisAngle(WIDTH_AXIS, this.tiltRad);
+    // Keep the ball in place: origin += R·(ball − tilt·ball), then lift (R is yaw only).
+    this.pivot.set(ballX, 0, 0).applyQuaternion(this.tilt);
+    this.pivot.set(ballX - this.pivot.x, -this.pivot.y - lowest, -this.pivot.z);
+    this.shoe.position.add(this.pivot.applyQuaternion(this.shoe.quaternion));
+    this.shoe.quaternion.multiply(this.tilt);
   }
 
   dispose(): void {
@@ -143,12 +183,13 @@ export class FeetMesh {
     alpha: number,
     headingQuat: THREE.Quaternion,
     stance: Stance,
+    inputs: FeetInputs,
   ): void {
     const a = previous.torsoPositionWorldM;
     const b = rider.torsoPositionWorldM;
     this.torso.set(a.x + (b.x - a.x) * alpha, a.y + (b.y - a.y) * alpha, a.z + (b.z - a.z) * alpha);
-    this.front.update(previous.front, rider.front, alpha, headingQuat, this.torso, stance);
-    this.back.update(previous.back, rider.back, alpha, headingQuat, this.torso, stance);
+    this.front.update(previous.front, rider.front, alpha, headingQuat, this.torso, stance, inputs);
+    this.back.update(previous.back, rider.back, alpha, headingQuat, this.torso, stance, inputs);
   }
 
   dispose(): void {
