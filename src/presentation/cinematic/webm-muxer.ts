@@ -22,7 +22,9 @@ export interface WebmTrack {
 }
 
 /** A tree of EBML elements: the id bytes and either raw data or children. */
-type Element = { readonly id: number; readonly data: Uint8Array } | { readonly id: number; readonly children: readonly Element[] };
+type Element =
+  | { readonly id: number; readonly data: Uint8Array }
+  | { readonly id: number; readonly children: readonly Element[] };
 
 const ID = {
   EBML: 0x1a45dfa3,
@@ -162,8 +164,13 @@ function write(e: Element, out: Uint8Array, at: number): number {
 }
 
 /** Muxes `frames` (in decode order, first one a keyframe) into a WebM file. */
-export function muxWebm(track: WebmTrack, frames: readonly EncodedFrame[], durationMs: number): Uint8Array {
-  if (frames.length > 0 && frames[0]?.key !== true) throw new Error("The first frame must be a keyframe");
+export function muxWebm(
+  track: WebmTrack,
+  frames: readonly EncodedFrame[],
+  durationMs: number,
+): Uint8Array {
+  if (frames.length > 0 && frames[0]?.key !== true)
+    throw new Error("The first frame must be a keyframe");
   const header = master(ID.EBML, [
     uint(ID.EBMLVersion, 1),
     uint(ID.EBMLReadVersion, 1),

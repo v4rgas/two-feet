@@ -27,7 +27,10 @@ const UPRIGHT_TILT_RAD = 0.5;
  * the air's rotation has reached the target and the board looks upright. Null if that
  * never happens before touchdown. Paste the result into the clip's `catch(...)`.
  */
-export async function findCatchTimeS(clip: MontageClip, target: CatchTarget): Promise<number | null> {
+export async function findCatchTimeS(
+  clip: MontageClip,
+  target: CatchTarget,
+): Promise<number | null> {
   const feetDown = INPUT_CONFIG.keys.feetDown;
   const keys = clip.keys.filter((k) => !(k.code === feetDown && k.atS >= target.afterS - 1e-9));
   const run = await ClipRun.create({ ...clip, keys });

@@ -99,14 +99,23 @@ export class CinematicDirector {
   private poseOf(index: number, subject: ShotSubject, ageS: number, aspect: number): CameraPose {
     const shot = this.segments[index]?.shot ?? { kind: "follow" };
     if (shot.kind === "follow") {
-      return { eye: [...this.follow.eye], target: [...this.follow.target], fovDeg: this.follow.fovDeg };
+      return {
+        eye: [...this.follow.eye],
+        target: [...this.follow.target],
+        fovDeg: this.follow.fovDeg,
+      };
     }
     return riggedShotPose(shot, subject, ageS, aspect, this.config);
   }
 
   private updateSubject(frame: RenderFrame, dtS: number): ShotSubject {
     const p = this.pose;
-    interpolateTransformInto(p, frame.previousBoard.transform, frame.currentBoard.transform, frame.alpha);
+    interpolateTransformInto(
+      p,
+      frame.previousBoard.transform,
+      frame.currentBoard.transform,
+      frame.alpha,
+    );
     const s = this.config.subject;
     const board = frame.currentBoard;
     const v = board.linearVelocityMps;

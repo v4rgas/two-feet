@@ -1,10 +1,15 @@
+import { BOARD_CONFIG } from "../../contexts/board";
 import type { StanceRepository } from "../../contexts/input";
 import { INPUT_CONFIG, keyEventsFromPresses } from "../../contexts/input";
 import { ScriptedInputSource } from "../../contexts/input/infrastructure/scripted-input-source";
-import { BOARD_CONFIG } from "../../contexts/board";
 import { RIDER_CONFIG } from "../../contexts/rider";
 import { TRICKS_CONFIG } from "../../contexts/tricks";
-import { createFlatGroundLevel, createSkateparkLevel, Level, WORLD_CONFIG } from "../../contexts/world";
+import {
+  createFlatGroundLevel,
+  createSkateparkLevel,
+  Level,
+  WORLD_CONFIG,
+} from "../../contexts/world";
 import type { DomainEvent, Stance } from "../../shared";
 import { ManualClock, Transform, Vec3 } from "../../shared";
 import type { Simulation, SimulationConfigs } from "../compose";
@@ -56,6 +61,8 @@ export class ClipRun {
     readonly sim: Simulation,
     readonly level: Level,
     private readonly input: ScriptedInputSource,
+    /** The fixed simulation step, s. */
+    readonly stepS: number,
   ) {
     sim.bus.subscribeAll((event) => this.events.push(event));
   }
@@ -88,7 +95,7 @@ export class ClipRun {
         Transform.toWorldDirection(sim.spawn, Vec3.create(speed, 0, 0)),
       );
     }
-    return new ClipRun(clip, sim, level, input);
+    return new ClipRun(clip, sim, level, input, cfg.game.loop.fixedStepS);
   }
 
   /** Simulation time since the clip start, s. */
@@ -117,7 +124,8 @@ export class ClipRun {
     for (const e of this.events) {
       if (e.type === "TrickLanded") tricks.push(e.name);
       else if (e.type === "TrickBailed") bails.push(`trick bailed: ${e.name ?? "?"} (${e.reason})`);
-      else if (e.type === "RiderBailed") bails.push(`rider bailed (${e.reason}) at ${e.timeS.toFixed(2)} s`);
+      else if (e.type === "RiderBailed")
+        bails.push(`rider bailed (${e.reason}) at ${e.timeS.toFixed(2)} s`);
     }
     return { tricks, bails, endForwardMps: this.forwardMps() };
   }

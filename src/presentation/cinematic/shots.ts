@@ -74,7 +74,12 @@ export interface SlowOrbitShot {
   readonly fovDeg?: number;
 }
 
-export type ShotSpec = FollowShot | LowSideShot | FixedTripodShot | FisheyeFollowShot | SlowOrbitShot;
+export type ShotSpec =
+  | FollowShot
+  | LowSideShot
+  | FixedTripodShot
+  | FisheyeFollowShot
+  | SlowOrbitShot;
 export type ShotKind = ShotSpec["kind"];
 export type RiggedShotSpec = Exclude<ShotSpec, FollowShot>;
 

@@ -51,7 +51,11 @@ export const bs180KickflipFlat: MontageClip = {
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "lowSide", side: "left", distanceM: 2.6, leadM: 1.2 } },
-    { fromS: 0.9, blendS: 0.5, shot: { kind: "slowOrbit", startAngleRad: Math.PI / 2, rateRadps: 0.5 } },
+    {
+      fromS: 0.9,
+      blendS: 0.5,
+      shot: { kind: "slowOrbit", startAngleRad: Math.PI / 2, rateRadps: 0.5 },
+    },
   ],
   slowMotion: [{ fromS: 0.97, toS: 1.7, scale: 0.3 }],
   expect: { tricks: ["BS 180 Kickflip"], rollsFakieAtS: 2.5 },

@@ -11,7 +11,8 @@ import type { ClipReport } from "./verify-clip";
 import { verifyClip } from "./verify-clip";
 
 const TIMEOUT_MS = 60_000;
-const ONLY = process.env.CLIP;
+// `CLIP=<id> pnpm montage:verify` runs one clip (vitest exposes the environment here).
+const ONLY = import.meta.env.CLIP as string | undefined;
 
 function line(r: ClipReport): string {
   const tricks = r.outcome.tricks.length > 0 ? r.outcome.tricks.join(", ") : "—";

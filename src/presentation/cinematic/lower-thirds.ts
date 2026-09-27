@@ -15,7 +15,12 @@ export interface LowerThird {
 }
 
 /** Opacity of a card at `ageS`: fade in, hold, fade out (0 outside). */
-export function cardOpacity(ageS: number, fadeInS: number, holdS: number, fadeOutS: number): number {
+export function cardOpacity(
+  ageS: number,
+  fadeInS: number,
+  holdS: number,
+  fadeOutS: number,
+): number {
   if (ageS < 0) return 0;
   if (ageS < fadeInS) return fadeInS <= 0 ? 1 : ageS / fadeInS;
   const out = ageS - fadeInS - holdS;

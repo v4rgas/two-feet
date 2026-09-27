@@ -13,8 +13,8 @@
 }
 
 /* Recording: the game canvas is a fixed 16:9 frame, centred on a dark page. */
-.skate-montage-record {
-  background: #111 !important;
+body.skate-montage-record {
+  background: #111;
 }
 
 .skate-montage-record #game {

@@ -8,9 +8,10 @@ const park = WORLD_CONFIG.park;
 const hp = park.halfpipe;
 
 /**
- * 360 flip off the kicker: rolling in at 4.5 m/s from 6 m before it, the pop at 1.6 s is
- * at the lip; W + A flick and a held ← (a 360 backside sweep, ≥ 0.12 s); Space once the
- * flip and the 360 are done (window ≈ 2.05–2.09 s).
+ * 360 flip off the kicker: rolling in at 4.5 m/s from 6 m before it, the pop at 1.74 s is
+ * at the lip (earlier, the pop lands back on the kicker's slope); W + A flick and a held ←
+ * (a 360 backside sweep, ≥ 0.12 s); Space once the flip and the 360 are done (window
+ * ≈ 2.26–2.30 s).
  */
 export const treFlipKicker: MontageClip = {
   id: "tre-flip-kicker",
@@ -18,18 +19,18 @@ export const treFlipKicker: MontageClip = {
   level: "park",
   stance: "regular",
   spawn: { xM: park.kicker.xM - 6, yM: 0, zM: park.kicker.zM, headingRad: 0, speedMps: 4.5 },
-  durationS: 3.4,
+  durationS: 3.6,
   keys: new KeyTimeline("regular")
-    .loadAndPop("tail", 1.38, 1.6)
-    .level("tail", 1.65)
-    .flick("tail", "heel", 1.65, 0.08)
-    .sweep("tail", "heel", 1.65, 0.2)
-    .catch(2.07)
+    .loadAndPop("tail", 1.52, 1.74)
+    .level("tail", 1.79)
+    .flick("tail", "heel", 1.79, 0.08)
+    .sweep("tail", "heel", 1.79, 0.2)
+    .catch(2.28)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "lowSide", side: "left", distanceM: 2.4, leadM: 0.8 } },
     {
-      fromS: 1.45,
+      fromS: 1.6,
       shot: {
         kind: "fixedTripod",
         positionM: [park.kicker.xM + 3.4, 0.35, park.kicker.zM - 2.6],
@@ -39,7 +40,7 @@ export const treFlipKicker: MontageClip = {
       },
     },
   ],
-  slowMotion: [{ fromS: 1.57, toS: 2.3, scale: 0.3 }],
+  slowMotion: [{ fromS: 1.72, toS: 2.5, scale: 0.3 }],
   expect: { tricks: ["360 Flip"] },
 };
 
@@ -54,7 +55,11 @@ export const quarterPipeFakie: MontageClip = {
   stance: "regular",
   spawn: { xM: hp.xM - 1.7, yM: 0, zM: hp.zM, headingRad: 0, speedMps: 5.5 },
   durationS: 3.3,
-  keys: new KeyTimeline("regular").loadAndPop("tail", 1.53, 1.75).level("tail", 1.8).catch(2.2).build(),
+  keys: new KeyTimeline("regular")
+    .loadAndPop("tail", 1.53, 1.75)
+    .level("tail", 1.8)
+    .catch(2.2)
+    .build(),
   shots: [
     {
       fromS: 0,

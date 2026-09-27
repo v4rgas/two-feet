@@ -203,7 +203,13 @@ export class VideoHud {
   }
 }
 
-function shadowText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, u: number): void {
+function shadowText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  u: number,
+): void {
   ctx.shadowColor = "rgba(28, 27, 25, 0.55)";
   ctx.shadowBlur = 8 * u;
   ctx.shadowOffsetY = 1 * u;
