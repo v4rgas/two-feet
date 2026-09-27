@@ -16,7 +16,8 @@ Levels, obstacles, surface types.
   - `stairs`: step count, rise, run, width, top platform depth, an optional roll-up back slope, and an optional hubba (+Z side: a `ledge` with a `grindable` steel edge) and handrail (−Z side, `grindable`). The steps go down toward +X from the top nosing at x = 0.
 - **Obstacle geometry** (`obstacle-geometry.ts`, pure): `obstacleGeometry(obstacle)` returns **convex pieces**. Each piece has vertices, outward-wound faces with a render tone (`body`, `edge` or `metal`), and its own surface type. Physics and rendering both use these same pieces (ADR 0008). The tessellation settings are in `WORLD_CONFIG.geometry`.
 - **Obstacle collider** (`obstacleCollider(obstacle)`): structurally a board `StaticColliderDesc`. It is a box for `box` shapes, and a `compound` of convex hulls (one per piece, each with its surface) for everything else.
-- **Surface type** (VO): `ground | ramp | grindable | ledge`. Contacts and `SurfaceContact*` events carry it per piece, so a `GrindDetector` (M4) can react to a truck on the coping or a rail.
+- **Grind edge** (VO, `grind-edges.ts`, pure, M4): `obstacleGrindEdges(obstacle)` gives every edge a board can grind or slide on as a straight segment on top of the edge's profile, in the world frame: `startM`, `endM`, `outwardNormal` (horizontal, away from the obstacle), `surface`, `obstacleId`, `twoSided` (a bar: rail, handrail) and `halfWidthM`. Rail bar, coping (out over the transition), hubba steel edge (a flat segment on the platform and a sloped one), ledge top edges (where the top face meets the chamfers) and handrail. Queries: `grindEdgesNear(edges, point, radius)` (nearest first), `nearestGrindEdge`, `closestOnEdge`. See [ADR 0009](../../../docs/adr/0009-grinds.md).
+- **Surface type** (VO): `ground | ramp | grindable | ledge`. Contacts and `SurfaceContact*` events carry it per piece, for example `grindable` for a truck on the coping or a rail.
 - **Spawn** (VO): a ground point plus a heading. The board adds its own rest height.
 
 ## Levels
@@ -27,6 +28,7 @@ Levels, obstacles, surface types.
 ## Public API (`index.ts`)
 
 - Types: `Level` (+ `Level.create`), `Obstacle`, `ObstacleShape` (+ factories), the shape interfaces, `Spawn`, `SurfaceType`, `ObstacleId`, `ConvexPiece`, `GeometryFace`, `FaceTone`, `ObstacleGeometry`, `ObstacleColliderDesc`.
+- Grind edges: `GrindEdge`, `GrindEdgeHit`, `obstacleGrindEdges`, `levelGrindEdges`, `grindEdgesNear`, `nearestGrindEdge`, `closestOnEdge`.
 - Functions: `createFlatGroundLevel`, `createSkateparkLevel`, `obstacleGeometry`, `shapeGeometry`, `obstacleCollider`, and shape helpers (`quarterPipeLipXM`, `quarterPipeLipAngleRad`, `quarterPipeCopingProfile`, `kickerRadiusM`, `kickerLipAngleRad`, `stairsHeightM`, `stairsSlopeRad`, `stairsFootXM`).
 - Config: `WORLD_CONFIG`.
 

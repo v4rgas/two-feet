@@ -31,6 +31,21 @@ the board (MECHANICS.md, assisted physics). The design is in
 - **Support normal**: the mean normal of the wheel contacts. The press, the level
   assist and the landing tilt use it, so banks and transitions count as level.
 - **Toe side**: board +Z in regular, −Z in goofy (`toeSideSign`).
+- **Grind edge** (`GrindEdgeView`, from world): a segment on top of a rail, coping, the
+  hubba's steel edge or a ledge edge, with its outward normal; two-sided (a bar) or one-sided.
+- **Lock / grind / slide** (M4, [ADR 0009](../../../docs/adr/0009-grinds.md)): in the air, a
+  board part near an edge locks on. Along the edge it is a grind (50-50, 5-0, Nosegrind);
+  across it, a slide (Boardslide, Tailslide, Noseslide). ↓ / W held pick the tail or the
+  nose; FS / BS come from where the edge was at takeoff (toes = FS). While locked, the
+  **lock PD** holds the locked point on the edge line (square to it only), the **stance
+  PD** holds the attitude, friction brakes along the edge, and gravity along a sloped edge
+  is left alone (no thrust).
+- **Balance**: in [−1, 1], + toward the toe side. A seeded random walk scaled by the slope,
+  the speed and the time on the edge; both feet leaning the same way counter it; past |1|
+  the rider falls off (bail `lostBalance`).
+- **Exits**: pop out (the ground's load and release; the pop also goes out along the edge's
+  normal; the body turns on its own to the travel: `popOutTurnRad`), roll off the end
+  (the feet stay on), fall off.
 - **Bail**: a landing not lined up with the travel (forward or fakie), a landing tilted
   against the surface, upside down, both feet off on the wheels, or resting upside down.
 
@@ -42,7 +57,9 @@ minimal shapes it consumes: `RiderControls` (satisfied by input's `IntentFrame`)
 `DeckGeometry` (by board's `BoardSpec`). `src/game/contract-checks.ts` makes tsc fail if
 they drift. The ground below the board comes in as `FootForceInput.groundBelowYM`, which
 the application gets from the `probeGroundY` dependency (a physics raycast wired in
-`compose.ts`).
+`compose.ts`). The grind edges near the board come in as `FootForceInput.edgesNear`,
+from the `grindEdgesNear` dependency (world's `grindEdgesNear` over the level's edges,
+wired in `compose.ts`); world's `GrindEdge` satisfies `GrindEdgeView`.
 
 ## Public API (`index.ts`)
 
@@ -52,15 +69,21 @@ the application gets from the `probeGroundY` dependency (a physics raycast wired
   `FeetPressure`, `RiderChange`, `DefaultRiderSystemDeps`.
 - Aggregate: `Rider` (`update(controls, board, dtS, loading)`, `liftFeet`,
   `catchFeet`, `land(upDot, board)`, `reset(board)`, `state`); `NEUTRAL_CONTROLS`.
-- Domain service: `FootForceModel` (interface) and `TrickController(deck, config)`.
+- Domain service: `FootForceModel` (interface) and `TrickController(deck, config)`, which
+  runs `GrindController(deck, config)` (lock-on `tryLock`, locked step `hold`, `report`).
+- Read model: `RiderState` also carries `grind` (`RiderGrind`: kind, side, obstacle,
+  surface, balance, or null), `lastGrindExit` and `popOutTurnRad`.
 - Helpers: `targetDeckPosition`, `feetPressure`, `toeSideSign`, `deckTopPointLocal`,
   `tailTipLocal`, `flatHalfLengthM`, `isOverTail`.
 - Application: `RiderSystem` (interface) and `DefaultRiderSystem({ body, bus, deck,
-  config, board, model?, probeGroundY? })`.
-- Config: `RIDER_CONFIG` (every tunable; the `tricks` block is MECHANICS.md's table).
+  config, board, model?, probeGroundY?, grindEdgesNear? })`.
+- Config: `RIDER_CONFIG` (every tunable; the `tricks` block is MECHANICS.md's table, the
+  `grind` block the M4 one).
 
 ## Events
 
 - Emits: `BoardPopped` (with `foot` and `kick`), `FootAttached`, `FootDetached`,
-  `RiderBailed`.
-- Consumes: `BoardLanded` (the landing checks use `surfaceUpDot` when present).
+  `RiderBailed` (reason `lostBalance` when falling off a grind). The grind itself is read
+  from `RiderState.grind`; the tricks context names it and emits `GrindStarted/Ended`.
+- Consumes: `BoardLanded` (the landing checks use `surfaceUpDot` when present; ignored
+  while locked on an edge).

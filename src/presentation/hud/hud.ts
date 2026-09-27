@@ -257,7 +257,9 @@ export class Hud {
 
   private updateAirtime(frame: RenderFrame, dtS: number): void {
     const board = frame.currentBoard;
-    const live = frame.air?.airtimeS ?? (board.grounded ? null : board.airtimeS);
+    // On a grind edge the board is off the ground but not in the air.
+    const onEdge = frame.rider.grind !== null;
+    const live = onEdge ? null : (frame.air?.airtimeS ?? (board.grounded ? null : board.airtimeS));
     this.airtimeModel.update(live, dtS);
     const text = `${this.airtimeModel.shownS.toFixed(2)} s`;
     if (text !== this.lastAirtimeText) {
