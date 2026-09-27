@@ -12,7 +12,8 @@ import { Quat, Vec3 } from "../../../shared";
  *   - kickflip: board roll rate about the rider-forward end of its long axis = −toe × rate
  *     (heelflip: the opposite);
  *   - backside shove-it (the TAIL swings to the heel side, behind the rider): board yaw
- *     about +Y = −toe × rate, whichever kick popped (frontside: the opposite);
+ *     relative to the body about +Y = −toe × rate, whichever kick popped (frontside: the
+ *     opposite);
  *   - backside body spin (the rider's back turns toward the front first): rider heading
  *     change about +Y has the sign −toe (regular BS = clockwise from above, `E`).
  * So one rule normalises all three channels: multiply by −toe. After it, + = kickflip /
@@ -85,14 +86,15 @@ export interface NormalisedRotation {
 
 /**
  * Applies the one sign rule (see the file comment): flip = −toe × facing × local roll
- * (the local roll seen about the rider-forward end of the long axis), shove = −toe × board
- * yaw, body = −toe × rider yaw.
+ * (the local roll seen about the rider-forward end of the long axis), shove = −toe × the
+ * board's yaw RELATIVE TO THE BODY (board yaw − rider yaw: in a body 180 the feet take the
+ * board along, which is no shove; MECHANICS "Body spin"), body = −toe × rider yaw.
  */
 export function normaliseRotation(raw: RawAirRotation, stance: Stance): NormalisedRotation {
   const k = -toeSign(stance);
   return {
     flipRad: k * raw.facing * raw.localRollRad,
-    shoveRad: k * raw.boardYawRad,
+    shoveRad: k * (raw.boardYawRad - raw.bodyYawRad),
     bodyRad: k * raw.bodyYawRad,
   };
 }

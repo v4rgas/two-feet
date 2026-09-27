@@ -27,6 +27,11 @@ export interface DefaultRiderSystemDeps {
   readonly board: BoardSnapshot;
   /** Defaults to the MECHANICS.md `TrickController`. */
   readonly model?: FootForceModel;
+  /**
+   * Height of the ground straight below a point, m (world), or null (nothing below). The
+   * composition root implements it with a physics raycast. Absent: flat ground at 0.
+   */
+  readonly probeGroundY?: (pointWorldM: Vec3) => number | null;
 }
 
 /**
@@ -44,6 +49,7 @@ export class DefaultRiderSystem implements RiderSystem {
   private controls: RiderControls = NEUTRAL_CONTROLS;
   private forces: readonly FootForce[] = [];
   private lastBoard: BoardSnapshot;
+  private readonly probeGroundY: ((pointWorldM: Vec3) => number | null) | undefined;
   /** The trick model reported a loaded pop this step (Q / E wind up). */
   private loading = false;
 
@@ -53,6 +59,7 @@ export class DefaultRiderSystem implements RiderSystem {
     this.lastBoard = deps.board;
     this.rider = new Rider(deps.deck, deps.config, deps.board);
     this.model = deps.model ?? new TrickController(deps.deck, deps.config);
+    this.probeGroundY = deps.probeGroundY;
     const body = deps.body;
     this.mass = {
       get massKg() {
@@ -64,7 +71,9 @@ export class DefaultRiderSystem implements RiderSystem {
       angularInertiaTimes: (vectorWorld) => body.angularInertiaTimes(vectorWorld),
     };
     this.bus.subscribe("BoardLanded", (event) => {
-      this.publish(this.rider.land(event.upDot, this.lastBoard), event.tick, event.timeS);
+      // Tilt against the landing surface (a bank, a transition), not world up.
+      const upDot = event.surfaceUpDot ?? event.upDot;
+      this.publish(this.rider.land(upDot, this.lastBoard), event.tick, event.timeS);
     });
   }
 
@@ -84,6 +93,10 @@ export class DefaultRiderSystem implements RiderSystem {
       board,
       mass: this.mass,
       dtS,
+      groundBelowYM:
+        board.grounded || this.probeGroundY === undefined
+          ? null
+          : this.probeGroundY(board.transform.positionM),
     });
     this.forces = output.forces;
     this.loading = output.loading === true;

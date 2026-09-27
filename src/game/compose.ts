@@ -73,6 +73,11 @@ export async function composeSimulation(deps: SimulationDeps): Promise<Simulatio
     deck: spec,
     config: configs.rider,
     board: board.snapshot,
+    probeGroundY: (pointWorldM) =>
+      physics.raycast(
+        { originWorldM: pointWorldM, directionWorld: Vec3.create(0, -1, 0) },
+        { maxDistanceM: configs.rider.tricks.groundProbeM, excludeBody: board.body },
+      )?.pointWorldM.y ?? null,
   });
   const tricks = new DefaultTricksSystem({
     bus,

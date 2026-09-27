@@ -42,6 +42,8 @@ export interface RenderFrame {
   readonly alpha: number;
   readonly previousBoard: BoardSnapshot;
   readonly currentBoard: BoardSnapshot;
+  /** Deck lean on the trucks, rad (+ = the +Z side down): the deck mesh tilts by it. */
+  readonly leanRad: number;
   /** Rider state after the previous step; feet, torso and heading interpolate by `alpha`. */
   readonly previousRider: RiderState;
   readonly rider: RiderState;

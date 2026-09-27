@@ -13,6 +13,8 @@ export interface BoardMesh {
   readonly wheels: readonly THREE.Object3D[];
   /** Deck material, for the catch flash. */
   readonly deckMaterial: THREE.MeshStandardMaterial;
+  /** Deck + grip, tilted about the board's long axis by the truck lean (trucks stay). */
+  readonly deckPivot: THREE.Object3D;
   dispose(): void;
 }
 
@@ -219,7 +221,10 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
   );
   deck.castShadow = true;
   deck.receiveShadow = true;
-  group.add(deck);
+  const deckPivot = new THREE.Group();
+  deckPivot.name = "deck";
+  deckPivot.add(deck);
+  group.add(deckPivot);
 
   // Grip sits on top of the collider surface (a hair above, visual only), inset from the edge.
   const gripHalfWidthM = halfWidthM - look.gripInsetM;
@@ -238,7 +243,7 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
     gripMaterial,
   );
   grip.receiveShadow = true;
-  group.add(grip);
+  deckPivot.add(grip);
 
   const halfBase = spec.trucks.wheelbaseM / 2;
   group.add(buildTruck(spec, halfBase, metal));
@@ -260,6 +265,7 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
     group,
     wheels,
     deckMaterial,
+    deckPivot,
     dispose(): void {
       group.traverse((node) => {
         if (node instanceof THREE.Mesh) node.geometry.dispose();

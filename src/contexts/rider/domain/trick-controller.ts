@@ -8,6 +8,7 @@ import {
   boardUp,
   deckPointWorld,
   restHeightM,
+  supportNormal,
   tiltRad,
   wrapPi,
 } from "./board-geometry";
@@ -62,8 +63,13 @@ class BoardFrame {
   readonly riderForward: Vec3;
   readonly riderSide: Vec3;
   /**
-   * Horizontal axis a nose-up rotation of the rider-front end turns about, and that end's
-   * elevation (rad, + = up) and pitch rate (rad/s) about it.
+   * "Level" for the assists: the normal of the ground the wheels touch (a bank, a
+   * transition), world up when no wheel touches.
+   */
+  readonly support: Vec3;
+  /**
+   * Axis (in the support plane) a nose-up rotation of the rider-front end turns about, and
+   * that end's elevation above the support plane (rad, + = up) and pitch rate (rad/s).
    */
   readonly pitchAxis: Vec3;
   readonly frontPitchRad: number;
@@ -98,12 +104,15 @@ class BoardFrame {
     const yaw = Quat.fromAxisAngle(Vec3.UNIT_Y, riderHeadingRad);
     this.riderForward = Quat.rotate(yaw, Vec3.UNIT_X);
     this.riderSide = Quat.rotate(yaw, Vec3.UNIT_Z);
+    this.support = supportNormal(board);
     // The board's long axis, pointed at the rider's front.
     const facing = Vec3.dot(this.forward, this.riderForward) >= 0 ? 1 : -1;
     const front = Vec3.scale(this.forward, facing);
-    const flat = Vec3.normalize(Vec3.create(front.x, 0, front.z));
-    this.pitchAxis = Vec3.lengthSq(flat) > 0 ? Vec3.cross(flat, Vec3.UNIT_Y) : this.riderSide;
-    this.frontPitchRad = Math.asin(Math.max(-1, Math.min(1, front.y)));
+    const along = Vec3.dot(front, this.support);
+    const inPlane = Vec3.sub(front, Vec3.scale(this.support, along));
+    const flat = Vec3.lengthSq(inPlane) > 1e-9 ? Vec3.normalize(inPlane) : Vec3.ZERO;
+    this.pitchAxis = Vec3.lengthSq(flat) > 0 ? Vec3.cross(flat, this.support) : this.riderSide;
+    this.frontPitchRad = Math.asin(Math.max(-1, Math.min(1, along)));
     this.noseUpAxis = Vec3.scale(Transform.toWorldDirection(board.transform, Vec3.UNIT_Z), facing);
     this.frontPitchRateRadps = Vec3.dot(board.angularVelocityRadps, this.pitchAxis);
   }
@@ -173,6 +182,8 @@ export class TrickController implements FootForceModel {
   private pushCooldownS = 0;
   /** Space held from the air (the catch) does not push after landing until released. */
   private pushLocked = false;
+  /** Ground height below the board this step (world y, m), for the airtime prediction. */
+  private groundYM = 0;
 
   constructor(
     private readonly deck: DeckGeometry,
@@ -193,6 +204,7 @@ export class TrickController implements FootForceModel {
 
   computeForces(input: FootForceInput): FootForceOutput {
     const { controls, rider, board, dtS } = input;
+    this.groundYM = input.groundBelowYM ?? 0;
     const keys = this.readKeys(controls);
     const feetDownPressed = controls.feetDown && !this.feetDownBefore;
     const releasedNow = keys.released && !this.releasedBefore;
@@ -295,7 +307,7 @@ export class TrickController implements FootForceModel {
         const loadS = this.loadS;
         this.clearLoad();
         if (ready) {
-          this.pop(kick, loadS, input.mass, frame, out);
+          this.pop(kick, loadS, input.rider, input.mass, frame, out);
           return kick;
         }
       } else if (this.isSet(keys, kick)) {
@@ -355,8 +367,10 @@ export class TrickController implements FootForceModel {
   ): void {
     const { stance } = this.config;
     const lean = this.loadKick !== null ? 0 : carveLean(controls, rider, stance.carveMinStickX);
-    // Weight acts straight down (world −Y): along a pitched deck's normal it would thrust.
-    const down = Vec3.create(0, -1, 0);
+    // Weight acts into the ground the wheels roll on (−mean wheel normal): straight down on
+    // the flat — also in a manual, where the deck's own −Y would thrust — and into the
+    // slope on a bank or a wall, where world down would brake the light board.
+    const down = Vec3.scale(supportNormal(board), -1);
     // The carve lean is in the rider frame (+Z side); map it onto the board's own Z.
     const boardSide = Transform.toWorldDirection(board.transform, Vec3.UNIT_Z);
     const facing = Math.sign(Vec3.dot(boardSide, frame.riderSide)) || 1;
@@ -416,6 +430,7 @@ export class TrickController implements FootForceModel {
   private pop(
     kick: Kick,
     loadS: number,
+    rider: RiderState,
     mass: BoardMassProperties,
     frame: BoardFrame,
     out: FootForce[],
@@ -432,6 +447,12 @@ export class TrickController implements FootForceModel {
     const axis = frame.liftAxisLocal(kick);
     const snap = t.popPitchRateRadps - Vec3.dot(frame.board.angularVelocityRadps, axis);
     out.push(angularImpulseOf(foot, "pop", mass.angularInertiaTimes(Vec3.scale(axis, snap))));
+    // The wind-up's spin carries over to the board: board and body leave turning together.
+    const spinRate = (rider.windUpRad / t.windUpMaxRad) * t.windUpSpinRadps;
+    if (spinRate !== 0) {
+      const yaw = Vec3.create(0, spinRate - frame.board.angularVelocityRadps.y, 0);
+      out.push(angularImpulseOf(foot, "pop", mass.angularInertiaTimes(yaw)));
+    }
     this.popKick = kick;
     this.sincePopS = 0;
     this.popSpeedMps = speedMps;
@@ -440,8 +461,8 @@ export class TrickController implements FootForceModel {
   /**
    * Feet-down key on the ground (not one still held from a catch in the air), board on
    * its wheels, both feet on with sticks near neutral, not loading, below
-   * `pushMaxSpeedMps`, cooldown elapsed: an impulse along the
-   * rider's heading through the front foot. The only horizontal force the rider makes.
+   * `pushMaxSpeedMps`, cooldown elapsed: an impulse along the travel (the rider's heading,
+   * or its reverse when rolling fakie) through the front foot. The only horizontal force the rider makes.
    */
   private push(
     { controls, rider, board }: FootForceInput,
@@ -456,7 +477,10 @@ export class TrickController implements FootForceModel {
       stickMagnitude(controls.front.stick) <= stance.pushNeutralRadius &&
       stickMagnitude(controls.back.stick) <= stance.pushNeutralRadius;
     if (!neutral) return;
-    const heading = frame.riderForward;
+    // Along the travel: the rider's front, or its back when rolling fakie (from rest: front).
+    const along = Vec3.dot(board.linearVelocityMps, frame.riderForward);
+    const fakie = along < -this.config.torso.headingTravelMinSpeedMps;
+    const heading = fakie ? Vec3.scale(frame.riderForward, -1) : frame.riderForward;
     if (Vec3.dot(board.linearVelocityMps, heading) >= stance.pushMaxSpeedMps) return;
     out.push(
       impulseAt(
@@ -516,8 +540,8 @@ export class TrickController implements FootForceModel {
       if (pop.edge !== 0 && !this.shoved && this.sincePopS <= tricks.shoveWindowS) {
         this.shove(kick, pop.edge, input.controls, mass, frame, out);
       }
-      this.trackChannels(guide.edge, pop.edge, frame, dtS);
-      this.holdChannels(kick, mass, frame, out);
+      this.trackChannels(guide.edge, pop.edge, input.rider, frame, dtS);
+      this.holdChannels(kick, input.rider, mass, frame, out);
     }
     if (!this.caught && !this.flipChannel.active && !this.shoveChannel.active) {
       this.followBody(input.rider, mass, frame, out);
@@ -541,6 +565,7 @@ export class TrickController implements FootForceModel {
   private trackChannels(
     flickEdge: number,
     sweepEdge: number,
+    rider: RiderState,
     frame: BoardFrame,
     dtS: number,
   ): void {
@@ -564,7 +589,8 @@ export class TrickController implements FootForceModel {
     }
     const shove = this.shoveChannel;
     if (shove.active) {
-      shove.turnedRad += yawRate * dtS;
+      // The shove is the board's yaw relative to the body.
+      shove.turnedRad += (yawRate - rider.bodySpinRateRadps) * dtS;
       shove.heldS = shove.holding && sweepEdge === shove.key ? shove.heldS + dtS : shove.heldS;
       shove.holding = shove.holding && sweepEdge === shove.key;
       if (shove.turns === 1 && shove.heldS >= t.shove360HoldS) {
@@ -600,12 +626,14 @@ export class TrickController implements FootForceModel {
 
   /**
    * Holds the channel rates until the catch: the roll rate about the board's long axis
-   * (flip) and the yaw rate about world up (shove; 0 while only flipping, so a flip does not
-   * wander) and, while flipping, the pitch rate. A shove alone only sets the yaw rate (the
-   * scoop and the level PD own the rest).
+   * (flip), the yaw rate about world up — the shove's rate on top of the body's spin, or,
+   * with no shove, the body follow (the feet keep the board under the turning body) — and,
+   * while flipping, the pitch rate. A shove alone only sets the yaw rate (the scoop and the
+   * level PD own the rest).
    */
   private holdChannels(
     kick: Kick,
+    rider: RiderState,
     mass: BoardMassProperties,
     frame: BoardFrame,
     out: FootForce[],
@@ -621,7 +649,9 @@ export class TrickController implements FootForceModel {
     if (!flip.active && !shove.active) return;
     const { spinHoldAssist: k, levelAssist, levelOmegaRadps } = this.config.tricks;
     const w = frame.board.angularVelocityRadps;
-    const yawRate = shove.active ? shove.rateRadps : 0;
+    const yawRate = shove.active
+      ? shove.rateRadps + rider.bodySpinRateRadps
+      : this.followYawRate(rider, frame);
     if (!flip.active) {
       const delta = Vec3.create(0, k * (yawRate - w.y), 0);
       out.push(angularImpulseOf(popFootOf(kick), "shove", mass.angularInertiaTimes(delta)));
@@ -641,9 +671,10 @@ export class TrickController implements FootForceModel {
   }
 
   /**
-   * BODY FOLLOW (MECHANICS.md "Body spin"): in the air, unless a flip or shove is running
-   * (the feet are busy), the feet steer the board's yaw toward the rider heading — the
-   * nearer of 0° / 180° — so a body 180 takes the board along. Yaw only (world up).
+   * BODY FOLLOW (MECHANICS.md "Body spin"): in the air, unless a shove is running, the feet
+   * steer the board's yaw toward the rider heading — the nearer of 0° / 180° — so a body
+   * 180 takes the board along, flipping or not. Yaw only (world up). While a flip runs, the
+   * flip hold applies it as a rate (`followYawRate`); otherwise this yaw PD.
    */
   private followBody(
     rider: RiderState,
@@ -651,18 +682,33 @@ export class TrickController implements FootForceModel {
     frame: BoardFrame,
     out: FootForce[],
   ): void {
-    const heading = boardHeadingRad(frame.board);
-    if (heading === null) return;
+    const error = this.followErrorRad(rider, frame);
+    if (error === null) return;
     const { bodyFollowOmegaRadps: w } = this.config.tricks;
-    // Which way round the board sits under the rider (0 or π) is fixed once per air, so a
-    // spin past 90° keeps pulling the same way; the body's spin rate is fed forward.
-    this.followOffsetRad ??=
-      Math.abs(wrapPi(heading - rider.headingRad)) > Math.PI / 2 ? Math.PI : 0;
-    const error = wrapPi(rider.headingRad + this.followOffsetRad - heading);
+    // The body's spin rate is fed forward.
     const rateError = rider.bodySpinRateRadps - frame.board.angularVelocityRadps.y;
     const accel = w * w * error + 2 * w * rateError;
     const torque = mass.angularInertiaTimes(Vec3.create(0, accel, 0));
     out.push(torqueOf("front", "body", torque));
+  }
+
+  /** The body follow as a yaw rate (for the flip hold): the body's rate plus a P term. */
+  private followYawRate(rider: RiderState, frame: BoardFrame): number {
+    const error = this.followErrorRad(rider, frame) ?? 0;
+    return rider.bodySpinRateRadps + this.config.tricks.bodyFollowOmegaRadps * error;
+  }
+
+  /**
+   * Board yaw error to the rider heading. Which way round the board sits under the rider
+   * (0 or π) is fixed once per air, so a spin past 90° keeps pulling the same way. Null
+   * while the long axis is too steep to have a heading.
+   */
+  private followErrorRad(rider: RiderState, frame: BoardFrame): number | null {
+    const heading = boardHeadingRad(frame.board);
+    if (heading === null) return null;
+    this.followOffsetRad ??=
+      Math.abs(wrapPi(heading - rider.headingRad)) > Math.PI / 2 ? Math.PI : 0;
+    return wrapPi(rider.headingRad + this.followOffsetRad - heading);
   }
 
   /** LEVEL starts: from now the level PD runs; early in the window it adds height. */
@@ -812,11 +858,11 @@ export class TrickController implements FootForceModel {
 
   /**
    * Remaining airtime (ballistic) of the board centre falling back to its rest height plus
-   * `landingMarginM`, s.
+   * `landingMarginM` above the ground below it (probed: stairs, ramps), s.
    */
   private remainingAirtimeS(board: BoardKinematics): number {
     const { gravityMps2: g, landingMarginM, minAirtimeS } = this.config.tricks;
-    const landingY = restHeightM(this.deck) + landingMarginM;
+    const landingY = this.groundYM + restHeightM(this.deck) + landingMarginM;
     const heightM = Math.max(0, board.transform.positionM.y - landingY);
     const vy = board.linearVelocityMps.y;
     const airS = (vy + Math.sqrt(vy * vy + 2 * g * heightM)) / g;
@@ -882,7 +928,7 @@ export class TrickController implements FootForceModel {
   ): void {
     const { catchAssist, catchOmegaRadps: w } = this.config.tricks;
     const board = frame.board;
-    const levelError = Vec3.cross(frame.up, Vec3.UNIT_Y);
+    const levelError = Vec3.cross(frame.up, frame.support);
     const heading = boardHeadingRad(board);
     const yawError = heading === null ? 0 : -axisErrorRad(heading - rider.headingRad);
     const side = Transform.toWorldDirection(board.transform, Vec3.UNIT_Z);

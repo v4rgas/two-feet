@@ -127,6 +127,7 @@ export class GameLoop {
       alpha: this.accumulator.alpha,
       previousBoard: this.previous,
       currentBoard: this.current,
+      leanRad: this.systems.board.leanRad,
       previousRider: this.previousRider,
       rider: this.systems.rider.state,
       intents: this.systems.input.lastIntents,

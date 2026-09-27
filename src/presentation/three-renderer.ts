@@ -275,6 +275,8 @@ export class ThreeRenderer implements Renderer {
 
     const board = this.board;
     if (board === null || this.spec === null) return;
+    // The deck leans on its trucks (a model value, the body does not tilt).
+    board.deckPivot.rotation.x = frame.leanRad;
 
     // Wheels spin from the forward speed while rolling; they coast down in the air.
     const snap = frame.currentBoard;

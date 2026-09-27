@@ -39,8 +39,15 @@ export interface BoardKinematics {
   readonly grounded: boolean;
   /** `deck`: flat-section contact (e.g. lying upside down) — used for bail detection. */
   readonly contacts: { readonly tail: boolean; readonly nose: boolean; readonly deck: boolean };
-  /** What the board touches (only the surface type is read: grindable skips the landing yaw check). */
-  readonly contactPoints?: readonly { readonly surface: string }[];
+  /**
+   * What the board touches: the surface type (grindable skips the landing yaw check) and,
+   * for the wheels, the part and the surface normal (the ground the board rolls on).
+   */
+  readonly contactPoints?: readonly {
+    readonly surface: string;
+    readonly part?: string;
+    readonly normalWorld?: Vec3;
+  }[];
 }
 
 /** Deck dimensions the rider needs (satisfied by board's `BoardSpec`). */
@@ -79,6 +86,11 @@ export interface FootForceInput {
   readonly board: BoardKinematics;
   readonly mass: BoardMassProperties;
   readonly dtS: number;
+  /**
+   * Height of the ground straight below the board, m (world), probed in the air so the
+   * airtime prediction lands on the real surface (stairs, a ramp). Absent: flat ground at 0.
+   */
+  readonly groundBelowYM?: number | null;
 }
 
 /** What the model decided this step: forces for the board, cues for the `Rider`. */

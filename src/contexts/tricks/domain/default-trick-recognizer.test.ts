@@ -26,7 +26,7 @@ interface Air {
   readonly kick?: Kick;
   /** Rider-sense full turns: + kickflip. */
   readonly flipTurns?: number;
-  /** Rider-sense half turns: + backside (tail to the heel side). */
+  /** Rider-sense half turns of the board relative to the body: + backside (tail to the heel side). */
   readonly shoveHalfTurns?: number;
   /** Rider-sense half turns: + backside (back turns forward first). */
   readonly bodyHalfTurns?: number;
@@ -125,8 +125,10 @@ function fly(air: Air): TrickOutcome[] {
     // Roll about the board's own X (applied first, local), yaw about world +Y. Composed
     // separately so the long axis stays exactly horizontal (a combined-axis step would
     // tilt it by a second-order error that accumulates).
+    // The feet take the board along with the body (MECHANICS "Body spin"); the shove turns
+    // it relative to the body on top of that.
     const roll = Quat.fromAxisAngle(Vec3.UNIT_X, localRollRate * DT);
-    const yaw = Quat.fromAxisAngle(Vec3.UNIT_Y, yawRate * DT);
+    const yaw = Quat.fromAxisAngle(Vec3.UNIT_Y, (yawRate + bodyRate) * DT);
     q = Quat.multiply(yaw, Quat.multiply(q, roll));
     heading += bodyRate * DT;
     const grounded = i === AIR_STEPS - 1;

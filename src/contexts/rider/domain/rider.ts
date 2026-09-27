@@ -9,10 +9,12 @@ import { FOOT_IDS, Quat, Vec3 } from "../../../shared";
 import type { RiderConfig } from "../rider.config";
 import {
   axisErrorRad,
+  boardForward,
   boardHeadingRad,
   boardUp,
   deckPointWorld,
   spotUnder,
+  supportNormal,
   wrapPi,
 } from "./board-geometry";
 import { DeckPosition } from "./deck-position";
@@ -168,7 +170,9 @@ export class Rider {
   }
 
   /**
-   * Called when the board lands (`BoardLanded.upDot`). Upside down or sideways to the
+   * Called when the board lands, with its up vector dotted with the landing SURFACE's
+   * normal (`BoardLanded.surfaceUpDot`, so banks and transitions count as level; world up
+   * when unknown). Upside down or sideways to the
    * travel → bail. Caught: bail
    * only if badly tilted. Uncaught: the feet come back if it is roughly level
    * (`landTiltRad`), otherwise bail.
@@ -190,17 +194,23 @@ export class Rider {
 
   /**
    * MECHANICS.md "Landing": the board must line up with the direction of travel, forward or
-   * fakie, within `landYawToleranceRad`. Skipped when slow (no clear travel) and over a
-   * grindable obstacle (the M4 boardslide hook).
+   * fakie, within `landYawToleranceRad`. Measured between the board's long axis and its
+   * velocity in the plane of the landing surface, so it also holds on banks and
+   * transitions (where headings in the horizontal plane mean little). Skipped when slow (no clear travel) and over a grindable
+   * obstacle (the M4 boardslide hook).
    */
   private landsSideways(board: BoardKinematics): boolean {
     if (board.contactPoints?.some((c) => c.surface === "grindable") === true) return false;
-    const v = board.linearVelocityMps;
-    if (Math.hypot(v.x, v.z) < this.config.torso.headingTravelMinSpeedMps) return false;
-    const heading = boardHeadingRad(board);
-    if (heading === null) return false;
-    const off = axisErrorRad(heading - Math.atan2(-v.z, v.x));
-    return Math.abs(off) > this.config.tricks.landYawToleranceRad;
+    // In the plane of the landing surface (the fall into it does not count).
+    const n = supportNormal(board);
+    const inPlane = (u: Vec3): Vec3 => Vec3.sub(u, Vec3.scale(n, Vec3.dot(u, n)));
+    const v = inPlane(board.linearVelocityMps);
+    const f = inPlane(boardForward(board));
+    const speed = Vec3.length(v);
+    if (speed < this.config.torso.headingTravelMinSpeedMps || Vec3.length(f) < 1e-6) return false;
+    const along = Math.abs(Vec3.dot(f, v)) / (speed * Vec3.length(f));
+    const off = Math.acos(Math.min(1, along));
+    return off > this.config.tricks.landYawToleranceRad;
   }
 
   /** Both feet back on the deck at their rest positions, torso above the board, not bailed. */

@@ -69,8 +69,8 @@ describe("TrickController — rolling", () => {
     expect(press).toHaveLength(2);
     for (const f of press) {
       if (f.kind !== "force") throw new Error("press is a force");
-      expect(f.forceN.x).toBe(0);
-      expect(f.forceN.z).toBe(0);
+      expect(Math.abs(f.forceN.x)).toBe(0);
+      expect(Math.abs(f.forceN.z)).toBe(0);
       expect(f.forceN.y).toBeCloseTo(-RIDER_CONFIG.stance.standingPressN);
       expect(f.pointWorldM.z).toBeCloseTo(0, 9);
     }
@@ -108,6 +108,21 @@ describe("TrickController — rolling", () => {
         .step({ feetDown: true }, board({ grounded: false }))
         .forces.some((f) => f.label === "push"),
     ).toBe(false);
+  });
+});
+
+describe("TrickController — push direction", () => {
+  it("pushes along the travel: forward normally, backwards (the way it rolls) when fakie", () => {
+    const push = (vx: number) => {
+      const { step } = setup();
+      const b = board({ linearVelocityMps: Vec3.create(vx, 0, 0) });
+      const f = step({ feetDown: true }, b).forces.find((x) => x.label === "push");
+      if (f?.kind !== "impulse") throw new Error("no push");
+      return f.impulseNs.x;
+    };
+    expect(push(2)).toBeGreaterThan(0);
+    expect(push(0)).toBeGreaterThan(0);
+    expect(push(-2)).toBeLessThan(0);
   });
 });
 
