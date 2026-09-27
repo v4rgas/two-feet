@@ -103,13 +103,15 @@ export const RIDER_CONFIG = deepFreeze({
     flickWindowS: 0.35,
     /** The flip completes one turn in this fraction of the predicted airtime. */
     flipCompleteFraction: 0.85,
-    maxFlipRateRadps: 30,
+    /** Fast enough for a double flip (4π) held late in a normal pop. */
+    maxFlipRateRadps: 60,
 
     /** ←/→ (back foot) within this long after the pop shoves the board, s. */
     shoveWindowS: 0.2,
     /** The shove completes 180° in this fraction of the predicted airtime. */
     shoveCompleteFraction: 0.85,
-    maxShoveRateRadps: 20,
+    /** Fast enough for a 360 shove held late in a normal pop. */
+    maxShoveRateRadps: 30,
     /**
      * Scoop: the shove spins tilted. Peak dip of the scooped kick (far end up) and lean
      * toward the scoop side, reached mid-scoop, rad.
@@ -120,6 +122,13 @@ export const RIDER_CONFIG = deepFreeze({
     scoopDurationFraction: 0.75,
     /** Scoop tracking PD natural frequency, rad/s. */
     scoopOmegaRadps: 45,
+
+    /** The flick key held at least this long makes it a double flip (4π), s. */
+    doubleFlickHoldS: 0.12,
+    /** The sweep key held at least this long makes it a 360 shove (2π), s. */
+    shove360HoldS: 0.12,
+    /** How firmly the flip / shove rates are held each step until the catch (0–1). */
+    spinHoldAssist: 1,
 
     /** Catch cone: board tilt within this of upright… */
     catchRollRad: 0.7,

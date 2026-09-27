@@ -64,6 +64,56 @@ export function catchAt(h: ScenarioHarness, atS: number): void {
   h.press({ code: "Space", atS, holdS: 0.1 });
 }
 
+/**
+ * Runs until the air's roll and yaw are near their targets (rad, magnitudes) and the board
+ * looks upright, then presses Space: how a player catches a combo. Stops at touchdown.
+ */
+export function spaceWhenDone(
+  h: ScenarioHarness,
+  t0: number,
+  rollRad: number,
+  yawRad: number,
+): void {
+  for (let i = 0; i < 150 && !h.board.grounded; i += 1) {
+    const air = airSummary(h, t0);
+    const rolled = Math.abs(air.rollRad) >= rollRad - 0.45;
+    const turned = Math.abs(air.yawRad) >= yawRad - 0.3;
+    if (rolled && turned && h.tiltRad() <= 0.5) break;
+    h.run(1 / 120);
+  }
+  catchAt(h, 0);
+}
+
+/** Pop from `kick`; the guide foot levels, flicks and the pop foot sweeps, held as given. */
+export interface ComboInputs {
+  readonly kick: Kick;
+  /** Guide foot flick edge, or null. */
+  readonly flick: "heel" | "toe" | null;
+  /** Pop foot sweep side, or null. */
+  readonly sweep: "heel" | "toe" | null;
+  /** Hold times, s (past 0.12 s a flick doubles and a sweep becomes a 360). */
+  readonly flickHoldS: number;
+  readonly sweepHoldS: number;
+}
+
+/** Plays a combo 0.05 s after the pop (with the level key) from now. */
+export function playCombo(h: ScenarioHarness, c: ComboInputs): void {
+  loadAndPop(h, 0.2, c.kick);
+  const guide = guideFoot(c.kick);
+  h.foot(guide, awayFrom(c.kick), 0.25, 0.1);
+  if (c.flick !== null) {
+    h.foot(guide, c.flick === "heel" ? heel(h.stance) : toe(h.stance), 0.25, c.flickHoldS);
+  }
+  if (c.sweep !== null) {
+    h.foot(
+      popFoot(c.kick),
+      c.sweep === "heel" ? heel(h.stance) : toe(h.stance),
+      0.25,
+      c.sweepHoldS,
+    );
+  }
+}
+
 /** Summary of the air after `fromS`. */
 export interface AirSummary {
   /** Highest rise of the board origin above its start height, m. */
@@ -92,10 +142,13 @@ export function airSummary(h: ScenarioHarness, fromS: number): AirSummary {
       const dt = r.timeS - prev.timeS;
       // Yaw = change of the board's heading (unwrapped), not ∫ω_y: a flip about a pitched
       // axis has a world-Y component that is not a heading change.
-      yawRad += wrap(h.headingRad(r.board) - h.headingRad(prev.board));
+      const dYaw = wrap(h.headingRad(r.board) - h.headingRad(prev.board));
+      yawRad += dYaw;
       if (!r.board.grounded) {
+        // Roll = the flip coordinate: ω·X minus the part of a heading turn (about world up)
+        // that lies along a pitched long axis (a varial on a nose-up board).
         const x = Transform.toWorldDirection(r.board.transform, Vec3.UNIT_X);
-        rollRad += Vec3.dot(r.board.angularVelocityRadps, x) * dt;
+        rollRad += Vec3.dot(r.board.angularVelocityRadps, x) * dt - dYaw * x.y;
       }
     }
     prev = r;

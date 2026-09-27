@@ -142,6 +142,20 @@ export class TrickController implements FootForceModel {
   private levelling = false;
   private flipped = false;
   private shoved = false;
+  /**
+   * The two trick channels (MECHANICS.md "Trick matrix"), independent of each other: the
+   * FLIP holds a roll rate about the board's long axis, the SHOVE a yaw rate about world up,
+   * until the catch. Each has its key, how long that key has been held, its target in turns
+   * (1 or 2: a double flip / a 360 shove) and how far it has turned so far (rad, signed).
+   */
+  private readonly flipChannel = newChannel();
+  /**
+   * When this air's tricks should be done (time since the pop, s), set by the first flick
+   * or sweep: every channel aims at it, so a varial / tre flip finishes flip and spin
+   * together and can be caught.
+   */
+  private trickEndS = Number.POSITIVE_INFINITY;
+  private readonly shoveChannel = newChannel();
   /** Scoop of the running shove: time since it started, its length and lean side. */
   private scoopS = Number.POSITIVE_INFINITY;
   private scoopDurationS = 0;
@@ -154,6 +168,8 @@ export class TrickController implements FootForceModel {
   private releasedBefore = false;
   private landAssistLeftS = 0;
   private pushCooldownS = 0;
+  /** Space held from the air (the catch) does not push after landing until released. */
+  private pushLocked = false;
 
   constructor(
     private readonly deck: DeckGeometry,
@@ -169,6 +185,7 @@ export class TrickController implements FootForceModel {
     this.releasedBefore = false;
     this.landAssistLeftS = 0;
     this.pushCooldownS = 0;
+    this.pushLocked = false;
   }
 
   computeForces(input: FootForceInput): FootForceOutput {
@@ -183,6 +200,8 @@ export class TrickController implements FootForceModel {
     this.sincePopS += dtS;
 
     const grounded = board.grounded;
+    if (!grounded && controls.feetDown) this.pushLocked = true;
+    if (!controls.feetDown) this.pushLocked = false;
     if (grounded && !this.wasGrounded) {
       this.landAssistLeftS = this.config.tricks.landAssistS;
       this.endAir();
@@ -416,8 +435,9 @@ export class TrickController implements FootForceModel {
   }
 
   /**
-   * Feet-down key on the ground, board on its wheels, both feet on with sticks near
-   * neutral, not loading, below `pushMaxSpeedMps`, cooldown elapsed: an impulse along the
+   * Feet-down key on the ground (not one still held from a catch in the air), board on
+   * its wheels, both feet on with sticks near neutral, not loading, below
+   * `pushMaxSpeedMps`, cooldown elapsed: an impulse along the
    * rider's heading through the front foot. The only horizontal force the rider makes.
    */
   private push(
@@ -426,7 +446,8 @@ export class TrickController implements FootForceModel {
     out: FootForce[],
   ): void {
     const { stance } = this.config;
-    if (!controls.feetDown || this.pushCooldownS > 0 || this.loadKick !== null) return;
+    if (!controls.feetDown || this.pushLocked) return;
+    if (this.pushCooldownS > 0 || this.loadKick !== null) return;
     if (rider.front.contact !== "attached" || rider.back.contact !== "attached") return;
     const neutral =
       stickMagnitude(controls.front.stick) <= stance.pushNeutralRadius &&
@@ -476,7 +497,7 @@ export class TrickController implements FootForceModel {
 
   private air(input: FootForceInput, keys: Keys, frame: BoardFrame, out: FootForce[]): void {
     const { tricks } = this.config;
-    const { mass } = input;
+    const { mass, dtS } = input;
     const kick = this.popKick;
     if (kick !== null && !this.caught) {
       const guide = keys[guideFootOf(kick)];
@@ -492,12 +513,125 @@ export class TrickController implements FootForceModel {
       if (pop.edge !== 0 && !this.shoved && this.sincePopS <= tricks.shoveWindowS) {
         this.shove(kick, pop.edge, input.controls, mass, frame, out);
       }
+      this.trackChannels(guide.edge, pop.edge, frame, dtS);
+      this.holdChannels(kick, mass, frame, out);
     }
-    if (kick !== null && this.levelling && !this.caught) this.level(kick, mass, frame, out);
-    this.scoopS += input.dtS;
+    // While flipping, the flip channel holds the pitch rate (levelling included).
+    if (kick !== null && this.levelling && !this.caught && !this.flipChannel.active) {
+      this.level(kick, mass, frame, out);
+    }
+    this.scoopS += dtS;
     if (kick !== null && !this.caught && !this.flipped && Number.isFinite(this.scoopS)) {
       this.scoop(kick, mass, frame, out);
     }
+  }
+
+  /**
+   * Accumulates each channel's rotation and upgrades it when its key is held long enough:
+   * the flick key held ≥ `doubleFlickHoldS` → two flips, the sweep key held ≥
+   * `shove360HoldS` → a 360 shove. The new rate covers what is left over the remaining
+   * airtime (capped).
+   */
+  private trackChannels(
+    flickEdge: number,
+    sweepEdge: number,
+    frame: BoardFrame,
+    dtS: number,
+  ): void {
+    const t = this.config.tricks;
+    const board = frame.board;
+    // ω = roll·f + yaw·Y + pitch·P (see `holdChannels`): recover roll and yaw.
+    const along = Vec3.dot(board.angularVelocityRadps, frame.forward);
+    const up = board.angularVelocityRadps.y;
+    const fy = frame.forward.y;
+    const det = Math.max(0.05, 1 - fy * fy);
+    const rollRate = (along - up * fy) / det;
+    const yawRate = (up - along * fy) / det;
+    const flip = this.flipChannel;
+    if (flip.active) {
+      flip.turnedRad += rollRate * dtS;
+      flip.heldS = flip.holding && flickEdge === flip.key ? flip.heldS + dtS : flip.heldS;
+      flip.holding = flip.holding && flickEdge === flip.key;
+      if (flip.turns === 1 && flip.heldS >= t.doubleFlickHoldS) {
+        this.upgrade(flip, 2 * TAU, t.flipCompleteFraction, t.maxFlipRateRadps, board);
+      }
+    }
+    const shove = this.shoveChannel;
+    if (shove.active) {
+      shove.turnedRad += yawRate * dtS;
+      shove.heldS = shove.holding && sweepEdge === shove.key ? shove.heldS + dtS : shove.heldS;
+      shove.holding = shove.holding && sweepEdge === shove.key;
+      if (shove.turns === 1 && shove.heldS >= t.shove360HoldS) {
+        this.upgrade(shove, TAU, t.shoveCompleteFraction, t.maxShoveRateRadps, board);
+      }
+    }
+  }
+
+  private upgrade(
+    channel: TrickChannel,
+    totalRad: number,
+    completeFraction: number,
+    maxRateRadps: number,
+    board: BoardKinematics,
+  ): void {
+    channel.turns = 2;
+    const left = Math.max(0, totalRad - Math.abs(channel.turnedRad));
+    const timeS = this.trickTimeS(board, completeFraction);
+    channel.rateRadps = Math.sign(channel.rateRadps) * Math.min(maxRateRadps, left / timeS);
+  }
+
+  /**
+   * Time left to finish a trick: until the shared `trickEndS` (the first trick of the air
+   * sets it to `completeFraction` of the predicted remaining airtime), at least
+   * `minAirtimeS`.
+   */
+  private trickTimeS(board: BoardKinematics, completeFraction: number): number {
+    if (!Number.isFinite(this.trickEndS)) {
+      this.trickEndS = this.sincePopS + this.remainingAirtimeS(board) * completeFraction;
+    }
+    return Math.max(this.config.tricks.minAirtimeS, this.trickEndS - this.sincePopS);
+  }
+
+  /**
+   * Holds the channel rates until the catch: the roll rate about the board's long axis
+   * (flip) and the yaw rate about world up (shove; 0 while only flipping, so a flip does not
+   * wander) and, while flipping, the pitch rate. A shove alone only sets the yaw rate (the
+   * scoop and the level PD own the rest).
+   */
+  private holdChannels(
+    kick: Kick,
+    mass: BoardMassProperties,
+    frame: BoardFrame,
+    out: FootForce[],
+  ): void {
+    const flip = this.flipChannel;
+    const shove = this.shoveChannel;
+    // Touching anything (an edge, a kick) ends the tricks: the board is on its own.
+    const { contacts } = frame.board;
+    if (contacts.deck || contacts.tail || contacts.nose) {
+      flip.active = false;
+      shove.active = false;
+    }
+    if (!flip.active && !shove.active) return;
+    const { spinHoldAssist: k, levelAssist, levelOmegaRadps } = this.config.tricks;
+    const w = frame.board.angularVelocityRadps;
+    const yawRate = shove.active ? shove.rateRadps : 0;
+    if (!flip.active) {
+      const delta = Vec3.create(0, k * (yawRate - w.y), 0);
+      out.push(angularImpulseOf(popFootOf(kick), "shove", mass.angularInertiaTimes(delta)));
+      return;
+    }
+    // Wanted ω = roll·f + yaw·Y + pitch·P (f = the board's long axis, P = the horizontal
+    // pitch axis): roll·f turns the board about its own axis without moving it, yaw·Y turns
+    // its heading, pitch·P tilts it. A rolling deck does not keep its ω by itself (its
+    // inertia is not round), so all three are held: pitch 0, or the level assist's rate.
+    const pitchRate = this.levelling ? -levelAssist * levelOmegaRadps * frame.frontPitchRad : 0;
+    const wanted = Vec3.add(
+      Vec3.add(Vec3.scale(frame.forward, flip.rateRadps), Vec3.create(0, yawRate, 0)),
+      Vec3.scale(frame.pitchAxis, pitchRate),
+    );
+    const delta = Vec3.scale(Vec3.sub(wanted, w), k);
+    out.push(angularImpulseOf(guideFootOf(kick), "flick", mass.angularInertiaTimes(delta)));
   }
 
   /** LEVEL starts: from now the level PD runs; early in the window it adds height. */
@@ -552,21 +686,12 @@ export class TrickController implements FootForceModel {
   ): void {
     const t = this.config.tricks;
     this.flipped = true;
-    const airS = this.remainingAirtimeS(frame.board);
-    const rate = Math.min(t.maxFlipRateRadps, (2 * Math.PI) / (airS * t.flipCompleteFraction));
+    const timeS = this.trickTimeS(frame.board, t.flipCompleteFraction);
+    const rate = Math.min(t.maxFlipRateRadps, TAU / timeS);
     // The rider's toe side, expressed on the board's own Z axis (the board may be backwards).
     const boardSide = Transform.toWorldDirection(frame.board.transform, Vec3.UNIT_Z);
     const facing = Math.sign(Vec3.dot(boardSide, frame.riderSide)) || 1;
-    const target = edge * toeSideSign(controls.stance) * facing * rate;
-    const axis = frame.forward;
-    const current = Vec3.dot(frame.board.angularVelocityRadps, axis);
-    out.push(
-      angularImpulseOf(
-        guideFootOf(kick),
-        "flick",
-        mass.angularInertiaTimes(Vec3.scale(axis, target - current)),
-      ),
-    );
+    startChannel(this.flipChannel, edge, edge * toeSideSign(controls.stance) * facing * rate);
     this.stopPitch(kick, guideFootOf(kick), "flick", mass, frame, out);
   }
 
@@ -604,19 +729,13 @@ export class TrickController implements FootForceModel {
   ): void {
     const t = this.config.tricks;
     this.shoved = true;
-    const airS = this.remainingAirtimeS(frame.board);
-    const rate = Math.min(t.maxShoveRateRadps, Math.PI / (airS * t.shoveCompleteFraction));
+    const timeS = this.trickTimeS(frame.board, t.shoveCompleteFraction);
+    const rate = Math.min(t.maxShoveRateRadps, Math.PI / timeS);
     const wanted = Vec3.scale(frame.riderSide, side * toeSideSign(controls.stance));
     const kickEnd = Vec3.scale(frame.riderForward, kickSign(kick));
     const sign = Math.sign(Vec3.dot(Vec3.cross(Vec3.UNIT_Y, kickEnd), wanted)) || 1;
-    const axis = frame.up;
-    const current = Vec3.dot(frame.board.angularVelocityRadps, axis);
-    const target = sign * rate * Math.sign(axis.y || 1);
-    const foot = popFootOf(kick);
-    out.push(
-      angularImpulseOf(foot, "shove", mass.angularInertiaTimes(Vec3.scale(axis, target - current))),
-    );
-    this.stopPitch(kick, foot, "shove", mass, frame, out);
+    startChannel(this.shoveChannel, side, sign * rate);
+    this.stopPitch(kick, popFootOf(kick), "shove", mass, frame, out);
     // The scoop lasts part of the spin; the board leans toward the side it is scooped to.
     this.scoopS = 0;
     this.scoopDurationS = (Math.PI / rate) * t.scoopDurationFraction;
@@ -754,6 +873,9 @@ export class TrickController implements FootForceModel {
     this.levelling = false;
     this.flipped = false;
     this.shoved = false;
+    this.flipChannel.active = false;
+    this.shoveChannel.active = false;
+    this.trickEndS = Number.POSITIVE_INFINITY;
     this.scoopS = Number.POSITIVE_INFINITY;
     this.caught = false;
     this.catchLockS = 0;
@@ -761,6 +883,35 @@ export class TrickController implements FootForceModel {
 }
 
 const KICKS: readonly Kick[] = ["tail", "nose"];
+const TAU = 2 * Math.PI;
+
+/** One trick channel (flip or shove): see `TrickController.flipChannel`. */
+interface TrickChannel {
+  active: boolean;
+  /** The key that started it (edge sign), whether it is still held, and for how long, s. */
+  key: number;
+  holding: boolean;
+  heldS: number;
+  /** 1 or 2 (a double flip / a 360 shove). */
+  turns: 1 | 2;
+  /** Held rate, rad/s (signed: roll about board X, or yaw about world Y). */
+  rateRadps: number;
+  turnedRad: number;
+}
+
+function newChannel(): TrickChannel {
+  return { active: false, key: 0, holding: false, heldS: 0, turns: 1, rateRadps: 0, turnedRad: 0 };
+}
+
+function startChannel(channel: TrickChannel, key: number, rateRadps: number): void {
+  channel.active = true;
+  channel.key = key;
+  channel.holding = true;
+  channel.heldS = 0;
+  channel.turns = 1;
+  channel.rateRadps = rateRadps;
+  channel.turnedRad = 0;
+}
 
 /** Signed lean in [-1, 1] (+ = toward +Z) when both feet lean the same way, else 0. */
 function carveLean(controls: RiderControls, rider: RiderState, minStickX: number): number {

@@ -307,8 +307,7 @@ describe("5–6. shove-it and varial", () => {
     T,
   );
 
-  // Re-tuned in the next commit (yaw overshoot after the arm-gesture timing change).
-  it.skip(
+  it(
     "varial kickflip: flick and shove together → roll ≈ 2π and yaw ≈ π",
     async () => {
       const h = await track(rolling(1.3));

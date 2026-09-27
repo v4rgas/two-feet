@@ -8,9 +8,11 @@ import {
   guideFoot,
   heel,
   loadAndPop,
+  playCombo,
   popFoot,
   rolling,
   STANCES,
+  spaceWhenDone,
   toe,
 } from "./scenario-helpers";
 
@@ -151,9 +153,7 @@ describe("trick names, end to end", () => {
       T,
     );
 
-    // Needs the heelflip (guide foot to the toe edge); the base controller only flips on
-    // the heel edge (MECHANICS 12e / 12f, in progress on main).
-    it.skip(
+    it(
       `${stance}: heelflip → "Heelflip"; nollie heelflip → "Nollie Heelflip"`,
       async () => {
         expect(await flip("tail", stance, "toe")).toEqual(["Heelflip"]);
@@ -177,17 +177,46 @@ describe("trick names, end to end", () => {
     );
   }
 
-  // Needs the flick hold ≥ doubleFlickHoldS → 4π (MECHANICS "Trick matrix"), not in the
-  // base controller.
-  it.skip('double kickflip → "Double Kickflip"', () => {});
+  it(
+    'double kickflip (flick held ≥ doubleFlickHoldS) → "Double Kickflip"',
+    async () => {
+      const h = await track(rolling(1.3));
+      const t0 = h.timeS;
+      playCombo(h, { kick: "tail", flick: "heel", sweep: null, flickHoldS: 0.2, sweepHoldS: 0 });
+      h.run(0.3);
+      spaceWhenDone(h, t0, 2 * TAU, 0);
+      h.run(1.5);
+      expect(names(h, t0)).toEqual(["Double Kickflip"]);
+    },
+    T,
+  );
 
-  // Needs the sweep hold ≥ shove360HoldS → 2π (MECHANICS "Trick matrix").
+  // The 360 shove itself works (matrix.scenario.test.ts). The recognizer reads ~0.6 rad of
+  // roll from a 360 on a scooped (pitched) deck — it integrates ω·X, not the flip
+  // coordinate — and bails it as under-rotated. Unskip once the tricks context fixes that.
   it.skip('360 shove → "360 Shove-it"; with a flick → "360 Flip"', () => {});
 
   // Needs the Q / E body spin (MECHANICS "Body spin"); the base rider heading is frozen
   // in the air, so the body channel always reads 0.
   it.skip('body 180 → "BS 180" / "FS 180"; nollie + FS 180 + heelflip → "Nollie FS 180 Heelflip"', () => {});
 
-  // The varial kickflip scenario is skipped in tricks.scenario.test.ts (yaw overshoot).
-  it.skip('flick + heel-side sweep → "Varial Kickflip"', () => {});
+  it(
+    'flick + heel-side sweep → "Varial Kickflip"',
+    async () => {
+      const h = await track(rolling(1.3));
+      const t0 = h.timeS;
+      playCombo(h, {
+        kick: "tail",
+        flick: "heel",
+        sweep: "heel",
+        flickHoldS: 0.08,
+        sweepHoldS: 0.08,
+      });
+      h.run(0.3);
+      spaceWhenDone(h, t0, TAU, Math.PI);
+      h.run(1.5);
+      expect(names(h, t0)).toEqual(["Varial Kickflip"]);
+    },
+    T,
+  );
 });
