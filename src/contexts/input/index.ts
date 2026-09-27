@@ -1,6 +1,8 @@
 /** Public API of the `input` context. */
 export type { FootId, Stance } from "../../shared";
 export { FOOT_IDS } from "../../shared";
+export type { VirtualStickFactory } from "./application/default-input-system";
+export { DefaultInputSystem } from "./application/default-input-system";
 export type { InputSystem } from "./application/input-system";
 export type { FootIntent, IntentFrame } from "./domain/foot-intent";
 export type {
@@ -9,6 +11,8 @@ export type {
   RawInputSample,
   StanceRepository,
 } from "./domain/input-source";
+export type { StickTuning } from "./domain/spring-virtual-stick";
+export { SpringVirtualStick } from "./domain/spring-virtual-stick";
 export { clusterForFoot, footForCluster } from "./domain/stance";
 export type { StickVelocity } from "./domain/stick-value";
 export { StickValue } from "./domain/stick-value";

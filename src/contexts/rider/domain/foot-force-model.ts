@@ -32,7 +32,8 @@ export interface BoardKinematics {
   readonly linearVelocityMps: Vec3;
   readonly angularVelocityRadps: Vec3;
   readonly grounded: boolean;
-  readonly contacts: { readonly tail: boolean; readonly nose: boolean };
+  /** `deck`: flat-section contact (e.g. lying upside down) — used for bail detection. */
+  readonly contacts: { readonly tail: boolean; readonly nose: boolean; readonly deck: boolean };
 }
 
 /** Deck dimensions the rider needs (satisfied by board's `BoardSpec`). */

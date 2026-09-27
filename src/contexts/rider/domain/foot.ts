@@ -23,3 +23,84 @@ export interface FootState {
   /** Time since the foot last detached, s (0 while attached). */
   readonly detachedForS: number;
 }
+
+/**
+ * `Foot` entity (identity = `id`). Mutated only by the `Rider` aggregate, which guards
+ * the invariants: an airborne foot has zero pressure; an attached foot has
+ * `detachedForS = 0` and a deck position on the deck's footprint.
+ */
+export class Foot {
+  private contactState: FootContact = "attached";
+  private position: DeckPosition;
+  private pressureValue = 0;
+  private worldM: Vec3;
+  private detachedS = 0;
+
+  constructor(
+    readonly id: FootId,
+    deckPosition: DeckPosition,
+    positionWorldM: Vec3,
+  ) {
+    this.position = deckPosition;
+    this.worldM = positionWorldM;
+  }
+
+  get contact(): FootContact {
+    return this.contactState;
+  }
+
+  get isAttached(): boolean {
+    return this.contactState === "attached";
+  }
+
+  get deckPosition(): DeckPosition {
+    return this.position;
+  }
+
+  get detachedForS(): number {
+    return this.detachedS;
+  }
+
+  /** Puts the foot on the deck at `at`. */
+  attach(at: DeckPosition): void {
+    this.contactState = "attached";
+    this.position = at;
+    this.detachedS = 0;
+  }
+
+  /** Takes the foot off the deck. */
+  detach(): void {
+    this.contactState = "airborne";
+    this.pressureValue = 0;
+    this.detachedS = 0;
+  }
+
+  /** Attached: moves on the deck. Airborne: updates the projected landing spot. */
+  moveTo(at: DeckPosition): void {
+    this.position = at;
+  }
+
+  setPressure(pressure: number): void {
+    this.pressureValue = this.isAttached ? Math.max(0, Math.min(1, pressure)) : 0;
+  }
+
+  placeInWorld(positionWorldM: Vec3): void {
+    this.worldM = positionWorldM;
+  }
+
+  /** Advances the detached timer (no-op while attached). */
+  tick(dtS: number): void {
+    if (!this.isAttached) this.detachedS += dtS;
+  }
+
+  toState(): FootState {
+    return Object.freeze({
+      id: this.id,
+      contact: this.contactState,
+      deckPosition: this.position,
+      pressure: this.pressureValue,
+      positionWorldM: this.worldM,
+      detachedForS: this.detachedS,
+    });
+  }
+}

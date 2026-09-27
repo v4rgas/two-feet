@@ -1,17 +1,15 @@
 import type { PhysicsWorld } from "../contexts/board";
 import { BOARD_CONFIG, BoardSpec } from "../contexts/board";
+import { DefaultInputSystem, INPUT_CONFIG } from "../contexts/input";
+import { KeyboardInputSource } from "../contexts/input/infrastructure/keyboard-input-source";
+import { LocalStorageStanceRepository } from "../contexts/input/infrastructure/local-storage-stance-repository";
+import { DefaultRiderSystem, RIDER_CONFIG } from "../contexts/rider";
 import { createFlatGroundLevel, WORLD_CONFIG } from "../contexts/world";
 import type { Clock } from "../shared";
 import { InMemoryEventBus, Quat, Transform, Vec3 } from "../shared";
 import { GAME_CONFIG } from "./game.config";
 import { GameLoop } from "./loop";
-import {
-  StubBoardSystem,
-  StubInputSystem,
-  StubPhysicsWorld,
-  StubRiderSystem,
-  StubTricksSystem,
-} from "./stubs";
+import { StubBoardSystem, StubPhysicsWorld, StubTricksSystem } from "./stubs";
 
 /** Browser wall clock (the `Clock` port's production adapter). */
 const performanceClock: Clock = { nowS: () => performance.now() / 1000 };
@@ -33,10 +31,18 @@ export function bootstrap(canvas: HTMLCanvasElement): GameLoop {
   const physics: PhysicsWorld = new StubPhysicsWorld();
   for (const obstacle of level.obstacles) physics.addStaticCollider(obstacle);
   const board = new StubBoardSystem(spawn);
-  // TODO(input): keyboard InputSource + VirtualSticks.
-  const input = new StubInputSystem();
-  // TODO(rider): Rider aggregate + FootForceModel, applying forces to `board.body`.
-  const rider = new StubRiderSystem(board.snapshot);
+  const input = new DefaultInputSystem(
+    new KeyboardInputSource(window, INPUT_CONFIG.keys),
+    new LocalStorageStanceRepository(INPUT_CONFIG.stance.storageKey),
+    INPUT_CONFIG,
+  );
+  const rider = new DefaultRiderSystem({
+    body: board.body,
+    bus,
+    deck: spec,
+    config: RIDER_CONFIG,
+    board: board.snapshot,
+  });
   // TODO(tricks): TrickRecognizer subscribed to `bus`.
   const tricks = new StubTricksSystem();
 
