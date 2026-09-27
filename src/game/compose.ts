@@ -6,6 +6,7 @@ import { DefaultInputSystem } from "../contexts/input";
 import type { RiderConfig } from "../contexts/rider";
 import { DefaultRiderSystem } from "../contexts/rider";
 import type { Level } from "../contexts/world";
+import { obstacleCollider } from "../contexts/world";
 import type { Clock } from "../shared";
 import { InMemoryEventBus, Quat, Transform, Vec3 } from "../shared";
 import type { GameConfig } from "./game.config";
@@ -59,7 +60,7 @@ export async function composeSimulation(deps: SimulationDeps): Promise<Simulatio
   );
 
   const physics = await RapierPhysicsWorld.create(configs.board);
-  for (const obstacle of level.obstacles) physics.addStaticCollider(obstacle);
+  for (const obstacle of level.obstacles) physics.addStaticCollider(obstacleCollider(obstacle));
   const board = new PhysicsBoardSystem(physics.createBoard(spec, spawn), spec, configs.board, bus);
   const input = new DefaultInputSystem(deps.inputSource, deps.stanceRepository, configs.input);
   const rider = new DefaultRiderSystem({

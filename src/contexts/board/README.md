@@ -19,7 +19,7 @@ Owns the **physics port**. Wheel model: real wheel colliders plus a tyre model
 ## Public API (`index.ts`)
 
 - Ports: `PhysicsWorld` (`addStaticCollider`, `createBoard`, `step`, `raycast`, `dispose`), `RigidBodyHandle` (transform, velocities, velocity at point, COM, mass, `applyForceAtPoint`, `applyImpulseAtPoint`, `applyTorque`, `applyTorqueImpulse`, `resetTo`), `BoardBody` (`body`, `contacts()`).
-- Types: `BoardSpec` (VO + helpers), `BoardSnapshot`, `ContactState`, `BoardContact`, `BoardForce`, `BoardForceLabel`, `StaticColliderDesc`, `ColliderShape`, `Ray`, `RaycastHit`, `RaycastOptions`, `BoardPartId`, `WheelId`.
+- Types: `BoardSpec` (VO + helpers), `BoardSnapshot`, `ContactState`, `BoardContact`, `BoardForce`, `BoardForceLabel`, `StaticColliderDesc`, `ColliderShape` (`box`, `convexHull`, or `compound`: convex-hull parts that each carry their own surface type, see ADR 0008), `ColliderPart`, `Ray`, `RaycastHit`, `RaycastOptions`, `BoardPartId`, `WheelId`.
 - Helpers: `contactStateFrom(contacts)`, `countWheelsDown(state)`.
 - Application: the `BoardSystem` interface (`body`, `snapshot`, `lastForces`, `prePhysics`, `postPhysics`, `reset`) and its implementation `PhysicsBoardSystem(boardBody, spec, config, bus)`, which also exposes `leanRad` and `steerRad`.
 - Test double: `FakeRigidBodyHandle` (records applied forces). Config: `BOARD_CONFIG`, `NO_CONTACT`.
@@ -29,8 +29,8 @@ Owns the **physics port**. Wheel model: real wheel colliders plus a tyre model
 
 - Emits:
   - `BoardLeftGround` (grounded → airborne)
-  - `BoardLanded` (airborne → grounded, with airtime, `upDot` and wheels down)
-  - `SurfaceContactStarted` and `SurfaceContactEnded` (once per part and obstacle pair)
+  - `BoardLanded` (airborne → grounded, with airtime, `upDot`, `surfaceUpDot` and wheels down). `surfaceUpDot` is the board's up vector dotted with the mean normal of the wheel contacts, so it measures the tilt against a ramp, not against world up.
+  - `SurfaceContactStarted` and `SurfaceContactEnded` (once per part, obstacle and surface: a truck moving from a quarter pipe's transition onto its coping starts a new `grindable` contact)
 
   The first `postPhysics` after construction or `reset` only records the baseline and
   emits nothing.
@@ -40,5 +40,6 @@ Owns the **physics port**. Wheel model: real wheel colliders plus a tyre model
 
 Every constant is in `board.config.ts`. The headless Rapier scenarios in
 `infrastructure/rapier-physics-world.test.ts` are the regression net: rest, roll, grip,
-carve, pop (4 N·s on the tail tip), flip (0.13 N·m·s roll) and the 0.5 m landing. Run
-`pnpm test` after every change.
+carve, pop (4 N·s on the tail tip), flip (0.13 N·m·s roll) and the 0.5 m landing. The
+M3 ramp scenarios (quarter pipe, bank, kicker, stairs, rails) are in
+`src/game/scenarios/ramps.scenario.test.ts`. Run `pnpm test` after every change.

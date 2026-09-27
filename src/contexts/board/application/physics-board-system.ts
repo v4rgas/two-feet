@@ -24,12 +24,18 @@ interface SurfaceKeyInfo {
   readonly obstacleId: ObstacleId;
 }
 
-/** One (part, obstacle) pair counts as one surface contact, however many points it has. */
+/**
+ * One (part, obstacle, surface) triple counts as one surface contact, however many points
+ * it has. The surface is part of the key because one obstacle can have several: a truck
+ * sliding from a quarter pipe's transition (`ramp`) onto its coping (`grindable`) starts
+ * a new contact.
+ */
 function surfaceKey(contact: {
   readonly part: BoardPartId;
   readonly obstacleId: ObstacleId;
+  readonly surface: SurfaceType;
 }): string {
-  return `${contact.part}|${contact.obstacleId}`;
+  return `${contact.part}|${contact.obstacleId}|${contact.surface}`;
 }
 
 /**
@@ -124,13 +130,15 @@ export class PhysicsBoardSystem implements BoardSystem {
         this.leftGroundAtS = timeS;
         this.bus.publish({ type: "BoardLeftGround", tick, timeS, velocityMps: linearVelocityMps });
       } else if (!this.grounded && grounded) {
+        const boardUp = Quat.rotate(transform.rotation, Vec3.UNIT_Y);
         this.bus.publish({
           type: "BoardLanded",
           tick,
           timeS,
           airtimeS: timeS - this.leftGroundAtS,
           velocityMps: linearVelocityMps,
-          upDot: Quat.rotate(transform.rotation, Vec3.UNIT_Y).y,
+          upDot: boardUp.y,
+          surfaceUpDot: Vec3.dot(boardUp, PhysicsBoardSystem.wheelSurfaceNormal(contacts)),
           wheelsDown,
         });
       }
@@ -197,10 +205,19 @@ export class PhysicsBoardSystem implements BoardSystem {
     this.surfaces = next;
   }
 
+  /** Mean normal of the wheel contacts (world up when no wheel touches). */
+  private static wheelSurfaceNormal(contacts: readonly BoardContact[]): Vec3 {
+    let sum = Vec3.ZERO;
+    for (const contact of contacts) {
+      if (isWheel(contact.part)) sum = Vec3.add(sum, contact.normalWorld);
+    }
+    return Vec3.lengthSq(sum) > 0 ? Vec3.normalize(sum) : Vec3.UNIT_Y;
+  }
+
   private static surfaceKeys(contacts: readonly BoardContact[]): Map<string, SurfaceKeyInfo> {
     const keys = new Map<string, SurfaceKeyInfo>();
     for (const { part, surface, obstacleId } of contacts) {
-      keys.set(surfaceKey({ part, obstacleId }), { part, surface, obstacleId });
+      keys.set(surfaceKey({ part, obstacleId, surface }), { part, surface, obstacleId });
     }
     return keys;
   }

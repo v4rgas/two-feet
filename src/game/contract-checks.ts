@@ -7,7 +7,7 @@ import type { BoardSnapshot, BoardSpec, StaticColliderDesc } from "../contexts/b
 import type { IntentFrame } from "../contexts/input";
 import type { BoardKinematics, DeckGeometry, RiderControls } from "../contexts/rider";
 import type { MotionSample } from "../contexts/tricks";
-import type { Obstacle } from "../contexts/world";
+import type { ObstacleColliderDesc } from "../contexts/world";
 
 type Assert<T extends true> = T;
 type Extends<A, B> = [A] extends [B] ? true : false;
@@ -17,5 +17,5 @@ export type StructuralContractChecks = [
   Assert<Extends<BoardSnapshot, BoardKinematics>>,
   Assert<Extends<BoardSpec, DeckGeometry>>,
   Assert<Extends<BoardSnapshot, MotionSample>>,
-  Assert<Extends<Obstacle, StaticColliderDesc>>,
+  Assert<Extends<ObstacleColliderDesc, StaticColliderDesc>>,
 ];

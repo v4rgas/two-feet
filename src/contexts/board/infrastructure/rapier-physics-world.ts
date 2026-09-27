@@ -238,7 +238,38 @@ export class RapierPhysicsWorld implements PhysicsWorld {
     if (this.staticIds.has(desc.id)) {
       throw new Error(`RapierPhysicsWorld: duplicate static collider id "${desc.id}"`);
     }
-    const colliderDesc = RapierPhysicsWorld.shapeDesc(desc)
+    const { shape } = desc;
+    if (shape.kind === "compound") {
+      // One convex-hull collider per part, all in the obstacle's frame (ADR 0008).
+      shape.parts.forEach((part, i) => {
+        this.addStaticPart(
+          desc,
+          part.surface,
+          RapierPhysicsWorld.hullDesc(part.pointsM, `${desc.id}#${i}`),
+        );
+      });
+    } else if (shape.kind === "box") {
+      this.addStaticPart(
+        desc,
+        desc.surface,
+        RAPIER.ColliderDesc.cuboid(
+          shape.halfExtentsM.x,
+          shape.halfExtentsM.y,
+          shape.halfExtentsM.z,
+        ),
+      );
+    } else {
+      this.addStaticPart(desc, desc.surface, RapierPhysicsWorld.hullDesc(shape.pointsM, desc.id));
+    }
+    this.staticIds.add(desc.id);
+  }
+
+  private addStaticPart(
+    desc: StaticColliderDesc,
+    surface: SurfaceType,
+    colliderDesc: RapierColliderDesc,
+  ): void {
+    colliderDesc
       .setTranslation(
         desc.transform.positionM.x,
         desc.transform.positionM.y,
@@ -246,13 +277,12 @@ export class RapierPhysicsWorld implements PhysicsWorld {
       )
       .setRotation(toRapierQuat(desc.transform.rotation))
       // Multiply wins over the board's Average/Min rules: μ = part coeff × surface factor.
-      .setFriction(this.config.physics.surfaceFriction[desc.surface])
+      .setFriction(this.config.physics.surfaceFriction[surface])
       .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Multiply)
       .setRestitution(1)
       .setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Multiply);
     const collider = this.world.createCollider(colliderDesc);
-    this.statics.set(collider.handle, { surface: desc.surface, obstacleId: desc.id });
-    this.staticIds.add(desc.id);
+    this.statics.set(collider.handle, { surface, obstacleId: desc.id });
   }
 
   createBoard(spec: BoardSpec, transform: Transform): BoardBody {
@@ -329,19 +359,16 @@ export class RapierPhysicsWorld implements PhysicsWorld {
     if (this.disposed) throw new Error("RapierPhysicsWorld used after dispose()");
   }
 
-  private static shapeDesc(desc: StaticColliderDesc): RapierColliderDesc {
-    const { shape } = desc;
-    if (shape.kind === "box") {
-      return RAPIER.ColliderDesc.cuboid(
-        shape.halfExtentsM.x,
-        shape.halfExtentsM.y,
-        shape.halfExtentsM.z,
-      );
-    }
-    const points = new Float32Array(shape.pointsM.flatMap((p) => [p.x, p.y, p.z]));
+  private static hullDesc(pointsM: readonly Vec3[], label: string): RapierColliderDesc {
+    const points = new Float32Array(pointsM.length * 3);
+    pointsM.forEach((p, i) => {
+      points[3 * i] = p.x;
+      points[3 * i + 1] = p.y;
+      points[3 * i + 2] = p.z;
+    });
     const hull = RAPIER.ColliderDesc.convexHull(points);
     if (hull === null) {
-      throw new Error(`RapierPhysicsWorld: degenerate convex hull for "${desc.id}"`);
+      throw new Error(`RapierPhysicsWorld: degenerate convex hull for "${label}"`);
     }
     return hull;
   }

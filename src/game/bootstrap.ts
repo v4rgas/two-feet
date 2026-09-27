@@ -3,7 +3,8 @@ import { INPUT_CONFIG } from "../contexts/input";
 import { KeyboardInputSource } from "../contexts/input/infrastructure/keyboard-input-source";
 import { LocalStorageStanceRepository } from "../contexts/input/infrastructure/local-storage-stance-repository";
 import { RIDER_CONFIG } from "../contexts/rider";
-import { createFlatGroundLevel, WORLD_CONFIG } from "../contexts/world";
+import type { Level } from "../contexts/world";
+import { createFlatGroundLevel, createSkateparkLevel, WORLD_CONFIG } from "../contexts/world";
 import { PRESENTATION_CONFIG } from "../presentation/presentation.config";
 import { ThreeRenderer } from "../presentation/three-renderer";
 import type { Clock } from "../shared";
@@ -12,6 +13,14 @@ import { composeSimulation } from "./compose";
 import { createTunableConfigs, installDevTuningPanel } from "./dev-tuning";
 import { GAME_CONFIG } from "./game.config";
 import type { GameLoop } from "./loop";
+
+/** The level named by the `?level=` URL parameter: `park`, or the flat ground (default). */
+function levelFromUrl(search: string): Level {
+  const name = new URLSearchParams(search).get("level");
+  return name === "park"
+    ? createSkateparkLevel(WORLD_CONFIG)
+    : createFlatGroundLevel(WORLD_CONFIG.flatGround);
+}
 
 /** Browser wall clock (the `Clock` port's production adapter). */
 const performanceClock: Clock = { nowS: () => performance.now() / 1000 };
@@ -32,7 +41,7 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<GameLoop> {
     input: INPUT_CONFIG,
     game: GAME_CONFIG,
   };
-  const level = createFlatGroundLevel(WORLD_CONFIG.flatGround);
+  const level = levelFromUrl(window.location.search);
   const sim = await composeSimulation({
     configs,
     level,
