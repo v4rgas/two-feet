@@ -173,6 +173,11 @@ export interface FootForceOutput {
    * (a stance angle to a grind edge ahead), rad, or null / absent for none.
    */
   readonly spinSnapHeadingRad?: number | null;
+  /**
+   * The foot flicking a kickflip right now (the guide foot swiping toward the heel edge in
+   * a popped air), or null / absent. Visual: that foot points its toes down (STYLE.md).
+   */
+  readonly kickflipFlick?: FootId | null;
 }
 
 /**

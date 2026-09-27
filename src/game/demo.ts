@@ -354,6 +354,7 @@ class DemoGame {
       pressure: detached ? 0 : id === "back" && stick.y < -0.5 ? 1 : 0.5,
       positionWorldM: detached ? hover : onDeck,
       positionRiderM: Vec3.create(along, top.y, across),
+      positionBoardM: detached ? null : top,
       detachedForS: detached ? 0.1 : 0,
     };
   }
@@ -373,6 +374,7 @@ class DemoGame {
       grind: null,
       lastGrindExit: null,
       popOutTurnRad: 0,
+      kickflipFlick: null,
       bailed,
     };
     const vectors: DebugVector[] = [];

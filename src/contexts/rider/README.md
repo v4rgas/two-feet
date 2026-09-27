@@ -9,13 +9,21 @@ travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md
 ## Ubiquitous language
 
 - **Rider** (aggregate): the rider frame, two feet and the bail state. Read model: `RiderState`.
-- **Rider frame**: the torso position plus a yaw-only **heading**, always upright. On
-  the ground the heading follows the smoothed travel, either way round. In the air it
-  changes only through the **body spin** (Q / E). It never snaps to the board's yaw.
+- **Rider frame**: the torso position plus a yaw-only **heading**, always upright. While a
+  foot is on the deck the torso rides exactly above the board (a push or a carve never
+  leaves it behind; a lag left from the air eases out over `torso.attachBlendS` on the
+  catch); with both feet off it spring-follows. On the ground the heading follows the
+  smoothed travel, either way round. In the air it changes only through the **body spin**
+  (Q / E). It never snaps to the board's yaw.
 - **Foot** (entity, id = `FootId`): `attached` (on the grip) or `airborne` (held by the
-  rider). It is a kinematic point in the rider frame, and its drawn position
-  (`positionRiderM` / `positionWorldM`) moves with limited speed and acceleration, so it
-  never teleports. Read model: `FootState`.
+  rider). An attached foot is drawn IN THE BOARD FRAME (`positionBoardM`): it moves
+  rigidly with the deck whatever the board does, and only its motion relative to the deck
+  (sliding, the catch reach) is eased; its deck spot keeps its place on a tilted deck
+  (`spotStanding`). An airborne foot is held in the rider frame. The drawn position
+  (`positionRiderM` / `positionWorldM`) moves with limited speed and acceleration in its
+  frame, so it never teleports; presentation draws an attached foot from `positionBoardM`
+  on the interpolated board. `RiderState.kickflipFlick` names the foot flicking a
+  kickflip (its toes point down: STYLE.md). Read model: `FootState`.
 - **Deck position** (VO): where a foot stands in the board frame, `alongM` (+X nose) and
   `acrossM` (+Z). After a 180 shove, `alongM` is reversed.
 - **Pop foot / guide foot**: the foot on the kick that pops (the back foot for an ollie,

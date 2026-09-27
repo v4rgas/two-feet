@@ -6,7 +6,7 @@ import type {
   GrindExit,
   RiderBailed,
 } from "../../../shared";
-import { FOOT_IDS, Quat, Vec3 } from "../../../shared";
+import { FOOT_IDS, Quat, Transform, Vec3 } from "../../../shared";
 import type { RiderConfig } from "../rider.config";
 import {
   axisErrorRad,
@@ -15,13 +15,14 @@ import {
   boardUp,
   deckPointWorld,
   offAngleTouchUpDot,
+  spotStanding,
   spotUnder,
   supportNormal,
   wrapPi,
 } from "./board-geometry";
 import { DeckPosition } from "./deck-position";
 import { clampToDeck, deckTopPointLocal, isOnDeck } from "./deck-surface";
-import { Foot, type FootMotionLimits } from "./foot";
+import { Foot, type FootFrame, type FootMotionLimits } from "./foot";
 import type { BoardKinematics, DeckGeometry, RiderControls } from "./foot-force-model";
 import { feetPressure, targetDeckPosition } from "./foot-placement";
 import type { RiderGrind, RiderState } from "./rider-state";
@@ -70,6 +71,9 @@ export class Rider {
   private readonly feet: Record<FootId, Foot>;
   private torsoPositionM: Vec3 = Vec3.ZERO;
   private torsoVelocityMps: Vec3 = Vec3.ZERO;
+  /** A foot is on the deck: the torso rides the board (plus `torsoOffsetM`, easing out). */
+  private torsoStanding = true;
+  private torsoOffsetM: Vec3 = Vec3.ZERO;
   private headingRad = 0;
   private windUpRad = 0;
   private bodySpinRateRadps = 0;
@@ -79,6 +83,7 @@ export class Rider {
   /** SPIN SNAP (assists): the heading a released body spin eases to a stop at, or null. */
   private snapHeadingRad: number | null = null;
   private grind: RiderGrind | null = null;
+  private kickflipFlick: FootId | null = null;
   private lastGrindExit: GrindExit | null = null;
   private bailed = false;
   private bothFeetOffOnWheelsS = 0;
@@ -119,6 +124,7 @@ export class Rider {
       grind: this.grind,
       lastGrindExit: this.lastGrindExit,
       popOutTurnRad: this.popOutTurnRad,
+      kickflipFlick: this.kickflipFlick,
     });
     return this.cachedState;
   }
@@ -188,6 +194,14 @@ export class Rider {
    */
   snapSpinTo(headingRad: number | null): void {
     this.snapHeadingRad = headingRad;
+  }
+
+  /** The foot flicking a kickflip this step (visual: its toes point down), or null. */
+  setKickflipFlick(foot: FootId | null): void {
+    const next = this.bailed ? null : foot;
+    if (next === this.kickflipFlick) return;
+    this.kickflipFlick = next;
+    this.cachedState = null;
   }
 
   /** Loop step 5: moves the torso and feet and checks for a bail. */
@@ -275,10 +289,13 @@ export class Rider {
     this.realignLeftRad = 0;
     this.popOutTurnRad = 0;
     this.snapHeadingRad = null;
+    this.kickflipFlick = null;
     this.grind = null;
     this.lastGrindExit = null;
     this.torsoPositionM = this.torsoTarget(board);
     this.torsoVelocityMps = board.linearVelocityMps;
+    this.torsoStanding = true;
+    this.torsoOffsetM = Vec3.ZERO;
     for (const id of FOOT_IDS) {
       const foot = this.feet[id];
       foot.attach();
@@ -320,28 +337,52 @@ export class Rider {
   /**
    * The goal: attached, on the grip tape under the rider-frame position (clamped to the
    * deck); airborne, hovering `airLiftM` above that position on a level deck under the
-   * torso. The drawn foot follows the goal in the rider frame with limited speed and
-   * acceleration (`dtS` = 0: goal only; null: snap, for a reset), so attaching, detaching
-   * and sliding never jump.
+   * torso. An attached foot is drawn IN THE BOARD FRAME: it moves rigidly with the deck
+   * whatever the board does, and only its motion relative to the deck (sliding on the grip,
+   * a catch reaching it) is eased and limited. An airborne one moves in the rider frame with
+   * the same limits. Switching frames keeps the world position (`dtS` = 0: goal only; null:
+   * snap, for a reset), so attaching, detaching and sliding never jump.
    */
   private placeFoot(foot: Foot, board: BoardKinematics, dtS: number | null): void {
-    const heldM = this.heldWorld(foot.riderPosition, 0);
-    const spot = spotUnder(board, heldM);
-    let goalWorldM: Vec3;
-    if (foot.isAttached && boardUp(board).y > 0) {
-      const onDeck = isOnDeck(this.deck, spot) ? spot : clampToDeck(this.deck, spot);
-      foot.setSpot(onDeck);
-      goalWorldM = deckPointWorld(this.deck, board, onDeck);
-    } else {
-      foot.setSpot(spot);
-      goalWorldM = this.heldWorld(foot.riderPosition, this.config.feet.airLiftM);
-    }
     const yaw = Quat.fromAxisAngle(Vec3.UNIT_Y, this.headingRad);
     const base = this.riderBase();
-    const goalRiderM = Quat.inverseRotate(yaw, Vec3.sub(goalWorldM, base));
-    if (dtS === null) foot.snapDrawn(goalRiderM);
-    else foot.followDrawn(goalRiderM, dtS, this.footLimits);
-    foot.setWorld(Vec3.add(base, Quat.rotate(yaw, foot.drawnRiderM)));
+    const onDeckNow = foot.isAttached && boardUp(board).y > 0;
+    // Standing on it, the feet keep their places on the deck however it is tilted; held
+    // in the air, the spot is the one under the foot.
+    const spot =
+      (onDeckNow ? spotStanding(board, this.headingRad, foot.riderPosition) : null) ??
+      spotUnder(board, this.heldWorld(foot.riderPosition, 0));
+    const frame = onDeckNow ? "board" : "rider";
+    let goalM: Vec3;
+    if (onDeckNow) {
+      const onDeck = isOnDeck(this.deck, spot) ? spot : clampToDeck(this.deck, spot);
+      foot.setSpot(onDeck);
+      goalM = Transform.toLocalPoint(board.transform, deckPointWorld(this.deck, board, onDeck));
+    } else {
+      foot.setSpot(spot);
+      const heldAirM = this.heldWorld(foot.riderPosition, this.config.feet.airLiftM);
+      goalM = Quat.inverseRotate(yaw, Vec3.sub(heldAirM, base));
+    }
+    const toWorld = (f: FootFrame, p: Vec3): Vec3 =>
+      f === "board"
+        ? Transform.toWorldPoint(board.transform, p)
+        : Vec3.add(base, Quat.rotate(yaw, p));
+    const toFrame = (f: FootFrame, worldM: Vec3): Vec3 =>
+      f === "board"
+        ? Transform.toLocalPoint(board.transform, worldM)
+        : Quat.inverseRotate(yaw, Vec3.sub(worldM, base));
+    if (dtS === null) foot.snapDrawn(frame, goalM);
+    else if (dtS > 0) {
+      if (foot.drawnFrame !== frame) {
+        // Attaching or lifting off: carried by the rider frame through this step (the rider
+        // moves the foot, not the board), then eased in the new frame.
+        foot.rebase(frame, toFrame(frame, toWorld("rider", foot.riderPositionM)));
+      }
+      foot.followDrawn(goalM, dtS, this.footLimits);
+    }
+    // (With `dtS` = 0 the frame switch waits for the next step: the goal only.)
+    const worldM = toWorld(foot.drawnFrame, foot.drawnPositionM);
+    foot.setWorld(worldM, Quat.inverseRotate(yaw, Vec3.sub(worldM, base)));
   }
 
   /** The rider frame's origin: under the torso at deck height, m (world). */
@@ -403,6 +444,7 @@ export class Rider {
       changes.push({ type: "FootDetached", foot: id, reason: "bailed" });
     }
     this.bailed = true;
+    this.kickflipFlick = null;
     this.bodySpinRateRadps = 0;
     this.realignLeftRad = 0;
     this.snapHeadingRad = null;
@@ -420,11 +462,29 @@ export class Rider {
   }
 
   /**
-   * Spring-damper toward "above the board", with velocity feed-forward so a board
-   * rolling at constant speed is followed without lag; only accelerations (a pop, a
-   * landing) make the torso lag behind.
+   * While a foot stands on the deck the rider frame's translation IS the board's (above
+   * it): a push or a hard carve never leaves the rider behind (only the heading is
+   * smoothed). With both feet off (the air, a bail) it is a spring-damper toward "above
+   * the board", with velocity feed-forward, so a pop or a landing makes it lag a little.
    */
   private updateTorso(board: BoardKinematics, dtS: number): void {
+    const standing = !this.bailed && (this.feet.front.isAttached || this.feet.back.isAttached);
+    if (standing) {
+      // Back on the deck (a catch, a landing): where the torso lagged is eased out over
+      // `attachBlendS`, never snapped; the board's own motion is never lagged.
+      if (!this.torsoStanding) {
+        this.torsoOffsetM = Vec3.sub(this.torsoPositionM, this.torsoTarget(board));
+      }
+      const k = Math.exp(-dtS / Math.max(1e-3, this.config.torso.attachBlendS));
+      this.torsoOffsetM =
+        Vec3.lengthSq(this.torsoOffsetM) < 1e-12 ? Vec3.ZERO : Vec3.scale(this.torsoOffsetM, k);
+      this.torsoStanding = true;
+      this.torsoPositionM = Vec3.add(this.torsoTarget(board), this.torsoOffsetM);
+      this.torsoVelocityMps = board.linearVelocityMps;
+      return;
+    }
+    this.torsoStanding = false;
+    this.torsoOffsetM = Vec3.ZERO;
     const { followOmegaRadps: w, followDampingRatio: zeta } = this.config.torso;
     const toTarget = Vec3.sub(this.torsoTarget(board), this.torsoPositionM);
     const velocityError = Vec3.sub(board.linearVelocityMps, this.torsoVelocityMps);

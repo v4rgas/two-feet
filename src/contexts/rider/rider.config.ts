@@ -476,6 +476,11 @@ export const RIDER_CONFIG = deepFreeze({
     followOmegaRadps: 8,
     followDampingRatio: 1,
     /**
+     * While a foot is on the deck the torso rides the board exactly (no lag on a push or a
+     * carve); a lag left from the air eases out over this time constant on the catch, s.
+     */
+    attachBlendS: 0.05,
+    /**
      * Rider heading (yaw only) follows the direction of travel (the board's long axis when
      * slow), either way round, while grounded, with this rate constant, 1/s, capped at
      * `headingMaxRateRadps`. Held in the air, so a shove-it spins the board under still feet.

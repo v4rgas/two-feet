@@ -130,6 +130,7 @@ export class DefaultRiderSystem implements RiderSystem {
       this.forces = [];
       this.loading = false;
       this.rider.snapSpinTo(null);
+      this.rider.setKickflipFlick(null);
       this.publish(grindChanges, tick, timeS);
       return;
     }
@@ -151,6 +152,7 @@ export class DefaultRiderSystem implements RiderSystem {
     }
     if (output.caught) this.publish(this.rider.catchFeet(board), tick, timeS);
     this.rider.snapSpinTo(output.spinSnapHeadingRad ?? null);
+    this.rider.setKickflipFlick(output.kickflipFlick ?? null);
     this.publish(grindChanges, tick, timeS);
   }
 

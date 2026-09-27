@@ -1,4 +1,4 @@
-import type { GrindExit, GrindKind, GrindSide, Vec3 } from "../../../shared";
+import type { FootId, GrindExit, GrindKind, GrindSide, Vec3 } from "../../../shared";
 import type { FootState } from "./foot";
 
 /**
@@ -35,6 +35,8 @@ export interface RiderState {
    * recognizer takes it off the body spin.
    */
   readonly popOutTurnRad: number;
+  /** The foot flicking a kickflip right now (its toes point down: visual), or null. */
+  readonly kickflipFlick: FootId | null;
 }
 
 /** A grind in progress (read model). */

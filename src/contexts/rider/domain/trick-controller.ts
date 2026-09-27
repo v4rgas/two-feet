@@ -451,7 +451,19 @@ export class TrickController implements FootForceModel {
       loading: this.loadKick !== null,
       grind: null,
       spinSnapHeadingRad: grounded ? null : this.spinSnap(input, frame),
+      kickflipFlick: grounded ? null : this.kickflipFlick(keys),
     };
+  }
+
+  /**
+   * The foot flicking a kickflip (visual, STYLE.md "Ankle tilt"): in a popped air, not
+   * caught, the guide foot's stick toward the heel edge.
+   */
+  private kickflipFlick(keys: Keys): FootId | null {
+    const kick = this.popKick;
+    if (kick === null || this.caught) return null;
+    const guide = guideFootOf(kick);
+    return keys[guide].side < 0 ? guide : null;
   }
 
   // ── grinds and slides ─────────────────────────────────────────────────────

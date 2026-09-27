@@ -59,6 +59,26 @@ export function boardHeadingRad(board: BoardKinematics, minHorizontal = 0.2): nu
 }
 
 /**
+ * The deck spot of a rider-frame foot position for a foot STANDING on the deck: the
+ * rider-frame offset turned by the rider heading's yaw in the board's own plane, so it
+ * holds on a bank or a transition as on the flat (a vertical line would spread the feet
+ * onto the kicks of a steep board). On a flat board it is `spotUnder` of the held point
+ * over the board centre. Null when the heading has no direction in the deck's plane.
+ */
+export function spotStanding(
+  board: BoardKinematics,
+  riderHeadingRad: number,
+  riderPosition: DeckPosition,
+): DeckPosition | null {
+  const heading = Vec3.create(Math.cos(riderHeadingRad), 0, -Math.sin(riderHeadingRad));
+  const h = Transform.toLocalDirection(board.transform, heading);
+  if (Math.hypot(h.x, h.z) < 0.2) return null;
+  const d = Math.atan2(-h.z, h.x);
+  const { alongM: a, acrossM: c } = riderPosition;
+  return DeckPosition.create(a * Math.cos(d) + c * Math.sin(d), -a * Math.sin(d) + c * Math.cos(d));
+}
+
+/**
  * The deck spot (board frame) straight under a world point: where a vertical line through
  * it meets the deck's mid-plane. Falls back to the projection along board Y when the
  * board is on edge (the line runs along the deck).

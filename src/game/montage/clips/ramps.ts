@@ -46,20 +46,22 @@ export const treFlipKicker: MontageClip = {
 };
 
 /**
- * Quarter pipe: rolling in at 5.5 m/s across the halfpipe's flat bottom, up the east
- * quarter pipe, back down fakie, and a fakie ollie on the flat bottom (pop 1.75 s).
+ * Quarter pipe: rolling in at 5 m/s across the halfpipe's flat bottom, up the east
+ * quarter pipe (the feet keep their places on the tilted deck, so 5 m/s climbs about as
+ * high as 5.5 did), back down fakie, and a fakie ollie on the way down (pop 1.95 s, the
+ * middle of the 1.9–2.0 s that land).
  */
 export const quarterPipeFakie: MontageClip = {
   id: "quarter-pipe-fakie",
   title: "Quarter pipe · Fakie Ollie",
   level: "park",
   stance: "regular",
-  spawn: { xM: hp.xM - 1.7, yM: 0, zM: hp.zM, headingRad: 0, speedMps: 5.5 },
-  durationS: 3.3,
+  spawn: { xM: hp.xM - 1.7, yM: 0, zM: hp.zM, headingRad: 0, speedMps: 5 },
+  durationS: 3.5,
   keys: new KeyTimeline("regular")
-    .loadAndPop("tail", 1.53, 1.75)
-    .level("tail", 1.8)
-    .catch(2.2)
+    .loadAndPop("tail", 1.73, 1.95)
+    .level("tail", 2.0)
+    .catch(2.4)
     .build(),
   shots: [
     {
@@ -72,8 +74,8 @@ export const quarterPipeFakie: MontageClip = {
         zoomS: 3,
       },
     },
-    { fromS: 1.6, blendS: 0.35, shot: { kind: "fisheyeFollow" } },
+    { fromS: 1.8, blendS: 0.35, shot: { kind: "fisheyeFollow" } },
   ],
-  slowMotion: [{ fromS: 1.72, toS: 2.3, scale: 0.4 }],
-  expect: { tricks: ["Fakie Ollie"], rollsFakieAtS: 1.6 },
+  slowMotion: [{ fromS: 1.92, toS: 2.5, scale: 0.4 }],
+  expect: { tricks: ["Fakie Ollie"], rollsFakieAtS: 1.75 },
 };

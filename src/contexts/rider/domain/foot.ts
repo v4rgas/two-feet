@@ -30,15 +30,26 @@ export interface FootState {
   readonly pressure: number;
   /**
    * Where the foot is drawn, m (world): on the grip tape when attached, hovering otherwise.
-   * Continuous: it travels there with limited speed and acceleration in the rider frame
-   * (a catch or a lift eases over `catchReachS`, never a jump).
+   * Continuous: an attached foot moves WITH the deck (rigidly, whatever the board's speed)
+   * and only its motion relative to the deck is eased and limited; an airborne one moves
+   * in the rider frame with limited speed and acceleration (a catch or a lift eases over
+   * `catchReachS`, never a jump).
    */
   readonly positionWorldM: Vec3;
   /** The same point in the rider frame (x along the heading, y up from the rider base, z across), m. */
   readonly positionRiderM: Vec3;
+  /**
+   * The same point in the BOARD frame while the foot stands on the deck (attached, board
+   * upright), m; null otherwise. Presentation draws it on the interpolated board, so an
+   * attached foot never lags the deck.
+   */
+  readonly positionBoardM: Vec3 | null;
   /** Time since the foot last detached, s (0 while attached). */
   readonly detachedForS: number;
 }
+
+/** The frame the drawn foot moves in: on the deck (attached) or in the rider frame. */
+export type FootFrame = "board" | "rider";
 
 /** Limits of the drawn foot motion (rider config `feet`). */
 export interface FootMotionLimits {
@@ -63,7 +74,12 @@ export class Foot {
   private spot: DeckPosition;
   private pressureValue = 0;
   private worldM: Vec3 = Vec3.ZERO;
-  /** Drawn position and velocity in the rider frame, and the previous goal (feed-forward). */
+  private riderM: Vec3 = Vec3.ZERO;
+  /**
+   * Drawn position and velocity in `frame` (the board frame while on the deck, the rider
+   * frame otherwise), and the previous goal (feed-forward).
+   */
+  private frame: FootFrame = "rider";
   private drawnM: Vec3 = Vec3.ZERO;
   private drawnVelocityMps: Vec3 = Vec3.ZERO;
   private lastGoalM: Vec3 | null = null;
@@ -118,19 +134,41 @@ export class Foot {
     this.spot = spot;
   }
 
-  get drawnRiderM(): Vec3 {
+  /** The drawn position, in `drawnFrame`. */
+  get drawnPositionM(): Vec3 {
     return this.drawnM;
   }
 
-  /** Jumps the drawn position to `goalRiderM` (a reset), at rest. */
-  snapDrawn(goalRiderM: Vec3): void {
-    this.drawnM = goalRiderM;
+  get drawnFrame(): FootFrame {
+    return this.frame;
+  }
+
+  /** The last drawn position in the rider frame. */
+  get riderPositionM(): Vec3 {
+    return this.riderM;
+  }
+
+  /** Jumps the drawn position to `goalM` in `frame` (a reset), at rest. */
+  snapDrawn(frame: FootFrame, goalM: Vec3): void {
+    this.frame = frame;
+    this.drawnM = goalM;
     this.drawnVelocityMps = Vec3.ZERO;
-    this.lastGoalM = goalRiderM;
+    this.lastGoalM = goalM;
   }
 
   /**
-   * Moves the drawn position toward `goalRiderM` (rider frame): the goal's own velocity plus
+   * Moves the drawn position into another frame (attaching onto the deck, lifting off it):
+   * `positionM` is where it is now, in that frame; it then eases from there.
+   */
+  rebase(frame: FootFrame, positionM: Vec3): void {
+    this.frame = frame;
+    this.drawnM = positionM;
+    this.drawnVelocityMps = Vec3.ZERO;
+    this.lastGoalM = null;
+  }
+
+  /**
+   * Moves the drawn position toward `goalRiderM` (in `drawnFrame`): the goal's own velocity plus
    * an ease-out approach of the remaining gap (time constant `easeS`), with the velocity
    * change capped at `maxAccelMps2` and the speed at `maxSpeedMps`.
    */
@@ -158,9 +196,10 @@ export class Foot {
     this.drawnM = Vec3.add(this.drawnM, step);
   }
 
-  /** Sets where the drawn position is in the world (the rider frame applied by the rider). */
-  setWorld(positionWorldM: Vec3): void {
+  /** Sets where the drawn position is in the world and in the rider frame (by the rider). */
+  setWorld(positionWorldM: Vec3, positionRiderM: Vec3): void {
     this.worldM = positionWorldM;
+    this.riderM = positionRiderM;
   }
 
   setPressure(pressure: number): void {
@@ -180,7 +219,8 @@ export class Foot {
       deckPosition: this.spot,
       pressure: this.pressureValue,
       positionWorldM: this.worldM,
-      positionRiderM: this.drawnM,
+      positionRiderM: this.riderM,
+      positionBoardM: this.frame === "board" ? this.drawnM : null,
       detachedForS: this.detachedS,
     });
   }

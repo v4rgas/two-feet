@@ -128,8 +128,8 @@ line and level (`pnpm test:human`, ≈ 70 s), with floors just under the measure
 |---|---|---|---|---|
 | G4H kickflip → FS tailslide → hardflip out | ≥ 80 % | 4 % | 14 % | 20 % |
 | kickflip down the 5-stair | ≥ 90 % | 44 % | 96 % | 100 % |
-| ollie to 50-50 on the rail | ≥ 90 % | 24 % | 50 % | 50 % |
-| 360 flip off the kicker | ≥ 90 % | 44 % | 54 % | 58 % |
+| ollie to 50-50 on the rail | ≥ 90 % | 24 % | 52 % | 52 % |
+| 360 flip off the kicker | ≥ 90 % | 46 % | 58 % | 62 % |
 
 ## Consequences
 
@@ -158,7 +158,8 @@ line and level (`pnpm test:human`, ≈ 70 s), with floors just under the measure
     `session.popAfterTakeoffWindowS` (0.05 s) after takeoff as that air's; later the load
     is dropped and never pops at touchdown. Also, a READY load whose key is still held
     never pops, whatever its stick does (`FootIntent.held`), which covers an analog stick
-    whose diagonal does read 0.71. The rates rose from 38 / 42 / 44 % to 44 / 54 / 58 %;
+    whose diagonal does read 0.71. The rates rose from 38 / 42 / 44 % to 44 / 54 / 58 %
+    (46 / 58 / 62 % once the feet kept their deck spots on tilted boards, the feet-lag fix);
     the remaining misses release ↓ well after the lip, or time the flick and sweep out of
     their windows.
 - Every existing scenario passes at `pro` and at `normal` (`pnpm test` runs the scenario suites

@@ -271,6 +271,15 @@ describe("TrickController — in the air", () => {
     expect(outside.step({ feetDown: true }, air).caught).toBe(true);
   });
 
+  it("reports the guide foot as flicking a kickflip while it swipes toward the heel edge (visual)", () => {
+    const kick = setup();
+    ollie(kick.step);
+    kick.lift();
+    expect(kick.step({ fx: -0.8 }, air).kickflipFlick).toBe("front");
+    expect(kick.step({ fx: 0.8 }, air).kickflipFlick).toBeNull(); // heelflip: toes up
+    expect(kick.step({}, air).kickflipFlick).toBeNull();
+  });
+
   it("releasing the keys does not catch unless autoCatchOnRelease", () => {
     const { step, lift } = setup();
     ollie(step);

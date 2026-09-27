@@ -101,6 +101,7 @@ function restingFoot(id: FootId, alongM: number, board: BoardSnapshot): FootStat
     pressure: 0,
     positionWorldM: Transform.toWorldPoint(board.transform, Vec3.create(alongM, 0, 0)),
     positionRiderM: Vec3.create(alongM, 0, 0),
+    positionBoardM: Vec3.create(alongM, 0, 0),
     detachedForS: 0,
   };
 }
@@ -123,6 +124,7 @@ export class StubRiderSystem implements RiderSystem {
       grind: null,
       lastGrindExit: null,
       popOutTurnRad: 0,
+      kickflipFlick: null,
       bailed: false,
     };
   }

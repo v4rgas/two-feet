@@ -14,6 +14,14 @@ export interface FeetInputs {
   readonly stickX: Readonly<Record<FootId, number>>;
   readonly airborne: boolean;
   readonly dtS: number;
+  /**
+   * The board as drawn this frame (interpolated like its mesh). A foot standing on the deck
+   * is placed on it from its board-frame point, so it never lags the deck.
+   */
+  readonly boardPose: {
+    readonly position: THREE.Vector3;
+    readonly quaternion: THREE.Quaternion;
+  };
 }
 
 /** One shoe + leg stub. */
@@ -63,6 +71,7 @@ class FootView {
     torso: THREE.Vector3,
     stance: Stance,
     inputs: FeetInputs,
+    kickflipFlick = false,
   ): void {
     const f = this.config.feet;
     const attached = foot.contact === "attached";
@@ -76,15 +85,29 @@ class FootView {
     // turned with the board. The domain moves the foot continuously (an attached one onto the
     // grip tape); here the shoe's sole sits on that point, interpolated between physics
     // steps like the board.
-    const a = previous.positionWorldM;
-    const b = foot.positionWorldM;
-    this.shoe.position.set(
-      a.x + (b.x - a.x) * alpha,
-      a.y + (b.y - a.y) * alpha,
-      a.z + (b.z - a.z) * alpha,
-    );
+    const la = previous.positionBoardM;
+    const lb = foot.positionBoardM;
+    if (la !== null && lb !== null) {
+      // On the deck: its board-frame point on the board as drawn (same interpolation).
+      this.shoe.position
+        .set(
+          la.x + (lb.x - la.x) * alpha,
+          la.y + (lb.y - la.y) * alpha,
+          la.z + (lb.z - la.z) * alpha,
+        )
+        .applyQuaternion(inputs.boardPose.quaternion)
+        .add(inputs.boardPose.position);
+    } else {
+      const a = previous.positionWorldM;
+      const b = foot.positionWorldM;
+      this.shoe.position.set(
+        a.x + (b.x - a.x) * alpha,
+        a.y + (b.y - a.y) * alpha,
+        a.z + (b.z - a.z) * alpha,
+      );
+    }
     this.shoe.quaternion.copy(headingQuat).multiply(this.yaw);
-    this.applyAnkleTilt(inputs);
+    this.applyAnkleTilt(inputs, kickflipFlick);
     this.shoe.material = attached ? this.solid : this.ghost;
     this.shoe.scale.set(1, squash, 1);
 
@@ -104,15 +127,16 @@ class FootView {
   /**
    * Ankle tilt (STYLE.md, visual only): in the air, sideways stick (|x|, either edge) tilts
    * the shoe about its width axis around the ball of the foot — the back foot toe down, the
-   * front foot toes up; flat on the ground. The shoe is raised just enough
+   * front foot toes up — except the foot flicking a kickflip, which points its toes down
+   * (then eases back); flat on the ground. The shoe is raised just enough
    * that no part of the sole goes below the sole's resting plane (never into the deck).
    */
-  private applyAnkleTilt(inputs: FeetInputs): void {
+  private applyAnkleTilt(inputs: FeetInputs, kickflipFlick: boolean): void {
     const f = this.config.feet;
     // The back foot always points its toe down, the front foot lifts its toes; the amount
-    // follows |stick x| of that foot (either edge).
+    // follows |stick x| of that foot (either edge). A kickflip flick points the toes down.
     const amount = Math.min(1, Math.abs(inputs.stickX[this.id]));
-    const direction = this.id === "back" ? -1 : 1;
+    const direction = this.id === "back" || kickflipFlick ? -1 : 1;
     const wanted = inputs.airborne ? direction * amount * f.ankleTiltMaxRad : 0;
     const k = inputs.dtS > 0 ? 1 - Math.exp(-inputs.dtS / f.ankleTiltResponseS) : 0;
     this.tiltRad += (wanted - this.tiltRad) * k;
@@ -191,8 +215,27 @@ export class FeetMesh {
     const a = previous.torsoPositionWorldM;
     const b = rider.torsoPositionWorldM;
     this.torso.set(a.x + (b.x - a.x) * alpha, a.y + (b.y - a.y) * alpha, a.z + (b.z - a.z) * alpha);
-    this.front.update(previous.front, rider.front, alpha, headingQuat, this.torso, stance, inputs);
-    this.back.update(previous.back, rider.back, alpha, headingQuat, this.torso, stance, inputs);
+    const flick = rider.kickflipFlick;
+    this.front.update(
+      previous.front,
+      rider.front,
+      alpha,
+      headingQuat,
+      this.torso,
+      stance,
+      inputs,
+      flick === "front",
+    );
+    this.back.update(
+      previous.back,
+      rider.back,
+      alpha,
+      headingQuat,
+      this.torso,
+      stance,
+      inputs,
+      flick === "back",
+    );
   }
 
   dispose(): void {

@@ -194,6 +194,7 @@ export class ThreeRenderer implements Renderer {
           stickX: { front: frame.intents.front.stick.x, back: frame.intents.back.stick.x },
           airborne: !board.grounded,
           dtS,
+          boardPose: this.boardPivot,
         },
       );
     }
