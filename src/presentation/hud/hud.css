@@ -1,0 +1,214 @@
+/* HUD overlay (STYLE.md §HUD). Palette variables are set from PRESENTATION_CONFIG by hud.ts. */
+
+.skate-hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  font-family: "Inter", system-ui, sans-serif;
+  color: var(--ink);
+  z-index: 10;
+}
+
+/* ── Trick popup, upper centre ───────────────────────────────────────── */
+.skate-popup {
+  position: absolute;
+  top: 14vh;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: clamp(36px, 6vw, 72px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  opacity: 0;
+  will-change: opacity, transform;
+  text-shadow: 0 2px 18px rgb(255 250 240 / 0.55);
+}
+
+.skate-popup[data-tone="bail"] {
+  color: var(--warn);
+  font-size: clamp(28px, 4.5vw, 52px);
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+/* ── Airtime, bottom centre ─────────────────────────────────────────── */
+.skate-airtime {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  width: 160px;
+  transform: translateX(-50%);
+  opacity: 0;
+  text-align: center;
+}
+
+.skate-airtime-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--concrete-600);
+}
+
+.skate-airtime-value {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.skate-airtime-bar {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(28 27 25 / 0.12);
+  overflow: hidden;
+}
+
+.skate-airtime-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--ink);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+/* ── Foot pads, bottom-left / bottom-right ─────────────────────────── */
+.skate-pad {
+  position: absolute;
+  bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.skate-pad[data-side="left"] {
+  left: 28px;
+}
+
+.skate-pad[data-side="right"] {
+  right: 28px;
+}
+
+.skate-pad-box {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  box-sizing: border-box;
+  border: 3px solid var(--pad-color);
+  border-radius: 18px;
+  background: rgb(233 230 223 / 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.skate-pad[data-detached="true"] .skate-pad-box {
+  border-style: dashed;
+  border-color: var(--warn);
+}
+
+/* Faint cross marking neutral. */
+.skate-pad-box::before,
+.skate-pad-box::after {
+  content: "";
+  position: absolute;
+  background: rgb(28 27 25 / 0.1);
+}
+
+.skate-pad-box::before {
+  left: 50%;
+  top: 12px;
+  bottom: 12px;
+  width: 1px;
+}
+
+.skate-pad-box::after {
+  top: 50%;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+}
+
+.skate-pad-dot,
+.skate-pad-ring,
+.skate-pad-trail {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.skate-pad-dot {
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: var(--pad-color);
+  box-shadow: 0 1px 3px rgb(28 27 25 / 0.35);
+}
+
+.skate-pad-trail {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background: var(--pad-color);
+  opacity: 0;
+}
+
+.skate-pad-ring {
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  box-sizing: border-box;
+  border: 2px solid var(--pad-color);
+  opacity: 0;
+}
+
+.skate-pad-caption {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.skate-pad-keys {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0;
+  color: var(--concrete-600);
+}
+
+.skate-pad-role {
+  color: var(--pad-color);
+}
+
+/* ── Debug text panel (F1), top-left ───────────────────────────────── */
+.skate-debug-panel {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  padding: 10px 12px;
+  min-width: 250px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--concrete-100);
+  background: rgb(28 27 25 / 0.78);
+  border-radius: 8px;
+  white-space: pre;
+  pointer-events: none;
+  z-index: 11;
+}
+
+.skate-debug-panel[hidden] {
+  display: none;
+}
