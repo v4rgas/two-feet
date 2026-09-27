@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { BoardSpec, WHEEL_IDS } from "../../contexts/board";
+import deckGraphicUrl from "../assets/deck-penguin.jpg";
 import type { PresentationConfig } from "../presentation.config";
 import { flatMaterial } from "./materials";
 
@@ -82,6 +83,7 @@ function roundedSlab(
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
+  const bottomIndices: number[] = [];
   const stations = slabStations(spec, outline, tipSegments);
   // Per station: top-right, top-left, bottom-left, bottom-right (Z+ = right).
   for (const x of stations) {
@@ -102,7 +104,7 @@ function roundedSlab(
     const a = i * 4;
     const b = (i + 1) * 4;
     quad(a, b, b + 1, a + 1); // top
-    quad(a + 3, a + 2, b + 2, b + 3); // bottom
+    bottomIndices.push(a + 3, a + 2, b + 2, a + 3, b + 2, b + 3); // bottom (group 1)
     quad(a + 1, b + 1, b + 2, a + 2); // left side (-Z)
     quad(a, a + 3, b + 3, b); // right side (+Z)
   }
@@ -112,10 +114,48 @@ function roundedSlab(
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
+  // Group 0: top, sides and caps; group 1: the underside (the deck graphic).
+  geometry.setIndex([...indices, ...bottomIndices]);
+  geometry.addGroup(0, indices.length, 0);
+  geometry.addGroup(indices.length, bottomIndices.length, 1);
   geometry.computeVertexNormals();
   return geometry;
 }
+
+/**
+ * The deck graphic: the art centred on the underside, turned so its top points at the
+ * nose, scaled past the deck width (the sides crop) on a black field. Loaded in the
+ * browser only; the underside keeps its flat colour until (or without) it.
+ */
+function loadDeckGraphic(material: THREE.MeshStandardMaterial, lengthOverWidth: number): void {
+  if (typeof document === "undefined") return;
+  const image = new Image();
+  image.onload = () => {
+    const height = 512;
+    const width = Math.round(height * lengthOverWidth);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) return;
+    ctx.fillStyle = "#0b0b0b";
+    ctx.fillRect(0, 0, width, height);
+    const side = height * DECK_GRAPHIC_SCALE;
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(image, -side / 2, -side / 2, side, side);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    material.map = texture;
+    material.color.set("#ffffff");
+    material.needsUpdate = true;
+  };
+  image.src = deckGraphicUrl;
+}
+
+/** How much wider than the deck the graphic is drawn (the sides crop), × deck width. */
+const DECK_GRAPHIC_SCALE = 1.3;
 
 /** 64×64 speckle used as the grip tape's only texture (STYLE.md allows grip noise). */
 function gripNoiseTexture(): THREE.DataTexture {
@@ -193,6 +233,8 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
   const deckMaterial = flatMaterial(palette.deck);
   deckMaterial.emissive.set("#ffffff");
   deckMaterial.emissiveIntensity = 0;
+  const graphicMaterial = flatMaterial(palette.deck);
+  loadDeckGraphic(graphicMaterial, spec.deck.lengthM / spec.deck.widthM);
   const gripTexture = gripNoiseTexture();
   gripTexture.repeat.set(8, 2);
   const gripMaterial = flatMaterial(palette.ink);
@@ -217,7 +259,7 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
       },
       look.tipSegments,
     ),
-    deckMaterial,
+    [deckMaterial, graphicMaterial],
   );
   deck.castShadow = true;
   deck.receiveShadow = true;
@@ -270,7 +312,17 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
       group.traverse((node) => {
         if (node instanceof THREE.Mesh) node.geometry.dispose();
       });
-      for (const m of [deckMaterial, gripMaterial, metal, wheelMaterial, hubMaterial]) m.dispose();
+      for (const m of [
+        deckMaterial,
+        graphicMaterial,
+        gripMaterial,
+        metal,
+        wheelMaterial,
+        hubMaterial,
+      ]) {
+        m.map?.dispose();
+        m.dispose();
+      }
       gripTexture.dispose();
     },
   };
