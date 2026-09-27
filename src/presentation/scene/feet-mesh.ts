@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { BoardSpec } from "../../contexts/board";
 import type { FootState, RiderState } from "../../contexts/rider";
 import type { FootId, Stance } from "../../shared";
 import type { PresentationConfig } from "../presentation.config";
@@ -7,7 +6,6 @@ import { flatMaterial } from "./materials";
 import { buildShoeGeometry, createShoeMaterials, shoeAnkleLocal } from "./shoe-geometry";
 
 const UP = new THREE.Vector3(0, 1, 0);
-const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
 /** One shoe + leg stub. */
 class FootView {
@@ -15,9 +13,6 @@ class FootView {
   readonly leg: THREE.Mesh;
   private readonly solid: THREE.MeshStandardMaterial[];
   private readonly ghost: THREE.MeshStandardMaterial[];
-  private readonly local = new THREE.Vector3();
-  private readonly world = new THREE.Vector3();
-  private readonly kick = new THREE.Quaternion();
   private readonly yaw = new THREE.Quaternion();
   private readonly toTorso = new THREE.Vector3();
   private readonly ankle = new THREE.Vector3();
@@ -45,13 +40,13 @@ class FootView {
   }
 
   /**
-   * Attached: stands on the deck at `deckPosition` of the (interpolated) board, tilted
-   * with the kick. Detached: at its world position, heading-aligned, semi-transparent.
+   * At the foot's world position, upright in the rider heading; semi-transparent when
+   * detached.
    */
   update(
+    previous: FootState,
     foot: FootState,
-    spec: BoardSpec,
-    board: THREE.Object3D,
+    alpha: number,
     headingQuat: THREE.Quaternion,
     torso: THREE.Vector3,
     stance: Stance,
@@ -64,25 +59,19 @@ class FootView {
     const toeSign = stance === "regular" ? 1 : -1;
     this.yaw.setFromAxisAngle(UP, toeSign * (towardNoseRad - Math.PI / 2));
 
-    if (attached) {
-      const { alongM, acrossM } = foot.deckPosition;
-      const top = BoardSpec.deckTopPointLocal(spec, alongM, acrossM);
-      const halfFlat = BoardSpec.flatLengthM(spec) / 2;
-      const onKick = Math.abs(top.x) > halfFlat;
-      const kickRad = onKick ? Math.sign(top.x) * spec.deck.kickAngleRad : 0;
-      this.kick.setFromAxisAngle(Z_AXIS, kickRad);
-      // Shoe origin is the centre of its sole's bottom face: it sits right on the grip.
-      this.local.set(top.x, top.y, top.z);
-      this.world.copy(this.local).applyMatrix4(board.matrixWorld);
-      this.shoe.position.copy(this.world);
-      this.shoe.quaternion.copy(board.quaternion).multiply(this.kick).multiply(this.yaw);
-      this.shoe.material = this.solid;
-    } else {
-      const p = foot.positionWorldM;
-      this.shoe.position.set(p.x, p.y, p.z);
-      this.shoe.quaternion.copy(headingQuat).multiply(this.yaw);
-      this.shoe.material = this.ghost;
-    }
+    // Feet belong to the rider (MECHANICS.md): always upright in the rider heading, never
+    // turned with the board. The domain moves the foot continuously (an attached one onto the
+    // grip tape); here the shoe's sole sits on that point, interpolated between physics
+    // steps like the board.
+    const a = previous.positionWorldM;
+    const b = foot.positionWorldM;
+    this.shoe.position.set(
+      a.x + (b.x - a.x) * alpha,
+      a.y + (b.y - a.y) * alpha,
+      a.z + (b.z - a.z) * alpha,
+    );
+    this.shoe.quaternion.copy(headingQuat).multiply(this.yaw);
+    this.shoe.material = attached ? this.solid : this.ghost;
     this.shoe.scale.set(1, squash, 1);
 
     // Leg stub: from the ankle opening (collar) toward the torso, fixed length.
@@ -147,17 +136,19 @@ export class FeetMesh {
     for (const view of [this.front, this.back]) this.group.add(view.shoe, view.leg);
   }
 
+  /** Draws the feet between the previous and the current rider state (`alpha` in [0, 1)). */
   update(
+    previous: RiderState,
     rider: RiderState,
-    spec: BoardSpec,
-    board: THREE.Object3D,
+    alpha: number,
     headingQuat: THREE.Quaternion,
     stance: Stance,
   ): void {
-    const t = rider.torsoPositionWorldM;
-    this.torso.set(t.x, t.y, t.z);
-    this.front.update(rider.front, spec, board, headingQuat, this.torso, stance);
-    this.back.update(rider.back, spec, board, headingQuat, this.torso, stance);
+    const a = previous.torsoPositionWorldM;
+    const b = rider.torsoPositionWorldM;
+    this.torso.set(a.x + (b.x - a.x) * alpha, a.y + (b.y - a.y) * alpha, a.z + (b.z - a.z) * alpha);
+    this.front.update(previous.front, rider.front, alpha, headingQuat, this.torso, stance);
+    this.back.update(previous.back, rider.back, alpha, headingQuat, this.torso, stance);
   }
 
   dispose(): void {

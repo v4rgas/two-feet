@@ -1,6 +1,6 @@
 import type { BoardSnapshot, BoardSystem, PhysicsWorld } from "../contexts/board";
 import type { InputSystem } from "../contexts/input";
-import type { RiderSystem } from "../contexts/rider";
+import type { RiderState, RiderSystem } from "../contexts/rider";
 import type { TricksSystem } from "../contexts/tricks";
 import type { DebugVector, RenderFrame } from "../presentation/render-frame";
 import type { Clock, DomainEvent, EventBus, Transform } from "../shared";
@@ -37,6 +37,7 @@ export class GameLoop {
   private timeS = 0;
   private previous: BoardSnapshot;
   private current: BoardSnapshot;
+  private previousRider: RiderState;
   private physicsStepMs = 0;
   private stepsThisFrame = 0;
   private resetAtS: number | null = null;
@@ -54,6 +55,7 @@ export class GameLoop {
     });
     this.previous = systems.board.snapshot;
     this.current = systems.board.snapshot;
+    this.previousRider = systems.rider.state;
     systems.bus.subscribeAll((event) => this.recentEvents.push(event));
     systems.bus.subscribe("RiderBailed", (event) => {
       this.resetAtS ??= event.timeS + config.bailResetDelayS;
@@ -82,6 +84,7 @@ export class GameLoop {
   step(): void {
     const { input, rider, board, physics, tricks, bus, clock } = this.systems;
     const dtS = this.stepS;
+    this.previousRider = rider.state;
 
     // 1. input samples devices and updates the FootIntents.
     const intents = input.step(dtS);
@@ -124,6 +127,7 @@ export class GameLoop {
       alpha: this.accumulator.alpha,
       previousBoard: this.previous,
       currentBoard: this.current,
+      previousRider: this.previousRider,
       rider: this.systems.rider.state,
       intents: this.systems.input.lastIntents,
       stance: this.systems.input.stance,
@@ -187,5 +191,6 @@ export class GameLoop {
     input.reset();
     this.previous = board.snapshot;
     this.current = board.snapshot;
+    this.previousRider = rider.state;
   }
 }

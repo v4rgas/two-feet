@@ -98,6 +98,7 @@ function restingFoot(id: FootId, alongM: number, board: BoardSnapshot): FootStat
     deckPosition: DeckPosition.create(alongM, 0),
     pressure: 0,
     positionWorldM: Transform.toWorldPoint(board.transform, Vec3.create(alongM, 0, 0)),
+    positionRiderM: Vec3.create(alongM, 0, 0),
     detachedForS: 0,
   };
 }

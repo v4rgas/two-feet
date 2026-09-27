@@ -18,6 +18,14 @@ export const RIDER_CONFIG = deepFreeze({
     maxSlideSpeedMps: 2.5,
     /** Detached feet hover this far above the level deck under the torso, m. */
     airLiftM: 0.04,
+    /**
+     * The drawn foot (rider frame) moves at most this fast and accelerates at most this
+     * hard: ≈ 1.4 cm per 1/120 s step, so a catch or a lift never jumps.
+     */
+    maxFootSpeedMps: 1.7,
+    maxFootAccelMps2: 80,
+    /** A catch (or a lift) eases the foot onto the deck (off it) over about this long, s. */
+    catchReachS: 0.1,
     /** A back foot this close to (or past) the start of the tail kick is "over the tail", m. */
     tailZoneMarginM: 0.03,
   },
@@ -124,6 +132,12 @@ export const RIDER_CONFIG = deepFreeze({
     /** Catch PD gain (0–1) and natural frequency, rad/s: kills spin, levels, snaps yaw. */
     catchAssist: 0.8,
     catchOmegaRadps: 25,
+    /**
+     * At the catch the board rises to meet the feet: a vertical velocity that closes this
+     * fraction of the sole-to-grip gap over `feet.catchReachS`, capped, m/s.
+     */
+    catchRiseFraction: 0.6,
+    catchMaxRiseMps: 0.8,
 
     /** An uncaught board lands clean only within this tilt, rad. */
     landTiltRad: 0.5,
@@ -140,12 +154,14 @@ export const RIDER_CONFIG = deepFreeze({
     followOmegaRadps: 8,
     followDampingRatio: 1,
     /**
-     * Rider heading (yaw only) follows the board's long axis (either way round) while
-     * grounded with this rate constant, 1/s, capped at `headingMaxRateRadps`. Held in the
-     * air, so a shove-it spins the board under still feet.
+     * Rider heading (yaw only) follows the direction of travel (the board's long axis when
+     * slow), either way round, while grounded, with this rate constant, 1/s, capped at
+     * `headingMaxRateRadps`. Held in the air, so a shove-it spins the board under still feet.
      */
     headingFollowPerS: 12,
     headingMaxRateRadps: 4,
+    /** Above this ground speed the heading follows the direction of travel, m/s. */
+    headingTravelMinSpeedMps: 0.5,
   },
   bail: {
     /** Both feet detached for longer than this while the board is on its wheels → bail, s. */

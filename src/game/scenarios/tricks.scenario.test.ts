@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { RIDER_CONFIG } from "../../contexts/rider";
+import { deckTopPointLocal, RIDER_CONFIG } from "../../contexts/rider";
 import { Transform, Vec3 } from "../../shared";
 import type { ScenarioHarness } from "./scenario-harness";
 import {
@@ -389,6 +389,64 @@ describe("10. nollie (mirrored from the nose)", () => {
       expect(Math.abs(Math.abs(air.yawRad) - Math.PI)).toBeLessThan(0.3);
       expect(air.bailed).toBe(false);
       expect(feetOn(h)).toBe(true);
+    },
+    T,
+  );
+});
+
+describe("feet never teleport (catch, lift, slides)", () => {
+  /** Largest per-step move of either drawn foot in the rider frame, m. */
+  function maxFootStepM(h: ScenarioHarness, fromS: number): number {
+    let max = 0;
+    const rs = h.since(fromS);
+    for (let i = 1; i < rs.length; i += 1) {
+      const a = rs[i - 1];
+      const b = rs[i];
+      if (a === undefined || b === undefined) continue;
+      for (const id of ["front", "back"] as const) {
+        max = Math.max(max, Vec3.distance(a.rider[id].positionRiderM, b.rider[id].positionRiderM));
+      }
+    }
+    return max;
+  }
+
+  for (const stance of STANCES) {
+    it(
+      `${stance} ollie with a Space catch: each foot moves ≤ 1.5 cm per 1/120 s step, and ends on the grip`,
+      async () => {
+        const h = await track(rolling(1.3, { stance }));
+        const t0 = h.timeS;
+        loadAndPop(h, 0.2);
+        h.foot("front", "up", 0.25, 0.15);
+        catchAt(h, 0.45);
+        h.run(1.5);
+        expect(airSummary(h, t0).bailed).toBe(false);
+        expect(maxFootStepM(h, t0)).toBeLessThanOrEqual(0.015);
+        for (const id of ["front", "back"] as const) {
+          const foot = h.rider[id];
+          const { alongM, acrossM } = foot.deckPosition;
+          const grip = Transform.toWorldPoint(
+            h.board.transform,
+            deckTopPointLocal(h.sim.spec, alongM, acrossM),
+          );
+          expect(Vec3.distance(foot.positionWorldM, grip)).toBeLessThan(0.005);
+        }
+      },
+      T,
+    );
+  }
+
+  it(
+    "kickflip with a Space catch: no foot jump either",
+    async () => {
+      const h = await track(rolling(1.3));
+      const t0 = h.timeS;
+      loadAndPop(h, 0.2);
+      h.foot("front", heel(h.stance), 0.25, 0.1);
+      h.run(0.3);
+      spaceWhenUpright(h, t0);
+      h.run(1.5);
+      expect(maxFootStepM(h, t0)).toBeLessThanOrEqual(0.015);
     },
     T,
   );

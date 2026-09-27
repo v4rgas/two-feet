@@ -27,7 +27,7 @@ export function headingOf(dx: number, dz: number, minLength: number): number | n
  * Chooses what the camera heading should follow (STYLE.md: the direction of travel, never
  * the board's roll/flip). Returns null when nothing is trustworthy (keep the current one).
  * - moving: the horizontal velocity direction;
- * - slow and grounded: the board's nose;
+ * - slow and grounded: the rider's heading (or the board's nose if none is given);
  * - slow and airborne: keep (a spinning board must not swing the camera).
  */
 export function targetHeading(
@@ -118,9 +118,18 @@ export class FollowCameraRig {
     airtimeS: number,
     stance: Stance,
     dtS: number,
+    riderHeadingRad?: number,
   ): void {
     const c = this.config;
-    rotateByPose(board, 1, 0, 0, this.nose);
+    if (riderHeadingRad === undefined) {
+      rotateByPose(board, 1, 0, 0, this.nose);
+    } else {
+      // The rider's heading (upright, never the board's yaw): a shove-it does not swing
+      // the camera.
+      this.nose[0] = Math.cos(riderHeadingRad);
+      this.nose[1] = 0;
+      this.nose[2] = -Math.sin(riderHeadingRad);
+    }
     const wanted = targetHeading(
       velocity,
       this.nose[0],

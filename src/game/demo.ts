@@ -351,6 +351,7 @@ class DemoGame {
       deckPosition: DeckPosition.create(along, across),
       pressure: detached ? 0 : id === "back" && stick.y < -0.5 ? 1 : 0.5,
       positionWorldM: detached ? hover : onDeck,
+      positionRiderM: Vec3.create(along, top.y, across),
       detachedForS: detached ? 0.1 : 0,
     };
   }
@@ -419,6 +420,7 @@ class DemoGame {
       alpha: this.accumulator.alpha,
       previousBoard: this.previous,
       currentBoard: this.current,
+      previousRider: rider,
       rider,
       intents: this.intents,
       stance: this.stance,

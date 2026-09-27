@@ -17,7 +17,7 @@ import {
 } from "./board-geometry";
 import { DeckPosition } from "./deck-position";
 import { clampToDeck, deckTopPointLocal, isOnDeck } from "./deck-surface";
-import { Foot } from "./foot";
+import { Foot, type FootMotionLimits } from "./foot";
 import type { BoardKinematics, DeckGeometry, RiderControls } from "./foot-force-model";
 import { feetPressure, targetDeckPosition } from "./foot-placement";
 import type { RiderState } from "./rider-state";
@@ -69,12 +69,20 @@ export class Rider {
   private bothFeetOffOnWheelsS = 0;
   private upsideDownRestingS = 0;
   private cachedState: RiderState | null = null;
+  private readonly footLimits: FootMotionLimits;
 
   constructor(
     private readonly deck: DeckGeometry,
     private readonly config: RiderConfig,
     board: BoardKinematics,
   ) {
+    const { maxFootSpeedMps, maxFootAccelMps2, catchReachS } = config.feet;
+    // Ease-out time constant: most of a catch gap closes within `catchReachS`.
+    this.footLimits = {
+      maxSpeedMps: maxFootSpeedMps,
+      maxAccelMps2: maxFootAccelMps2,
+      easeS: catchReachS / 3,
+    };
     this.feet = {
       front: new Foot("front", DeckPosition.create(0, 0)),
       back: new Foot("back", DeckPosition.create(0, 0)),
@@ -106,7 +114,8 @@ export class Rider {
       const foot = this.feet[id];
       if (foot.isAttached) continue;
       foot.attach();
-      this.placeFoot(foot, board);
+      // The spot is taken now; the drawn foot eases onto it over `catchReachS`.
+      this.placeFoot(foot, board, 0);
       const at = foot.deckPosition;
       changes.push({
         type: "FootAttached",
@@ -127,7 +136,7 @@ export class Rider {
       const foot = this.feet[id];
       foot.tick(dtS);
       this.moveHold(foot, targetDeckPosition(id, controls[id].stick, this.config.feet), board, dtS);
-      this.placeFoot(foot, board);
+      this.placeFoot(foot, board, dtS);
     }
     const pressure = feetPressure(
       controls,
@@ -172,7 +181,7 @@ export class Rider {
       foot.attach();
       foot.holdAt(targetDeckPosition(id, { x: 0, y: 0 }, this.config.feet));
       foot.setPressure(0);
-      this.placeFoot(foot, board);
+      this.placeFoot(foot, board, null);
     }
   }
 
@@ -206,18 +215,35 @@ export class Rider {
   }
 
   /**
-   * Attached: on the grip tape under the rider-frame position (clamped to the deck).
-   * Airborne: hovering `airLiftM` above that position on a level deck under the torso.
+   * The goal: attached, on the grip tape under the rider-frame position (clamped to the
+   * deck); airborne, hovering `airLiftM` above that position on a level deck under the
+   * torso. The drawn foot follows the goal in the rider frame with limited speed and
+   * acceleration (`dtS` = 0: goal only; null: snap, for a reset), so attaching, detaching
+   * and sliding never jump.
    */
-  private placeFoot(foot: Foot, board: BoardKinematics): void {
+  private placeFoot(foot: Foot, board: BoardKinematics, dtS: number | null): void {
     const heldM = this.heldWorld(foot.riderPosition, 0);
     const spot = spotUnder(board, heldM);
+    let goalWorldM: Vec3;
     if (foot.isAttached && boardUp(board).y > 0) {
       const onDeck = isOnDeck(this.deck, spot) ? spot : clampToDeck(this.deck, spot);
-      foot.place(deckPointWorld(this.deck, board, onDeck), onDeck);
-      return;
+      foot.setSpot(onDeck);
+      goalWorldM = deckPointWorld(this.deck, board, onDeck);
+    } else {
+      foot.setSpot(spot);
+      goalWorldM = this.heldWorld(foot.riderPosition, this.config.feet.airLiftM);
     }
-    foot.place(this.heldWorld(foot.riderPosition, this.config.feet.airLiftM), spot);
+    const yaw = Quat.fromAxisAngle(Vec3.UNIT_Y, this.headingRad);
+    const base = this.riderBase();
+    const goalRiderM = Quat.inverseRotate(yaw, Vec3.sub(goalWorldM, base));
+    if (dtS === null) foot.snapDrawn(goalRiderM);
+    else foot.followDrawn(goalRiderM, dtS, this.footLimits);
+    foot.setWorld(Vec3.add(base, Quat.rotate(yaw, foot.drawnRiderM)));
+  }
+
+  /** The rider frame's origin: under the torso at deck height, m (world). */
+  private riderBase(): Vec3 {
+    return Vec3.sub(this.torsoPositionM, Vec3.create(0, this.config.torso.heightM, 0));
   }
 
   // ── bail ──────────────────────────────────────────────────────────────────
@@ -264,16 +290,22 @@ export class Rider {
   }
 
   /**
-   * The rider heading follows the board's long axis — whichever way round is closer, so a
-   * board that shoves 180° does not turn the rider — while grounded, at most
-   * `headingMaxRateRadps`. In the air it is held.
+   * The rider heading (yaw only) is never snapped to the board's yaw:
+   * - in the air it is held (frozen at takeoff), so shove-its spin under still feet;
+   * - on the ground it follows the direction of travel, either way round (riding fakie
+   *   does not turn the rider), smoothed and rate limited — so carving turns the rider;
+   * - only when slow does it follow the board's long axis (again either way round).
    */
   private updateHeading(board: BoardKinematics, dtS: number): void {
     if (!board.grounded) return;
-    const axis = boardHeadingRad(board);
-    if (axis === null) return;
-    const error = axisErrorRad(axis - this.headingRad);
-    const { headingFollowPerS, headingMaxRateRadps } = this.config.torso;
+    const { headingFollowPerS, headingMaxRateRadps, headingTravelMinSpeedMps } = this.config.torso;
+    const v = board.linearVelocityMps;
+    const target =
+      Math.hypot(v.x, v.z) >= headingTravelMinSpeedMps
+        ? Math.atan2(-v.z, v.x)
+        : boardHeadingRad(board);
+    if (target === null) return;
+    const error = axisErrorRad(target - this.headingRad);
     const rate = Math.max(
       -headingMaxRateRadps,
       Math.min(headingMaxRateRadps, error * headingFollowPerS),
@@ -291,8 +323,7 @@ export class Rider {
       Quat.fromAxisAngle(Vec3.UNIT_Y, this.headingRad),
       Vec3.create(riderPosition.alongM, local.y + liftM, riderPosition.acrossM),
     );
-    const base = Vec3.sub(this.torsoPositionM, Vec3.create(0, this.config.torso.heightM, 0));
-    return Vec3.add(base, offset);
+    return Vec3.add(this.riderBase(), offset);
   }
 }
 

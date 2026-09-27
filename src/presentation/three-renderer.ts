@@ -150,6 +150,11 @@ export class ThreeRenderer implements Renderer {
     this.updateBoard(frame, dtS);
 
     const board = frame.currentBoard;
+    const riderHeadingRad = lerpAngleRad(
+      frame.previousRider.headingRad,
+      frame.rider.headingRad,
+      frame.alpha,
+    );
     this.rig.update(
       this.pose,
       board.linearVelocityMps,
@@ -157,6 +162,7 @@ export class ThreeRenderer implements Renderer {
       board.airtimeS,
       frame.stance,
       dtS,
+      riderHeadingRad,
     );
     this.camera.position.set(this.rig.eye[0], this.rig.eye[1], this.rig.eye[2]);
     this.camera.lookAt(this.rig.target[0], this.rig.target[1], this.rig.target[2]);
@@ -168,8 +174,15 @@ export class ThreeRenderer implements Renderer {
 
     this.updateSun();
     if (this.spec !== null) {
-      this.headingQuat.setFromAxisAngle(Y_AXIS, this.rig.headingRad);
-      this.feet.update(frame.rider, this.spec, this.boardPivot, this.headingQuat, frame.stance);
+      // Feet are upright in the RIDER frame (MECHANICS.md): the rider heading, not the board.
+      this.headingQuat.setFromAxisAngle(Y_AXIS, riderHeadingRad);
+      this.feet.update(
+        frame.previousRider,
+        frame.rider,
+        frame.alpha,
+        this.headingQuat,
+        frame.stance,
+      );
     }
     this.debug.update(frame, dtS);
     this.hud.update(frame, dtS);
@@ -284,4 +297,10 @@ export class ThreeRenderer implements Renderer {
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
   }
+}
+
+/** Shortest-way interpolation between two angles, rad. */
+function lerpAngleRad(a: number, b: number, t: number): number {
+  const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
+  return a + d * t;
 }

@@ -206,6 +206,7 @@ export class TrickController implements FootForceModel {
       this.air(input, keys, frame, out);
       const attempt = feetDownPressed || (this.config.tricks.autoCatchOnRelease && releasedNow);
       if (attempt && !this.caught) caught = this.tryCatch(rider, frame);
+      if (caught) this.catchRise(input, out);
       if (this.caught) this.catchAssist(input.mass, rider, frame, out);
     }
     return { forces: out, popped, caught };
@@ -689,6 +690,32 @@ export class TrickController implements FootForceModel {
     }
     this.catchLockS = t.catchRetryS;
     return false;
+  }
+
+  /**
+   * The catch closes the gap between the soles and the grip mostly by the BOARD rising into
+   * the feet, like a real catch: a vertical impulse through the centre of mass that covers
+   * `catchRiseFraction` of the mean gap over `catchReachS` (capped). Never horizontal.
+   */
+  private catchRise({ rider, board, mass }: FootForceInput, out: FootForce[]): void {
+    const { catchRiseFraction, catchMaxRiseMps } = this.config.tricks;
+    const { catchReachS } = this.config.feet;
+    let gapM = 0;
+    for (const id of FOOT_IDS) {
+      const foot = rider[id];
+      gapM += foot.positionWorldM.y - deckPointWorld(this.deck, board, foot.deckPosition).y;
+    }
+    gapM /= FOOT_IDS.length;
+    if (gapM <= 0) return;
+    const riseMps = Math.min(catchMaxRiseMps, (catchRiseFraction * gapM) / catchReachS);
+    out.push(
+      impulseAt(
+        "front",
+        "catch",
+        Vec3.create(0, mass.massKg * riseMps, 0),
+        mass.centerOfMassWorldM,
+      ),
+    );
   }
 
   /**
