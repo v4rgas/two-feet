@@ -1,4 +1,12 @@
+import type { GraffitiOnFaceOptions, PerimeterSide } from "../../contexts/world";
 import { deepFreeze, degToRad } from "../../shared";
+
+/** A sponsor's spot on the fence line (see `fence.spots`). */
+export interface BannerSpot {
+  readonly side: PerimeterSide;
+  readonly atM: number;
+  readonly sponsorId: string | null;
+}
 
 /*
  * EL TORO's parameters (world metres; the big drop goes toward +X, the top nosing of the
@@ -12,7 +20,7 @@ import { deepFreeze, degToRad } from "../../shared";
  *   x =   0 └────────────┴──── retaining wall ── 20-STAIR ── wall ────┴────┘
  *   x =   6          4-stair landing ←┐  foot   courtyard   ADA ramp toe ↑
  *   x = 13…19.5   lower terrace + 4-stair   landing lane   curb   planter ledge
- *   x = 23   ─────────────────── fence line (low wall) ─────────────────────
+ *   x = 23   ─────────────────── fence line (barriers) ─────────────────────
  */
 
 /** An axis-aligned footprint on the ground (or on the quad), m. */
@@ -252,36 +260,69 @@ export const EL_TORO = deepFreeze({
     },
   ] satisfies Block[],
   curbChamferM: 0.02,
-  /** The school fence line: a low wall (the fence's footing) round the courtyard. */
-  fence: [
-    {
-      id: "fence-east",
-      name: "Low wall",
-      minXM: 23,
-      maxXM: 23.3,
-      minZM: -11.1,
-      maxZM: 12.8,
-      heightM: 0.45,
-    },
-    {
-      id: "fence-north",
-      name: "Low wall",
-      minXM: 0,
-      maxXM: 23,
-      minZM: 12.5,
-      maxZM: 12.8,
-      heightM: 0.45,
-    },
-    {
-      id: "fence-south",
-      name: "Low wall",
-      minXM: 0,
-      maxXM: 23,
-      minZM: -11.1,
-      maxZM: -10.8,
-      heightM: 0.45,
-    },
-  ] satisfies Block[],
+  /**
+   * The school fence line round the courtyard: `barrier` segments (solid, never grindable)
+   * on its east (x 23–23.3, behind the roll-out), north (z 12.5–12.8) and south
+   * (z −11.1…−10.8) sides; the quad and the classroom blocks close the west. Ids are
+   * `fence-<side>-<n>`.
+   */
+  fence: {
+    bounds: { minXM: 0, maxXM: 23.3, minZM: -11.1, maxZM: 12.8 },
+    sides: ["south", "east", "north"] satisfies PerimeterSide[],
+    heightM: 0.9,
+    thicknessM: 0.3,
+    segmentLengthM: 4,
+    /**
+     * The sponsors' spots: the segment on `side` spanning `atM` (world X on north/south,
+     * world Z on east) carries `sponsorId`. BipBop Labs and v4rgas side by side on the
+     * east fence, square to the drop (the backdrop seen from the top of the stairs and in
+     * the montage), and again on the north fence behind the planter ledge.
+     */
+    spots: [
+      { side: "east", atM: -1, sponsorId: "bipbop" },
+      { side: "east", atM: 2.8, sponsorId: "v4rgas" },
+      { side: "north", atM: 13.6, sponsorId: "bipbop" },
+      { side: "north", atM: 9.7, sponsorId: "v4rgas" },
+    ] satisfies BannerSpot[],
+    /** Every other segment, in ring order: mostly plain, a house banner now and then. */
+    rhythm: [null, "house-deck", null, null, "house-feet", null],
+    /** Only segments this long carry a banner (the art is a ≈ 5:1 tile on a 0.9 m wall). */
+    bannerSegmentM: { min: 3.4, max: 4.5 },
+  },
+  /**
+   * Banner boards on the quad's retaining walls beside the stairs (x = 0), facing the
+   * courtyard: thin `barrier` plates fixed to the wall between the handrail approaches
+   * (|z| ≤ 2.7) and the ramp, below the lip. Sized to the art's 5:1 tile.
+   */
+  wallBanners: {
+    heightM: 0.7,
+    thicknessM: 0.08,
+    /** Height of the board's bottom above the courtyard, m. */
+    baseYM: 1.9,
+    boards: [
+      { id: "wall-banner-north", zM: 4.2, lengthM: 2.8, sponsorId: "bipbop" },
+      { id: "wall-banner-south", zM: -4.2, lengthM: 2.8, sponsorId: "v4rgas" },
+    ],
+  },
+  /** A couple of graffiti pieces (STYLE.md): walls only, never the stairs or a riding surface. */
+  graffiti: {
+    /** The south wing's end wall (x = 0), the backdrop of the 4-stair's landing. */
+    endWall: {
+      pieceId: "v4rgas-throwup",
+      face: "+x",
+      sizeM: 1.8,
+      heightM: 1.5,
+    } satisfies GraffitiOnFaceOptions,
+    /** The quad's north retaining wall above the walkway ramp (at world x ≈ −4). */
+    rampWall: {
+      pieceId: "penguin-king",
+      face: "+z",
+      sizeM: 1,
+      alongM: 4,
+      heightM: 2.5,
+      rotationRad: 0.04,
+    } satisfies GraffitiOnFaceOptions,
+  },
 });
 
 /** El Toro's parameters (deeply readonly). */

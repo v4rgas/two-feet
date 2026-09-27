@@ -44,7 +44,7 @@ const CREDIT = {
   text: "made by v4rgas",
   linkText: "v4rgas.com",
   href: "https://v4rgas.com",
-  iconSrc: `${import.meta.env.BASE_URL}brand/v4rgas/penguin.png`,
+  iconSrc: `${import.meta.env.BASE_URL}sponsors/v4rgas/penguin.png`,
 } as const;
 
 /** Read-only handle for browser checks (dev builds: `window.__skate`). */

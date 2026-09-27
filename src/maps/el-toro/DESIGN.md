@@ -53,7 +53,7 @@ California campus, built to fit the facts above.
 | Landing onto campus concrete | A **lower courtyard**. It has 17 m of clear roll-out past the foot, then the fence line. |
 | Way back up | A **10° walkway ramp** (ADA-style, though steeper than a real 1:12 ramp) that runs along the quad's north retaining wall. It goes from the courtyard up to a landing at the back of the quad, with a 0.9 m guard rail against the north wing. Pushing up it works (scenario). The landing stands 3 cm above the quad and overlaps its edge, so you roll off a small lip and never hit a seam. |
 | Other spots on campus | See "Secondary spots" below. |
-| Gates and a school fence | A **fence line** (a 0.45 m low wall, the fence's footing) round the courtyard. |
+| Gates and a school fence | A **fence line** of 0.9 m barriers round the courtyard (east, north and south), with the sponsor banners. |
 
 The whole map fits in about 42 × 24 m (x −19…23.3, z −11.1…12.8). A test checks that
 it stays within 43 × 30 m.
@@ -78,31 +78,33 @@ it stays within 43 × 30 m.
 - Every other block stands on a deck or on the ground, and no riding surface meets
   another flush. `el-toro.test.ts` checks all of this.
 
-## Barriers, sponsor banners and graffiti (planned, not built yet)
+## Barriers, sponsor banners and graffiti
 
-Another worktree is adding a `barrier` kind with sponsor banners (BipBop Labs,
-bipbop.cl, and v4rgas) and graffiti decals. The layout leaves room for them here:
+Built in `el-toro-dressing.ts` from `EL_TORO.fence`, `wallBanners` and `graffiti` (tested
+in `el-toro.test.ts`).
 
-- **Fence (barrier kind):** it goes on the fence line, on top of the low walls or
-  replacing them:
-  - `fence-east`, x = 23…23.3, z −11.1…12.8. This is behind the roll-out, square to
-    the drop, so every shot down the set frames it.
-  - `fence-north`, z = 12.5…12.8, x 0…23.
-  - `fence-south`, z = −11.1…−10.8, x 0…23.
-  The south fence doubles as the rail for a fence-to-rail transfer, like the real one.
+- **Fence line:** the three low courtyard walls are now `barrier` segments, 0.9 m high
+  and ≈ 3.9 m long (solid, never grindable), ids `fence-<side>-<n>`: east
+  (x 23–23.3, z −10.8…12.5, behind the roll-out, square to the drop), north
+  (z 12.5–12.8, x 0…23.3) and south (z −11.1…−10.8, x 0…23.3). The quad and the
+  classroom blocks close the west. (The first plan had the south fence double as a
+  fence-to-rail transfer; barriers are never grindable, so that one is gone.)
 - **Banners:**
-  1. The **east fence**, centred on z ≈ 0 and facing −X. It is the backdrop of the
-     landing, seen from the top of the stairs and in the montage tripod shot.
-  2. The **north fence** by the planter ledge, facing −Z.
-  3. The **quad's +X retaining wall** beside the stairs (x = 0, z 2.6…5.7 and
-     −5.7…−2.6), facing +X, seen from the courtyard. This could also be a low barrier
-     at the lip line behind the edge planters.
-  Use one banner for each sponsor on the east fence, and repeat them on the north fence.
-- **Graffiti:**
-  - The quad's retaining walls beside the stairs (x = 0 faces).
-  - The quad's north retaining wall along the ramp (z = 6, above the ramp's surface).
-  - The south wing's end wall facing the 4-stair's landing (x = 0, z −10.8…−6).
-  - The terrace's west wall beside the 4-stair.
-  - The back of the lunch-table benches is optional.
-  Keep graffiti off the riding surfaces and off the stairs, so the nosings stay
-  readable.
+  1. **East fence:** BipBop Labs (z −3…0.85) and v4rgas (z 0.85…4.7) side by side,
+     facing −X, the backdrop of the landing seen from the top of the stairs and in the
+     montage tripod shot.
+  2. **North fence:** the same pair behind the planter ledge (v4rgas x 7.8–11.7,
+     BipBop Labs x 11.7–15.5), facing −Z.
+  3. **Retaining walls beside the stairs:** a thin banner board (2.8 × 0.7 m, 8 cm
+     thick) fixed to each x = 0 wall, 1.9–2.6 m up, facing the courtyard: BipBop Labs on
+     the north wall (z 2.8…5.6), v4rgas on the south wall (z −5.6…−2.8). They stay
+     outside the handrail approaches (|z| ≤ 2.7) and below the lip.
+  The fence's other segments are mostly plain, with a house banner now and then; every
+  sponsor pair has plain wall either side.
+- **Graffiti** (two pieces, walls only, never the stairs or a riding surface):
+  - a `v4rgas-throwup` on the south wing's end wall (x = 0, z ≈ −8.4), the backdrop of
+    the 4-stair's landing;
+  - a `penguin-king` on the quad's north retaining wall above the walkway ramp (z = 6,
+    x ≈ −4, ≈ 2.5 m up, clear of the ramp's surface), seen pushing up the ramp.
+  The retaining walls beside the stairs carry the banner boards instead of paint, and the
+  terrace's west wall is taken up by the 4-stair itself.

@@ -3,6 +3,7 @@ import { groundObstacle, Level, ObstacleShape, stairsHeightM } from "../../conte
 import { Quat, Transform, Vec3 } from "../../shared";
 import type { Block, ElToroParams, Rect } from "./el-toro.config";
 import { EL_TORO } from "./el-toro.config";
+import { elToroFence, elToroGraffiti, elToroWallBanners } from "./el-toro-dressing";
 
 export type { Block, ElToroParams, Rect } from "./el-toro.config";
 export { EL_TORO } from "./el-toro.config";
@@ -13,7 +14,9 @@ export { EL_TORO } from "./el-toro.config";
  * walkway and lunch tables; the 20-stair (a handrail down each side) into a lower
  * courtyard with a long roll-out; a 10° walkway ramp back up along the north retaining
  * wall; and the smaller spots a real campus has (a 4-stair off a lower terrace, a planter
- * ledge, a curb). Built only from the world context's obstacle kinds; the parameters are
+ * ledge, a curb), all inside the school fence line (sponsor and house banners on its
+ * barriers, banner boards on the retaining walls, a couple of graffiti pieces:
+ * `el-toro-dressing.ts`). Built only from the world context's obstacle kinds; the parameters are
  * in `el-toro.config.ts`, the research and the choices in DESIGN.md.
  *
  * Seams (ADR 0008): the quad and the terrace are each ONE funbox piece that buries its
@@ -216,13 +219,15 @@ export function createElToroLevel(p: ElToroParams = EL_TORO): Level {
     ...p.quad.map((b) => block(b, quadY, p.chamferM)),
     ...lunchBlocks(p).map((b) => block(b, quadY, p.chamferM)),
     ...p.courtyard.map((b) => block(b, 0, b.id === "curb" ? p.curbChamferM : p.chamferM)),
-    ...p.fence.map((b) => block(b, 0, p.chamferM)),
+    ...elToroWallBanners(p, pl.maxXM),
+    ...elToroFence(p),
   ];
 
   return Level.create({
     id: "el-toro",
     name: "El Toro",
     obstacles,
+    graffiti: elToroGraffiti(p, obstacles),
     spawn: {
       positionM: Vec3.create(s.xM - p.spawn.runUpM, quadY, s.zM + p.spawn.zM),
       headingRad: p.spawn.headingRad,

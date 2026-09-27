@@ -9,6 +9,7 @@ import {
 import { Quat, Transform, Vec3 } from "../../shared";
 import type { StreetConfig } from "./street.config";
 import { STREET_CONFIG } from "./street.config";
+import { streetDeckFence, streetGraffiti, streetPerimeter } from "./street-dressing";
 
 /** Pose on the ground at (x, z), turned `headingRad` about world +Y. */
 function placed(xM: number, zM: number, headingRad = 0): Transform {
@@ -25,6 +26,8 @@ function placed(xM: number, zM: number, headingRad = 0): Transform {
  * - north lane: a 3-stair with a kinked handrail down its middle, two manual pads, a hip
  *   in the corner;
  * - south lanes: a long ledge; a euro-gap platform, an up-ledge and a bank-to-ledge.
+ * Around it: the perimeter barriers with the sponsor and house banners, a banner fence on
+ * the quarter pipe's deck, and a couple of graffiti pieces (`street-dressing.ts`).
  * Every obstacle is data; `obstacleGeometry` builds the pieces.
  */
 export function createStreetCourseLevel(s: StreetConfig = STREET_CONFIG): Level {
@@ -218,12 +221,15 @@ export function createStreetCourseLevel(s: StreetConfig = STREET_CONFIG): Level 
         edgeChamferM: s.upLedge.edgeChamferM,
       }),
     },
+    ...streetDeckFence(s, qpShape),
+    ...streetPerimeter(s),
   ];
 
   return Level.create({
     id: "street",
     name: "Street Course",
     obstacles,
+    graffiti: streetGraffiti(s, obstacles),
     spawn: {
       positionM: Vec3.create(s.spawn.xM, stairsHeightM(bigStairs), s.spawn.zM),
       headingRad: s.spawn.headingRad,

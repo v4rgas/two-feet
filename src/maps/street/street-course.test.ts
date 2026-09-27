@@ -53,9 +53,16 @@ function byId(id: string): Obstacle {
   return o;
 }
 
-const FEATURES = level.obstacles.filter((o) => o.id !== "ground");
+/** Everything above the ground slab: the features and the barriers round them. */
+const STANDING = level.obstacles.filter((o) => o.id !== "ground");
+/** The skateable features (the barriers and the deck fence are dressing, tested below). */
+const FEATURES = STANDING.filter((o) => o.shape.kind !== "barrier");
+const BARRIERS = STANDING.filter((o) => o.shape.kind === "barrier");
 
-/** Nothing (but `except`) stands in the lane x ∈ [x0, x0 + lengthM], z ∈ [z0, z1]. */
+/**
+ * Nothing (but `except`) stands in the lane x ∈ [x0, x0 + lengthM], z ∈ [z0, z1]: no
+ * feature and no barrier.
+ */
 function expectClear(
   what: string,
   x0: number,
@@ -64,7 +71,7 @@ function expectClear(
   z1: number,
   except: readonly string[],
 ): void {
-  for (const o of FEATURES) {
+  for (const o of STANDING) {
     if (except.includes(o.id)) continue;
     const r = footprint(o);
     const blocks = r.maxX > x0 && r.minX < x0 + lengthM && r.maxZ > z0 && r.minZ < z1;
@@ -181,6 +188,7 @@ describe("street course level", () => {
     const lowPad = footprint(byId("manual-pad-low"));
     expectClear("manual-pad-low", lowPad.maxX, 2, lowPad.minZ, lowPad.maxZ, ["manual-pad-low"]);
     for (const id of [
+      "hip",
       "manual-pad-high",
       "long-ledge",
       "flat-bar",
@@ -278,6 +286,109 @@ describe("street course level", () => {
     expect(top.endM.x).toBeCloseTo(small.transform.positionM.x, 9);
     expect(top.endM.y).toBeCloseTo(stairsHeightM(small.shape) + S.kinkedRail.heightM, 9);
     expect(down.endM.x).toBeCloseTo(small.transform.positionM.x + stairsFootXM(small.shape), 9);
+  });
+});
+
+describe("street course dressing (barriers, banners, graffiti)", () => {
+  const P = S.perimeter;
+  const ring = BARRIERS.filter((o) => o.id.startsWith("barrier-"));
+  const sponsorOf = (o: Obstacle): string | null =>
+    o.shape.kind === "barrier" ? (o.shape.banner?.sponsorId ?? null) : null;
+  const overlaps = (a: Rect, b: Rect): boolean =>
+    a.maxX > b.minX + 1e-6 &&
+    b.maxX > a.minX + 1e-6 &&
+    a.maxZ > b.minZ + 1e-6 &&
+    b.maxZ > a.minZ + 1e-6;
+
+  it("rings the course inside the perimeter, clear of every feature, with the entry gaps open", () => {
+    expect(ring.length).toBeGreaterThan(20);
+    for (const o of ring) {
+      const r = footprint(o);
+      expect(r.minX).toBeGreaterThanOrEqual(P.minXM - 1e-9);
+      expect(r.maxX).toBeLessThanOrEqual(P.maxXM + 1e-9);
+      expect(r.minZ).toBeGreaterThanOrEqual(P.minZM - 1e-9);
+      expect(r.maxZ).toBeLessThanOrEqual(P.maxZM + 1e-9);
+      expect(obstacleGrindEdges(o), `${o.id} is never grindable`).toEqual([]);
+      for (const f of FEATURES) {
+        expect(overlaps(r, footprint(f)), `${o.id} overlaps ${f.id}`).toBe(false);
+      }
+    }
+    for (const gap of P.openings) {
+      const alongX = gap.side === "north" || gap.side === "south";
+      for (const o of ring.filter((b) => b.id.includes(`-${gap.side}-`))) {
+        const r = footprint(o);
+        const lo = alongX ? r.minX : r.minZ;
+        const hi = alongX ? r.maxX : r.maxZ;
+        const blocks =
+          hi > gap.centerM - gap.widthM / 2 + 1e-6 && lo < gap.centerM + gap.widthM / 2 - 1e-6;
+        expect(blocks, `${o.id} closes the ${gap.side} gap`).toBe(false);
+      }
+    }
+  });
+
+  it("leaves a flat run-up of ≥ 4.5 m west of both stair decks' roll-up slopes", () => {
+    const westFace = Math.max(
+      ...ring.filter((o) => o.id.includes("-west-")).map((o) => footprint(o).maxX),
+    );
+    for (const id of ["big-stairs", "small-stairs"]) {
+      expect(footprint(byId(id)).minX - westFace, id).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("puts BipBop Labs and v4rgas on their prime spots, each flanked by plain wall", () => {
+    const fence = BARRIERS.filter((o) => o.id.startsWith("qp-deck-fence-"));
+    const bipbopDeck = fence.filter((o) => sponsorOf(o) === "bipbop");
+    expect(bipbopDeck).toHaveLength(1);
+    const deck = bipbopDeck[0] as Obstacle;
+    // On the quarter pipe's deck (so it shows above it), centred on the main line, facing −X.
+    expect(deck.transform.positionM.y).toBeCloseTo(S.quarterPipe.heightM, 9);
+    expect(deck.transform.positionM.z).toBeCloseTo(0, 9);
+    expect(Transform.toWorldDirection(deck.transform, Vec3.UNIT_Z).x).toBeCloseTo(-1, 9);
+    const qp = footprint(byId("qp-east"));
+    expect(footprint(deck).maxX).toBeLessThanOrEqual(qp.maxX + 1e-9);
+    expect(footprint(deck).minX).toBeGreaterThan(qp.maxX - S.quarterPipe.deckDepthM / 2);
+
+    const spanX = (o: Obstacle) => footprint(o);
+    const onSide = (side: string, sponsor: string) =>
+      ring.filter((o) => o.id.includes(`-${side}-`) && sponsorOf(o) === sponsor);
+    const southBipbop = onSide("south", "bipbop");
+    expect(southBipbop).toHaveLength(1);
+    const ledge = footprint(byId("long-ledge"));
+    const sb = spanX(southBipbop[0] as Obstacle);
+    expect(Math.min(sb.maxX, ledge.maxX) - Math.max(sb.minX, ledge.minX)).toBeGreaterThan(3);
+    const northV4 = onSide("north", "v4rgas");
+    expect(northV4).toHaveLength(1);
+    const pad = footprint(byId("manual-pad-high"));
+    const nv = spanX(northV4[0] as Obstacle);
+    expect(Math.min(nv.maxX, pad.maxX) - Math.max(nv.minX, pad.minX)).toBeGreaterThan(3);
+    const westV4 = onSide("west", "v4rgas");
+    expect(westV4).toHaveLength(1);
+    const wv = spanX(westV4[0] as Obstacle);
+    expect(wv.minZ).toBeLessThan(S.bigStairs.zM + S.bigStairs.widthM / 2);
+    expect(wv.maxZ).toBeGreaterThan(S.bigStairs.zM - S.bigStairs.widthM / 2);
+
+    // Not wall-to-wall logos: at most a third of the ring carries a banner, and every
+    // sponsor banner has plain wall on both sides.
+    expect(ring.filter((o) => sponsorOf(o) !== null).length).toBeLessThanOrEqual(ring.length / 3);
+    ring.forEach((o, i) => {
+      const id = sponsorOf(o);
+      if (id !== "bipbop" && id !== "v4rgas") return;
+      const side = o.id.split("-").at(-2);
+      for (const n of [ring[i - 1], ring[i + 1]]) {
+        if (n === undefined || n.id.split("-").at(-2) !== side) continue;
+        expect(sponsorOf(n), `${n.id} beside ${o.id}`).toBeNull();
+      }
+    });
+  });
+
+  it("carries a couple of graffiti pieces, on walls only (never a riding surface)", () => {
+    const pieces = level.graffiti ?? [];
+    expect(pieces.length).toBeGreaterThanOrEqual(2);
+    expect(pieces.length).toBeLessThanOrEqual(4);
+    for (const g of pieces) {
+      expect(Math.abs(g.normal.y), g.pieceId).toBeLessThan(1e-9);
+      expect(g.positionM.y).toBeGreaterThan(g.sizeM * 0.2);
+    }
   });
 });
 
