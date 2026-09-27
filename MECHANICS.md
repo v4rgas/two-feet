@@ -207,7 +207,19 @@ for the recognizer, based on stance.
     the torso turns up to `windUpMaxRad` (≈ 0.6 rad).
   - At the pop, the stored wind-up becomes an initial spin rate,
     `windUpSpinRadps × windUpFraction`.
-  - Otherwise `Q`/`E` do nothing on the ground. Carving stays on the foot keys.
+- **Steering (on the ground, not loaded):** `Q` turns left and `E` turns
+  right, as seen from the camera (the direction of travel turns
+  counter-clockwise or clockwise from above), in both stances and riding
+  fakie.
+  - It works through the **same lean → truck steer path as carving**. It
+    sets a lean target (`steerLeanFraction` ≈ 0.8 of max lean, eased in and
+    out over `steerLeanResponseS` ≈ 0.12 s), so the deck leans visibly and
+    the turn radius is the trucks' normal one. It never applies a yaw
+    torque.
+  - It adds to the foot-key carve lean, clamped to max lean. It doesn't
+    apply while loaded (that's the wind-up) or in a manual.
+  - It never adds speed (no thrust; grip scrub may slow you a little in
+    tight turns, as in a carve).
 - **Spin (in the air):**
   - Holding `Q`/`E` speeds the rider's heading up toward
     `±bodySpinRateRadps` (≈ 14 rad/s, a 360 in about 0.5 s with the wind-up),
@@ -630,6 +642,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 12b. **Body 360:** the same with `Q` held until about 2π. It lands rolling forward.
 12c. **Line-up:** in the air, `E` held briefly to about 90°, no catch, landing on flat ground. That's a bail (sideways), with no explosion.
 12d. **180 flip:** wind up with `E`, pop, kickflip `A`, keep `E` held, then `Space`. The board and the body both turn about π (the board's yaw relative to the body is about 0) and it's named "BS 180 Kickflip" in regular. With a shove added, the board's yaw relative to the body is about ±π.
+12g. **Q/E steer:** rolling at 3 m/s, holding `Q` for 1 s turns the travel direction left (CCW from above) by at least 30°. `E` turns it right, the same in goofy and fakie. Speed never rises, and the deck leans.
 12e. **Heelflip:** load, pop, `D` 0.05 s later, release, then `Space` near 2π. Roll = 2π ± 0.3 in the opposite direction to the kickflip, with a clean landing. Also `W`+`D`.
 12f. **Nollie heelflip:** hold `W` + `↑`, release `W`, `→` 0.05 s later, `Space`. Roll = 2π, heelflip direction, clean landing. Also nollie kickflip with `←`. Both stances.
 13. **Idle:** 10 s with no input. No drift and no bail.
