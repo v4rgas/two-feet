@@ -81,7 +81,9 @@ approach search (`approachHorizonS` 1, `approachStepS` 0.01, `approachCentreAbov
   only once no flip, shove or body spin is running. Earlier it guessed the wrong stance
   mid-flip and pulled G4 boards into the hubba.
 - **Lip catch.** A lock part up to `lockBelowM + lipCatchBelowM` below the edge top, rising or
-  roughly level, and within reach square to the edge, locks (the lock PD lifts it).
+  roughly level, and within reach square to the edge, locks (the lock PD lifts it). It
+  also works over the start of a one-sided edge (ADR 0009, "Entry over an edge's start"):
+  the lock comes before the trucks reach the end face.
 - **Angle bands.** The parallel and perpendicular tolerances widen (0.55 / 0.80 rad at normal).
 - **Flip-in catch.** A board up to `lockTiltWidenRad` further from upright than
   `lockMaxTiltRad`, turning slower than `catchMaxOmegaRadps`, still locks. The stance PD then

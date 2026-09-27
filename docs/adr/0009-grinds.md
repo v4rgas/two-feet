@@ -65,6 +65,20 @@ While locked, it suspends the channels, the body follow and the landing logic.
   (either way round), the edge's up, the stance pitch (`grindPitchRad` for a 5-0 or a
   nosegrind, `slidePitchRad` for a tail- or noseslide, the kick down), and a visual roll
   toward the side the balance tips to.
+- **Entry over an edge's start** (one-sided edges, grinds). A grind coming in over the
+  start of a ledge (or over its end, going the other way) locks before its locked point is
+  over the edge: from when the leading truck's wheel is within its radius plus
+  `entryLeadS` (0.03 s) of travel of the end face. Until the locked point is over the
+  edge, the lock holds the edge line extended back. While the trailing truck's inner wheel
+  has not passed the end face, the lock also holds the board higher by that wheel's drop
+  below the locked point (a board still pitched nose-up from the ollie carries its tail
+  wheel lower). Before, the lock waited for the board's middle to be over the edge, so a
+  pop that topped out a few centimetres under the top put a truck's wheels into the end
+  face first and the board stopped dead (El Toro's planter wall had to come down from
+  0.42 m to 0.38 m). Now the lip catch lifts it onto the top first, with no thrust (the
+  lock PD acts square to the edge only). Scenario: El Toro, "ledge starts" (a 0.42 m
+  planter wall, a pop ≈ 3 cm low). A pop that tops out low *and early* (already falling
+  at the start) is still not caught: the lip catch needs a board that is rising or level.
 - **Continuation.** Past the end of a segment, the lock moves on to the next segment of the
   same obstacle that runs the same way (the hubba's flat top into its slope). It bridges
   gaps of up to `continueGapM`.

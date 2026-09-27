@@ -254,7 +254,7 @@ export class GrindController {
       if (pointLocal === null) continue;
       const p = Transform.toWorldPoint(board.transform, pointLocal);
       const s = Vec3.dot(Vec3.sub(p, edge.startM), u);
-      if (s < 0 || s > frame.lengthM) continue;
+      if ((s < 0 || s > frame.lengthM) && !this.entering(kind, frame, board, p, s)) continue;
       const toPoint = Vec3.sub(p, Vec3.add(edge.startM, Vec3.scale(u, s)));
       let distanceM = Vec3.length(toPoint);
       // Across a top surface the inner truck's wheels reach it first: they reach down
@@ -289,6 +289,71 @@ export class GrindController {
     this.lock = best.lock;
     this.locks += 1;
     return true;
+  }
+
+  /**
+   * ENTRY (one-sided edges: ledges, hubbas, coping). A grind that comes in over an edge's
+   * start (or over its end, going the other way) locks and holds before its locked point
+   * is over the edge: from when its leading truck's wheel is within the wheel radius plus
+   * `entryLeadS` of travel of the end face. Until then the lock holds the edge line
+   * extended back, so it lifts a board that pops a hair low onto the top (the lip catch)
+   * before a wheel meets the end face, instead of the trucks stopping dead against it.
+   * True while `p` (the locked point, `s` along the edge) is in that entry zone and the
+   * board moves into the edge.
+   */
+  private entering(
+    kind: GrindKind,
+    frame: EdgeFrame,
+    board: BoardKinematics,
+    p: Vec3,
+    s: number,
+  ): boolean {
+    if (frame.edge.twoSided || isSlide(kind)) return false;
+    const vAlong = Vec3.dot(board.linearVelocityMps, frame.u);
+    const dir = s < 0 ? 1 : -1; // the way into the edge
+    if (vAlong * dir <= 0) return false;
+    const { trucks, wheels } = this.deck;
+    let lead = 0;
+    for (const x of [-trucks.wheelbaseM / 2, trucks.wheelbaseM / 2]) {
+      const truck = Transform.toWorldPoint(board.transform, Vec3.create(x, 0, 0));
+      lead = Math.max(lead, dir * Vec3.dot(Vec3.sub(truck, p), frame.u));
+    }
+    const allowanceM = lead + wheels.radiusM + Math.abs(vAlong) * this.config.grind.entryLeadS;
+    const outsideM = s < 0 ? -s : s - frame.lengthM;
+    return outsideM <= allowanceM;
+  }
+
+  /**
+   * ENTRY LIFT: while the trailing truck's inner wheel has not yet passed an entry end face
+   * (the start, or the end coming the other way) of a one-sided edge, the lock holds the
+   * board this much higher, m, so that wheel clears the top too, not only the locked point
+   * (a board still pitched nose-up from the ollie carries its tail wheel lower). 0 elsewhere.
+   */
+  private entryLiftM(lock: Lock, board: BoardKinematics, p: Vec3): number {
+    const { frame } = lock;
+    if (frame.edge.twoSided || isSlide(lock.kind)) return 0;
+    const vAlong = Vec3.dot(board.linearVelocityMps, frame.u);
+    if (vAlong === 0) return 0;
+    const dir = vAlong > 0 ? 1 : -1;
+    const { trucks, wheels } = this.deck;
+    let trail: Vec3 | null = null;
+    let trailAlong = Number.POSITIVE_INFINITY;
+    for (const x of [-trucks.wheelbaseM / 2, trucks.wheelbaseM / 2]) {
+      const wheel = Transform.toWorldPoint(
+        board.transform,
+        Vec3.create(x, lock.pointLocal.y, lock.pointLocal.z),
+      );
+      const along = dir * Vec3.dot(Vec3.sub(wheel, p), frame.u);
+      if (along < trailAlong) {
+        trailAlong = along;
+        trail = wheel;
+      }
+    }
+    if (trail === null) return 0;
+    const sTrail = Vec3.dot(Vec3.sub(trail, frame.edge.startM), frame.u);
+    const before = dir > 0 ? sTrail < wheels.radiusM : sTrail > frame.lengthM - wheels.radiusM;
+    if (!before) return 0;
+    return Math.max(0, Vec3.dot(Vec3.sub(p, trail), frame.m));
   }
 
   /**
@@ -461,13 +526,15 @@ export class GrindController {
 
     let p = Transform.toWorldPoint(board.transform, lock.pointLocal);
     let s = Vec3.dot(Vec3.sub(p, lock.frame.edge.startM), lock.frame.u);
-    if (s < 0 || s > lock.frame.lengthM) {
-      if (!this.continueOnto(lock, p, ctx)) {
+    const outside = s < 0 || s > lock.frame.lengthM;
+    if (outside && !this.entering(lock.kind, lock.frame, board, p, s)) {
+      if (this.continueOnto(lock, p, ctx)) {
+        p = Transform.toWorldPoint(board.transform, lock.pointLocal);
+        s = Vec3.dot(Vec3.sub(p, lock.frame.edge.startM), lock.frame.u);
+      } else {
         this.release();
         return "rollOff";
       }
-      p = Transform.toWorldPoint(board.transform, lock.pointLocal);
-      s = Vec3.dot(Vec3.sub(p, lock.frame.edge.startM), lock.frame.u);
     }
     // The line the lock holds: the edge, or across a joint the chord under the trucks.
     const support = this.supportLine(lock, board, ctx.edges);
@@ -503,7 +570,11 @@ export class GrindController {
 
     // LOCK PD: the point onto the target line, square to the edge only; carry gravity.
     const target =
-      support.target ?? Vec3.add(Vec3.add(lock.frame.edge.startM, Vec3.scale(u, s)), lock.offset);
+      support.target ??
+      Vec3.add(
+        Vec3.add(lock.frame.edge.startM, Vec3.scale(u, s)),
+        Vec3.add(lock.offset, Vec3.scale(m, this.entryLiftM(lock, board, p))),
+      );
     const error = across(Vec3.sub(target, p), u);
     let wanted = Vec3.scale(error, g.lockOmegaPerS);
     const wantedSpeed = Vec3.length(wanted);

@@ -62,7 +62,10 @@ travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md
   nose; FS / BS come from where the edge was at takeoff (toes = FS). While locked, the
   **lock PD** holds the locked point on the edge line (square to it only), the **stance
   PD** holds the attitude, friction brakes along the edge, and gravity along a sloped edge
-  is left alone (no thrust). Across a joint of a bar (a kink), the lock holds the chord
+  is left alone (no thrust). On a one-sided edge (ledge, hubba, coping) a grind coming
+  in over the start locks just before its trucks reach the end face, and is held on the
+  edge line extended back, lifted so its trailing wheel clears the top too (**entry**).
+  Across a joint of a bar (a kink), the lock holds the chord
   under the board's two contacts instead, so the board eases onto the next run
   (`jointLeadS`, `jointClearM`; ADR 0009).
 - **Balance**: in [−1, 1], + toward the toe side. A seeded random walk scaled by the slope,

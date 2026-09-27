@@ -292,6 +292,12 @@ export const RIDER_CONFIG = deepFreeze({
      * there, instead of the truck dropping onto it, s.
      */
     jointLeadS: 0.06,
+    /**
+     * ENTRY (one-sided edges): a grind coming in over an edge's start locks this long (at
+     * its speed along the edge) before its leading wheel reaches the end face, and holds
+     * the edge line extended back until it is over the edge (the lip catch lifts it), s.
+     */
+    entryLeadS: 0.03,
     /** After a lock ends, no new lock for this long, s. */
     relockCooldownS: 0.3,
     /** Pop out: extra speed along the edge's outward normal, m/s. */

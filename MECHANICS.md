@@ -571,7 +571,9 @@ the swipe sizes all stay the same.
 - **Lip catch:** a board up to `lipCatchBelowM` (≈ 0.06 m) *below* the edge
   top that is still rising, or level with it, is lifted onto it instead of
   clipping the side. This covers pops that are a hair short, like our 0.45 m
-  pop against the 0.35 m hubba.
+  pop against the 0.35 m hubba. It also works at the start of a ledge: a grind
+  coming in over its end face locks just before the trucks reach the face, and
+  it is lifted onto the top instead of stopping dead against it (ADR 0009).
 - **Angle bands:** perpendicular `perpToleranceRad` widens from 0.61 to about
   0.8 at normal, and parallel from 0.44 to about 0.55. The lock then snaps
   the yaw to the stance, as it already does.

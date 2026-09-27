@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { BoardSnapshot, StaticColliderDesc } from "../../contexts/board";
 import { BOARD_CONFIG, BoardSpec } from "../../contexts/board";
 import { BoardHarness, STEP_S } from "../../contexts/board/infrastructure/board-harness";
-import { handrailZM, Level, obstacleCollider, obstacleGrindEdges } from "../../contexts/world";
+import {
+  handrailZM,
+  Level,
+  ObstacleShape,
+  obstacleCollider,
+  obstacleGrindEdges,
+} from "../../contexts/world";
 import {
   createElToroLevel,
   EL_TORO,
@@ -521,6 +527,76 @@ describe("El Toro, the rest of the school", () => {
       expect(bails(h)).toEqual([]);
       expect(h.board.wheelsDown).toBe(4);
       expect(h.board.transform.positionM.y).toBeGreaterThan(PLAZA_Y);
+    },
+    T,
+  );
+});
+
+// ── ledge starts and ends (one-sided edges) ─────────────────────────────────
+
+/** El Toro with the planter ledge's wall `heightM` tall (the map has it at 0.38 m). */
+function planterAt(heightM: number): Level {
+  return Level.create({
+    ...LEVEL,
+    obstacles: LEVEL.obstacles.map((o) =>
+      o.id !== "planter-ledge" || o.shape.kind !== "ledge"
+        ? o
+        : { ...o, shape: ObstacleShape.ledge({ ...o.shape, heightM }) },
+    ),
+  });
+}
+
+describe("El Toro, ledge starts: a 50-50 locks at the start of a 0.42 m ledge", () => {
+  it(
+    "a pop that tops out ≈ 3 cm low locks over the ledge's start, is lifted onto the top and grinds on (no stall on the end face)",
+    async () => {
+      if (PLANTER === undefined) throw new Error("no planter ledge");
+      const TOP_M = 0.42;
+      const level = Level.create({
+        ...planterAt(TOP_M),
+        spawn: {
+          positionM: Vec3.create(PLANTER.minXM - 5, 0, PLANTER.minZM - 0.15),
+          headingRad: -0.03,
+        },
+      });
+      const h = await ScenarioHarness.create({ level });
+      riders.push(h);
+      h.run(0.3);
+      h.launch(4.5);
+      // A shorter load than a full one (0.29 s): the pop tops out a few cm under the top.
+      runUntilX(h, PLANTER.minXM - 1.3, 0.34);
+      loadAndPop(h, 0.29);
+      h.foot("front", awayFrom("tail"), 0.34, 0.15);
+      const t0 = h.timeS;
+      for (let i = 0; i < 240 && h.rider.grind === null; i += 1) h.run(1 / 120);
+      const [start] = h.eventsOf("GrindStarted");
+      expect(start?.grind).toBe("fiftyFifty");
+      expect(start?.obstacleId).toBe("planter-ledge");
+      // It locked over the start: the board's middle still short of the ledge's end face.
+      expect(h.board.transform.positionM.x).toBeLessThan(PLANTER.minXM);
+      // The pop topped out low: the wheels' bottoms never reached the top in the air.
+      const wheelDropM = BoardSpec.restHeightM(SPEC);
+      const apexM = Math.max(
+        ...h.records.filter((r) => r.timeS >= t0 - 0.4).map((r) => r.board.transform.positionM.y),
+      );
+      expect(apexM - wheelDropM).toBeLessThan(TOP_M - 0.02);
+      expect(apexM - wheelDropM).toBeGreaterThan(TOP_M - 0.06);
+      const lockS = h.timeS;
+      const v0 = h.board.linearVelocityMps.x;
+      h.run(0.8);
+      // Rides it: still locked, on top, no speed lost to the end face (friction only).
+      expect(h.rider.grind?.kind).toBe("fiftyFifty");
+      expect(h.board.transform.positionM.y - wheelDropM).toBeGreaterThan(TOP_M);
+      const steps = h.records.filter((r) => r.timeS > lockS);
+      for (let i = 1; i < steps.length; i += 1) {
+        const dv =
+          (steps[i - 1]?.board.linearVelocityMps.x ?? 0) -
+          (steps[i]?.board.linearVelocityMps.x ?? 0);
+        expect(dv).toBeLessThan(0.1);
+      }
+      expect(h.board.linearVelocityMps.x).toBeGreaterThan(v0 - 1);
+      expect(h.board.transform.positionM.x).toBeGreaterThan(PLANTER.minXM + 2.5);
+      expect(bails(h)).toEqual([]);
     },
     T,
   );
