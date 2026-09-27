@@ -239,15 +239,20 @@ describe("trick names, end to end", () => {
     return names(h, t0);
   }
 
-  // KNOWN (tricks context): in a body 180 the feet take the board along (MECHANICS "Body
-  // spin"), so the board also yaws π; the recognizer counts that as a shove and names it
-  // "BS 180 BS Pop Shove-it". The shove channel must be the board's yaw relative to the
-  // body (board yaw − rider heading change). Unskip once the recognizer does that.
-  it.skip(
+  it(
     'body 180 (E: clockwise) → "BS 180" in regular, "FS 180" in goofy',
     async () => {
       expect(await body180("regular", "KeyE", "tail", () => {})).toEqual(["BS 180"]);
       expect(await body180("goofy", "KeyE", "tail", () => {})).toEqual(["FS 180"]);
+    },
+    T,
+  );
+
+  it(
+    'BS 180 (E in regular) + kickflip (A) → "BS 180 Kickflip"',
+    async () => {
+      const kickflip = (h: ScenarioHarness) => h.foot("front", heel(h.stance), 0.3, 0.08);
+      expect(await body180("regular", "KeyE", "tail", kickflip)).toEqual(["BS 180 Kickflip"]);
     },
     T,
   );

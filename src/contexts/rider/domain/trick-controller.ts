@@ -295,7 +295,7 @@ export class TrickController implements FootForceModel {
         const loadS = this.loadS;
         this.clearLoad();
         if (ready) {
-          this.pop(kick, loadS, input.mass, frame, out);
+          this.pop(kick, loadS, input.rider, input.mass, frame, out);
           return kick;
         }
       } else if (this.isSet(keys, kick)) {
@@ -416,6 +416,7 @@ export class TrickController implements FootForceModel {
   private pop(
     kick: Kick,
     loadS: number,
+    rider: RiderState,
     mass: BoardMassProperties,
     frame: BoardFrame,
     out: FootForce[],
@@ -432,6 +433,12 @@ export class TrickController implements FootForceModel {
     const axis = frame.liftAxisLocal(kick);
     const snap = t.popPitchRateRadps - Vec3.dot(frame.board.angularVelocityRadps, axis);
     out.push(angularImpulseOf(foot, "pop", mass.angularInertiaTimes(Vec3.scale(axis, snap))));
+    // The wind-up's spin carries over to the board: board and body leave turning together.
+    const spinRate = (rider.windUpRad / t.windUpMaxRad) * t.windUpSpinRadps;
+    if (spinRate !== 0) {
+      const yaw = Vec3.create(0, spinRate - frame.board.angularVelocityRadps.y, 0);
+      out.push(angularImpulseOf(foot, "pop", mass.angularInertiaTimes(yaw)));
+    }
     this.popKick = kick;
     this.sincePopS = 0;
     this.popSpeedMps = speedMps;
@@ -440,8 +447,8 @@ export class TrickController implements FootForceModel {
   /**
    * Feet-down key on the ground (not one still held from a catch in the air), board on
    * its wheels, both feet on with sticks near neutral, not loading, below
-   * `pushMaxSpeedMps`, cooldown elapsed: an impulse along the
-   * rider's heading through the front foot. The only horizontal force the rider makes.
+   * `pushMaxSpeedMps`, cooldown elapsed: an impulse along the travel (the rider's heading,
+   * or its reverse when rolling fakie) through the front foot. The only horizontal force the rider makes.
    */
   private push(
     { controls, rider, board }: FootForceInput,
@@ -456,7 +463,10 @@ export class TrickController implements FootForceModel {
       stickMagnitude(controls.front.stick) <= stance.pushNeutralRadius &&
       stickMagnitude(controls.back.stick) <= stance.pushNeutralRadius;
     if (!neutral) return;
-    const heading = frame.riderForward;
+    // Along the travel: the rider's front, or its back when rolling fakie (from rest: front).
+    const along = Vec3.dot(board.linearVelocityMps, frame.riderForward);
+    const fakie = along < -this.config.torso.headingTravelMinSpeedMps;
+    const heading = fakie ? Vec3.scale(frame.riderForward, -1) : frame.riderForward;
     if (Vec3.dot(board.linearVelocityMps, heading) >= stance.pushMaxSpeedMps) return;
     out.push(
       impulseAt(
@@ -516,8 +526,8 @@ export class TrickController implements FootForceModel {
       if (pop.edge !== 0 && !this.shoved && this.sincePopS <= tricks.shoveWindowS) {
         this.shove(kick, pop.edge, input.controls, mass, frame, out);
       }
-      this.trackChannels(guide.edge, pop.edge, frame, dtS);
-      this.holdChannels(kick, mass, frame, out);
+      this.trackChannels(guide.edge, pop.edge, input.rider, frame, dtS);
+      this.holdChannels(kick, input.rider, mass, frame, out);
     }
     if (!this.caught && !this.flipChannel.active && !this.shoveChannel.active) {
       this.followBody(input.rider, mass, frame, out);
@@ -541,6 +551,7 @@ export class TrickController implements FootForceModel {
   private trackChannels(
     flickEdge: number,
     sweepEdge: number,
+    rider: RiderState,
     frame: BoardFrame,
     dtS: number,
   ): void {
@@ -564,7 +575,8 @@ export class TrickController implements FootForceModel {
     }
     const shove = this.shoveChannel;
     if (shove.active) {
-      shove.turnedRad += yawRate * dtS;
+      // The shove is the board's yaw relative to the body.
+      shove.turnedRad += (yawRate - rider.bodySpinRateRadps) * dtS;
       shove.heldS = shove.holding && sweepEdge === shove.key ? shove.heldS + dtS : shove.heldS;
       shove.holding = shove.holding && sweepEdge === shove.key;
       if (shove.turns === 1 && shove.heldS >= t.shove360HoldS) {
@@ -600,12 +612,14 @@ export class TrickController implements FootForceModel {
 
   /**
    * Holds the channel rates until the catch: the roll rate about the board's long axis
-   * (flip) and the yaw rate about world up (shove; 0 while only flipping, so a flip does not
-   * wander) and, while flipping, the pitch rate. A shove alone only sets the yaw rate (the
-   * scoop and the level PD own the rest).
+   * (flip), the yaw rate about world up — the shove's rate on top of the body's spin, or,
+   * with no shove, the body follow (the feet keep the board under the turning body) — and,
+   * while flipping, the pitch rate. A shove alone only sets the yaw rate (the scoop and the
+   * level PD own the rest).
    */
   private holdChannels(
     kick: Kick,
+    rider: RiderState,
     mass: BoardMassProperties,
     frame: BoardFrame,
     out: FootForce[],
@@ -621,7 +635,9 @@ export class TrickController implements FootForceModel {
     if (!flip.active && !shove.active) return;
     const { spinHoldAssist: k, levelAssist, levelOmegaRadps } = this.config.tricks;
     const w = frame.board.angularVelocityRadps;
-    const yawRate = shove.active ? shove.rateRadps : 0;
+    const yawRate = shove.active
+      ? shove.rateRadps + rider.bodySpinRateRadps
+      : this.followYawRate(rider, frame);
     if (!flip.active) {
       const delta = Vec3.create(0, k * (yawRate - w.y), 0);
       out.push(angularImpulseOf(popFootOf(kick), "shove", mass.angularInertiaTimes(delta)));
@@ -641,9 +657,10 @@ export class TrickController implements FootForceModel {
   }
 
   /**
-   * BODY FOLLOW (MECHANICS.md "Body spin"): in the air, unless a flip or shove is running
-   * (the feet are busy), the feet steer the board's yaw toward the rider heading — the
-   * nearer of 0° / 180° — so a body 180 takes the board along. Yaw only (world up).
+   * BODY FOLLOW (MECHANICS.md "Body spin"): in the air, unless a shove is running, the feet
+   * steer the board's yaw toward the rider heading — the nearer of 0° / 180° — so a body
+   * 180 takes the board along, flipping or not. Yaw only (world up). While a flip runs, the
+   * flip hold applies it as a rate (`followYawRate`); otherwise this yaw PD.
    */
   private followBody(
     rider: RiderState,
@@ -651,18 +668,33 @@ export class TrickController implements FootForceModel {
     frame: BoardFrame,
     out: FootForce[],
   ): void {
-    const heading = boardHeadingRad(frame.board);
-    if (heading === null) return;
+    const error = this.followErrorRad(rider, frame);
+    if (error === null) return;
     const { bodyFollowOmegaRadps: w } = this.config.tricks;
-    // Which way round the board sits under the rider (0 or π) is fixed once per air, so a
-    // spin past 90° keeps pulling the same way; the body's spin rate is fed forward.
-    this.followOffsetRad ??=
-      Math.abs(wrapPi(heading - rider.headingRad)) > Math.PI / 2 ? Math.PI : 0;
-    const error = wrapPi(rider.headingRad + this.followOffsetRad - heading);
+    // The body's spin rate is fed forward.
     const rateError = rider.bodySpinRateRadps - frame.board.angularVelocityRadps.y;
     const accel = w * w * error + 2 * w * rateError;
     const torque = mass.angularInertiaTimes(Vec3.create(0, accel, 0));
     out.push(torqueOf("front", "body", torque));
+  }
+
+  /** The body follow as a yaw rate (for the flip hold): the body's rate plus a P term. */
+  private followYawRate(rider: RiderState, frame: BoardFrame): number {
+    const error = this.followErrorRad(rider, frame) ?? 0;
+    return rider.bodySpinRateRadps + this.config.tricks.bodyFollowOmegaRadps * error;
+  }
+
+  /**
+   * Board yaw error to the rider heading. Which way round the board sits under the rider
+   * (0 or π) is fixed once per air, so a spin past 90° keeps pulling the same way. Null
+   * while the long axis is too steep to have a heading.
+   */
+  private followErrorRad(rider: RiderState, frame: BoardFrame): number | null {
+    const heading = boardHeadingRad(frame.board);
+    if (heading === null) return null;
+    this.followOffsetRad ??=
+      Math.abs(wrapPi(heading - rider.headingRad)) > Math.PI / 2 ? Math.PI : 0;
+    return wrapPi(rider.headingRad + this.followOffsetRad - heading);
   }
 
   /** LEVEL starts: from now the level PD runs; early in the window it adds height. */

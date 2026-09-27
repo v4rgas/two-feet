@@ -175,30 +175,36 @@ describe("12. body spin (Q / E)", () => {
   );
 
   it(
-    "12d: kickflip with Q held — the board keeps its own yaw while flipping; the catch re-aligns it",
+    "12d: 180 kickflip — E wound up and held, A: board and body both turn π (board ≈ body), clean",
     async () => {
       const h = await track(rolling(1.3));
-      const t0 = h.timeS;
-      h.keyDown("KeyQ");
-      loadAndPop(h, 0.2);
-      h.foot("front", heel(h.stance), 0.25, 0.08);
-      h.run(0.3);
       const board0 = h.headingRad();
-      // Mid-flip: the body turns, the board does not.
-      for (let i = 0; i < 12; i += 1) h.run(1 / 120);
-      expect(Math.abs(bodyTurnRad(h, t0))).toBeGreaterThan(0.5);
-      expect(Math.abs(wrap(h.headingRad() - board0))).toBeLessThan(0.15);
-      h.keyUp("KeyQ");
+      const t0 = h.timeS;
+      h.keyDown("KeyE");
+      loadAndPop(h, 0.25);
+      h.foot("front", heel(h.stance), 0.3, 0.08);
+      for (let i = 0; i < 150; i += 1) {
+        h.run(1 / 120);
+        const rate = h.rider.bodySpinRateRadps;
+        const stopsAt = Math.abs(bodyTurnRad(h, t0)) + (rate * rate) / (2 * bodySpinAccelRadps2);
+        if (!h.board.grounded && stopsAt >= Math.PI) break;
+      }
+      h.keyUp("KeyE");
       for (let i = 0; i < 100 && !h.board.grounded; i += 1) {
-        if (Math.abs(airSummary(h, t0).rollRad) > 2 * Math.PI - 0.45 && h.tiltRad() <= 0.5) break;
+        const rolled = Math.abs(airSummary(h, t0).rollRad) > 2 * Math.PI - 0.45;
+        if (rolled && Math.abs(bodyTurnRad(h, t0)) >= Math.PI - 0.25 && h.tiltRad() <= 0.5) break;
         h.run(1 / 120);
       }
       catchAt(h, 0);
-      h.run(0.1);
-      // Caught: the board's yaw is pulled to the nearest 0° / 180° of the rider heading.
-      const off = wrap(h.headingRad() - h.rider.headingRad);
-      const axisOff = Math.min(Math.abs(off), Math.PI - Math.abs(off));
-      expect(axisOff).toBeLessThan(0.35);
+      h.run(1.5);
+      const air = airSummary(h, t0);
+      expect(air.bailed).toBe(false);
+      expect(Math.abs(Math.abs(air.rollRad) - 2 * Math.PI)).toBeLessThan(0.4);
+      // Both turned about π: the board's yaw relative to the body is about 0.
+      expect(Math.abs(Math.abs(bodyTurnRad(h, t0)) - Math.PI)).toBeLessThan(0.35);
+      expect(Math.abs(Math.abs(wrap(h.headingRad() - board0)) - Math.PI)).toBeLessThan(0.35);
+      expect(forwardness(h)).toBeLessThan(-1); // rolling fakie
+      expect(trickNames(h, t0)).toEqual(["BS 180 Kickflip"]);
     },
     T,
   );

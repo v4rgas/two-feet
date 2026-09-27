@@ -111,6 +111,21 @@ describe("TrickController — rolling", () => {
   });
 });
 
+describe("TrickController — push direction", () => {
+  it("pushes along the travel: forward normally, backwards (the way it rolls) when fakie", () => {
+    const push = (vx: number) => {
+      const { step } = setup();
+      const b = board({ linearVelocityMps: Vec3.create(vx, 0, 0) });
+      const f = step({ feetDown: true }, b).forces.find((x) => x.label === "push");
+      if (f?.kind !== "impulse") throw new Error("no push");
+      return f.impulseNs.x;
+    };
+    expect(push(2)).toBeGreaterThan(0);
+    expect(push(0)).toBeGreaterThan(0);
+    expect(push(-2)).toBeLessThan(0);
+  });
+});
+
 describe("TrickController — press, load, arm, pop", () => {
   it("↓ alone is a tail press (torque only) and never pops", () => {
     const { step } = setup();
