@@ -155,17 +155,31 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 ### Catch
 - **Gesture:** press `Space` in the air. This means "both feet down". On the
   ground, `Space` is still push.
-- **Condition:** the board must be roughly pointing up, within the catch cone:
-  roll within ±`catchRollRad` of upright, and yaw within ±`catchYawRad` of 0°
-  or 180°.
-- **Physics:**
-  - Both feet attach (they snap onto the deck).
-  - A PD controller kills the spin and drives the board toward level, with
-    gain `catchAssist`.
-  - It also snaps the yaw to the nearest 0°/180°.
-- **Outside the cone:** nothing is caught and the feet stay off. The next
-  catch attempt is locked out for `catchRetryS` (≈ 0.15 s), so mashing
-  `Space` doesn't work. You have to time it.
+- **The catch is feet, not magic.** Feet have limited strength, so a catch
+  can fix a *small* error and slow a *moderate* spin, but it can't save a
+  board that's far off or spinning hard. You *can* catch and still bail.
+- **Condition (the catch cone):**
+  - roll within ±`catchRollRad` (≈ 0.5 rad) of upright
+  - yaw within ±`catchYawRad` (≈ 0.45 rad) of the stance angle
+  - pitch within ±`catchPitchRad` (≈ 0.6 rad)
+  - |ω| below `catchMaxOmegaRadps` (≈ 14 rad/s). Feet can't grab a board
+    that's still whipping round.
+
+  Outside the cone the feet stay off (see the assists' catch buffer).
+- **Physics, smooth and capped:**
+  - The feet reach the deck (the existing ease), and only then apply torque.
+  - The correction is a torque-limited PD toward level and the nearest
+    stance yaw. Angular acceleration is capped at `catchMaxAlphaRadps2`
+    (≈ 60 rad/s²), and the total correction per catch is capped at
+    `catchMaxCorrectionRad` (≈ 0.35 rad) on each axis.
+  - It settles over about `catchSettleS` (≈ 0.15–0.2 s), eased. It never
+    snaps within a step or two, and the spin damps out rather than stopping
+    dead.
+  - The rest of the error stays: if the board was 0.4 rad off, it lands
+    about 0.05+ rad off, and the landing rules decide.
+- **Landing still decides:** a caught board that touches down beyond the
+  landing tolerance (tilt > `landTiltRad`, yaw off the travel) **bails**.
+  Being caught never skips the landing check.
 - **Letting go of the keys does not catch.** That way a flip can finish.
   `autoCatchOnRelease` (default `false`) turns release-to-catch back on as an
   easy mode.
@@ -575,7 +589,8 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `flipCompleteFraction` | 0.92 |
 | `shoveCompleteFraction` | 0.85 |
 | `maxFlipRatePerTurnRadps` / `maxShoveRatePerHalfTurnRadps` | 16 / 9 |
-| `catchRollRad` / `catchYawRad` | 0.7 / 0.6 |
+| `catchRollRad` / `catchYawRad` / `catchPitchRad` | 0.5 / 0.45 / 0.6 |
+| `catchMaxOmegaRadps` / `catchMaxAlphaRadps2` / `catchMaxCorrectionRad` / `catchSettleS` | 14 / 60 / 0.35 / 0.18 |
 | `catchAssist` | 0.8 |
 | `catchRetryS` | 0.15 |
 | `swipeLookbackS` / `swipeEndMin` / `swipeMinTravel` / `swipeDoubleTravel` | 0.3 / 0.8 / 0.7 / 1.6 |
@@ -606,6 +621,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 8. **No thrust:** from rest and from 3 m/s, every single direction key and
    every pair of them, held for 5 s without `Space`. Horizontal speed never
    exceeds start + 0.3 m/s.
+9a. **Catch can bail:** `Space` pressed at a roll error of about 0.45 rad (inside the cone but beyond the correction cap), landing soon after, must BAIL (`offAngle`). `Space` while |ω| > `catchMaxOmegaRadps` doesn't catch. A caught board's angular acceleration never exceeds `catchMaxAlphaRadps2` (no flick).
 9. **Catch cone:** `Space` pressed mid-flip (board upside down) does not catch. Pressing it again after `catchRetryS` near upright does catch.
 9b. **No pop from the manual:** hold `↓` alone for 1 s and release. There is no pop.
 10. **Nollie:** scenarios 1, 3 and 5 mirrored from the nose (`W`+`↑`, release `W`, `↓` / `←` / `A`, `Space`) give the same results, with pitch mirrored.
