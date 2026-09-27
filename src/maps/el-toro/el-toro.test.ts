@@ -357,9 +357,10 @@ describe("El Toro dressing (fence, banners, graffiti)", () => {
       const r = footprint(o);
       expect(Math.min(r.maxX, ledge.maxX) - Math.max(r.minX, ledge.minX), o.id).toBeGreaterThan(1);
     }
-    // Not wall-to-wall logos.
+    // Not wall-to-wall logos, and only the real sponsors (no house banners).
     const bannered = fence.filter((o) => sponsorOf(o) !== null);
     expect(bannered.length).toBeLessThanOrEqual(fence.length / 2);
+    expect(bannered.every(isSponsor)).toBe(true);
   });
 
   it("banner boards on the retaining walls beside the stairs face the courtyard, clear of the drop", () => {

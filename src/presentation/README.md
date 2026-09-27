@@ -20,10 +20,12 @@ it never mutates domain state. The look is in [`STYLE.md`](../../STYLE.md).
 
 ## Sponsor banners (`sponsors/`)
 
-- `sponsor-registry.ts`: id → name, url, kind (`sponsor` | `house`), background, files.
-  Real sponsors: `bipbop` (BipBop Labs, composed from their own head mark, wordmark and
-  pre-outlined "bipbop.cl", on their cream with the moss glows) and `v4rgas` (black,
-  nearest-neighbour pixel penguin, Space Mono). House: `house-deck`, `house-feet`.
+- `sponsor-registry.ts`: id → name, url, background, files. Only the real sponsors:
+  `bipbop` (BipBop Labs, composed from their own head mark, wordmark and pre-outlined
+  "bipbop.cl", on their cream with the moss glows) and `v4rgas` (black,
+  nearest-neighbour pixel penguin, Space Mono). No house banners: `sponsorById` returns
+  undefined for an unknown id and `level-mesh.ts` draws that barrier plain (its banner
+  plate in concrete, no banner mesh).
 - `banner-art.ts` paints each banner tile (2560 × 512, 5:1) on a canvas at load;
   `banner-materials.ts` caches one material per banner. A banner face gets a whole number
   of tiles along its length (`bannerFaceUvs`).
@@ -33,8 +35,10 @@ it never mutates domain state. The look is in [`STYLE.md`](../../STYLE.md).
 
 ## Graffiti (`graffiti/`)
 
-- `graffiti-registry.ts`: pieces made only from our penguins (deck art, the v4rgas pixel
-  penguin), each with a fixed seed. BipBop's marks are never stylised.
+- `graffiti-registry.ts`: pieces made only from our own marks (the v4rgas pixel penguin,
+  lettering), each with a fixed seed. BipBop's marks are never stylised, and the deck's
+  penguin art is the board's decal only (`deck-art-only-on-the-board` in
+  `.dependency-cruiser.cjs`: only `scene/board-mesh.ts` may import it).
 - `graffiti-art.ts` sprays each piece on a canvas: overspray halo, rough outline, drips,
   speckle, all from the seed (deterministic).
 - `graffiti-decals.ts`: every placement of a piece becomes a quad just off its wall, merged

@@ -23,9 +23,10 @@ export class BannerMaterials {
     return this.config.banners.widthPx / this.config.banners.heightPx;
   }
 
-  /** The material for a sponsor id (unknown ids get the fallback house banner). */
-  get(sponsorId: string): THREE.MeshStandardMaterial {
+  /** The material for a sponsor id, or undefined for an unknown id (a plain barrier). */
+  get(sponsorId: string): THREE.MeshStandardMaterial | undefined {
     const entry = sponsorById(sponsorId);
+    if (entry === undefined) return undefined;
     const cached = this.materials.get(entry.id);
     if (cached !== undefined) return cached;
     const material = new THREE.MeshStandardMaterial({

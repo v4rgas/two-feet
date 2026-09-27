@@ -135,6 +135,17 @@ module.exports = {
       to: { path: ["^src/presentation/", "^src/game/", "^src/main\\.ts$"] },
     },
 
+    // ── Art: the deck's penguin is the board's decal only ────────────────
+    {
+      name: "deck-art-only-on-the-board",
+      comment:
+        "STYLE.md: the deck's penguin art (deck-penguin.jpg) is used ONLY as the deck " +
+        "decal, by board-mesh.ts: never on a banner, a graffiti piece or anything else.",
+      severity: "error",
+      from: { pathNot: "^src/presentation/scene/board-mesh\\.ts$" },
+      to: { path: "^src/presentation/assets/deck-penguin\\.jpg$" },
+    },
+
     // ── Rule 4: presentation reads snapshots, never physics ───────────────
     {
       name: "presentation-not-to-game",

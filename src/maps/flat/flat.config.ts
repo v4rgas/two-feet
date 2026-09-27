@@ -30,14 +30,12 @@ export const FLAT_CONFIG = deepFreeze({
     segmentLengthM: 4,
     openings: [{ side: "west", centerM: 0, widthM: 4 }] satisfies PerimeterOpening[],
     /**
-     * A few banners on otherwise plain wall: BipBop Labs dead ahead of the spawn, v4rgas
-     * on the right as you push, the house banners on the far side and where you turn round.
+     * Two banners on otherwise plain wall: BipBop Labs dead ahead of the spawn, v4rgas
+     * on the right as you push.
      */
     banners: [
       { side: "east", atM: 0, sponsorId: "bipbop" },
       { side: "north", atM: 10, sponsorId: "v4rgas" },
-      { side: "south", atM: 14, sponsorId: "house-deck" },
-      { side: "west", atM: 6, sponsorId: "house-feet" },
     ] satisfies FlatBanner[],
   },
 });

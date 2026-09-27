@@ -37,7 +37,7 @@ const ring = perimeterBarriers(
   {
     idPrefix: "barrier",                              // ids: barrier-<side>-<n>
     openings: [{ side: "west", centerM: 0, widthM: 4 }], // centre = world X (north/south) or Z (east/west)
-    banners: ["bipbop", "v4rgas", "house-deck", null], // cycled along the ring; null = plain wall
+    banners: ["bipbop", null, "v4rgas", null], // cycled along the ring; null = plain wall
     // heightM (0.9), thicknessM (0.3), segmentLengthM (4), bannerSides, sides: optional
   },
 );
@@ -56,10 +56,10 @@ return Level.create({ id, name, obstacles: [...ground, ...course, ...ring], spaw
   (east → west), west.
 - A single barrier: `{ id, name, surface: "ground", transform, shape: ObstacleShape.barrier({ lengthM, heightM, thicknessM, banner: { sponsorId: "bipbop" } }) }`; its +Z face is the front.
 - **Sponsor ids** live in `src/presentation/sponsors/sponsor-registry.ts`: `bipbop` (BipBop
-  Labs, bipbop.cl), `v4rgas` (v4rgas.com), and the house banners `house-deck`,
-  `house-feet`. An unknown id shows a house banner. Never invent a real brand.
+  Labs, bipbop.cl) and `v4rgas` (v4rgas.com), the only banners. An unknown id renders as
+  a plain barrier. Never invent a real brand.
 - **Graffiti pieces** live in `src/presentation/graffiti/graffiti-registry.ts`:
-  `v4rgas-throwup`, `pixel-penguin`, `deck-penguin-roundel`, `penguin-king`.
+  `v4rgas-throwup`, `pixel-penguin`, `penguin-king`.
   `graffitiOnFace(obstacle, { pieceId, face: "+x" | "-x" | "+z" | "-z", sizeM, alongM?, heightM?, rotationRad? })`
   puts one on the outermost face looking that way (a ledge side, a funbox wall, a stair
   set's side wall, a quarter pipe's back, a plain barrier); `createGraffiti` takes a raw

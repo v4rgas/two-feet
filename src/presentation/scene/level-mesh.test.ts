@@ -28,7 +28,7 @@ function level(): Level {
       ledge,
       ...perimeterBarriers(
         { minXM: -10, maxXM: 10, minZM: -6, maxZM: 6 },
-        { banners: ["bipbop", "v4rgas", null] },
+        { banners: ["bipbop", "v4rgas", null, "no-such-brand"] },
       ),
     ],
     spawn: { positionM: Vec3.ZERO, headingRad: 0 },
@@ -59,8 +59,12 @@ describe("buildLevelMesh", () => {
       expect(meshes.get(name), name).toBeDefined();
       expect(meshes.get(name)?.geometry.getAttribute("uv"), name).toBeDefined();
     }
-    // Plain barriers add no banner mesh of their own.
-    expect([...meshes.keys()].filter((n) => n.startsWith("banner:"))).toHaveLength(2);
+    // Plain barriers, and barriers naming an unknown sponsor, add no banner mesh: an
+    // unknown id is a plain wall (its plate drawn as concrete), never a stand-in banner.
+    expect([...meshes.keys()].filter((n) => n.startsWith("banner:")).sort()).toEqual([
+      "banner:bipbop",
+      "banner:v4rgas",
+    ]);
     mesh.dispose();
   });
 

@@ -5,7 +5,7 @@ import type { BannerSpot, ElToroParams } from "./el-toro.config";
 
 /*
  * El Toro's dressing (DESIGN.md "Barriers, sponsor banners and graffiti"): the school
- * fence line as `barrier` segments with the sponsor and house banners, banner boards on
+ * fence line as `barrier` segments with the sponsor banners, banner boards on
  * the retaining walls beside the stairs, and a couple of graffiti pieces. Barriers are
  * solid (never grindable); banners and graffiti are artwork only.
  */
@@ -40,10 +40,7 @@ function spotOn(o: Obstacle, spots: readonly BannerSpot[]): BannerSpot | undefin
   return spots.find((x) => x.side === side && Math.abs(x.atM - centreM) <= half);
 }
 
-/**
- * The fence line: the sponsors on their spots (plain wall either side of each pair),
- * every other segment of banner length taking the next entry of the rhythm.
- */
+/** The fence line: the sponsors on their spots; every other segment is plain concrete. */
 export function elToroFence(p: ElToroParams): Obstacle[] {
   const f = p.fence;
   const ring = perimeterBarriers(f.bounds, {
@@ -53,25 +50,7 @@ export function elToroFence(p: ElToroParams): Obstacle[] {
     thicknessM: f.thicknessM,
     segmentLengthM: f.segmentLengthM,
   });
-  const spots = ring.map((o) => spotOn(o, f.spots));
-  const sponsored = (i: number, side: PerimeterSide): boolean => {
-    const o = ring[i];
-    return o !== undefined && sideOf(o).side === side && (spots[i]?.sponsorId ?? null) !== null;
-  };
-  let beat = 0;
-  return ring.map((o, i) => {
-    if (o.shape.kind !== "barrier") return o;
-    const spot = spots[i];
-    if (spot !== undefined) return withBanner(o, spot.sponsorId);
-    const { side } = sideOf(o);
-    const { min, max } = f.bannerSegmentM;
-    const fits = o.shape.lengthM >= min && o.shape.lengthM <= max;
-    const besideSponsor = sponsored(i - 1, side) || sponsored(i + 1, side);
-    if (!fits || besideSponsor || f.rhythm.length === 0) return withBanner(o, null);
-    const sponsor = f.rhythm[beat % f.rhythm.length] ?? null;
-    beat += 1;
-    return withBanner(o, sponsor);
-  });
+  return ring.map((o) => withBanner(o, spotOn(o, f.spots)?.sponsorId ?? null));
 }
 
 /**

@@ -1,8 +1,9 @@
 /*
- * GRAFFITI REGISTRY (pure data). Generated pieces made only from OUR penguins: the deck
- * art, and v4rgas's 32 × 32 pixel penguin (always nearest-neighbour). BipBop Labs' marks
- * are never stylised here (their brand rules: the marks are not to be altered). Maps place
- * pieces by id with the world's `graffitiOnFace` / `Level.graffiti`.
+ * GRAFFITI REGISTRY (pure data). Generated pieces made only from our own marks: v4rgas's
+ * 32 × 32 pixel penguin (always nearest-neighbour) and lettering. The deck's penguin art is
+ * the board's decal ONLY (never a banner or a piece). BipBop Labs' marks are never
+ * stylised here (their brand rules: the marks are not to be altered). Maps place pieces
+ * by id with the world's `graffitiOnFace` / `Level.graffiti`.
  */
 
 export interface GraffitiPiece {
@@ -17,7 +18,6 @@ export interface GraffitiPiece {
 export const GRAFFITI_PIECES: readonly GraffitiPiece[] = Object.freeze([
   { id: "v4rgas-throwup", name: "v4rgas bubble throw-up with a crown", aspect: 2, seed: 4 },
   { id: "pixel-penguin", name: "sprayed pixel penguin", aspect: 1, seed: 32 },
-  { id: "deck-penguin-roundel", name: "deck penguin roundel", aspect: 1, seed: 7 },
   { id: "penguin-king", name: "pixel penguin with crown and stars", aspect: 1.4, seed: 11 },
 ]);
 

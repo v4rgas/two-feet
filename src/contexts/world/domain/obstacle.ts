@@ -261,9 +261,9 @@ export interface BankLedgeShape {
 export type BarrierBannerSides = "front" | "both";
 
 /**
- * A sponsor or house banner on a barrier. `sponsorId` names artwork in the presentation's
- * sponsor registry (the world never knows what it looks like); an unknown id falls back
- * to a house banner there.
+ * A sponsor banner on a barrier. `sponsorId` names artwork in the presentation's sponsor
+ * registry (the world never knows what it looks like); an unknown id renders as plain
+ * concrete there (the plate stays, with no art).
  */
 export interface BarrierBanner {
   readonly sponsorId: string;

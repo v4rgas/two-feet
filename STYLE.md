@@ -78,10 +78,13 @@ front and back.
   own brand rules. BipBop Labs: cream `#f7f5f0`, the penguin head mark (the only
   logo; never the body mark), "BipBop Labs_" with "Bop" and the underscore in moss
   `#3d7a3a`, "bipbop.cl". v4rgas: black, the 32 × 32 pixel penguin with crisp
-  nearest-neighbour pixels, "v4rgas.com" in Space Mono. House banners use the
-  deck's penguin art or the HUD's foot pads. Alternate them; no neon, no motion.
-- **Graffiti:** a couple of pieces per map, never everywhere. Only our penguins
-  (the deck art and the v4rgas pixel penguin), sprayed: soft overspray halo,
+  nearest-neighbour pixels, "v4rgas.com" in Space Mono. Only these real sponsors get
+  banners: there are no house banners and no game taglines; every other segment
+  is plain concrete (an unknown sponsor id also renders plain). No neon, no motion.
+- **The deck's penguin art** (`deck-penguin.jpg`) is the deck decal ONLY: never a
+  banner, a graffiti piece or any other surface (enforced by a dependency-cruiser rule).
+- **Graffiti:** a couple of pieces per map, never everywhere. Only our own marks
+  (the v4rgas pixel penguin and lettering, never the deck art), sprayed: soft overspray halo,
   rough outline, a few drips, speckle. Multiplied into the wall so the concrete
   shows through, a little faded. Palette colours only (moss, blue, deck red, a
   muted gold, ink).

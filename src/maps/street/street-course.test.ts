@@ -367,6 +367,11 @@ describe("street course dressing (barriers, banners, graffiti)", () => {
     expect(wv.minZ).toBeLessThan(S.bigStairs.zM + S.bigStairs.widthM / 2);
     expect(wv.maxZ).toBeGreaterThan(S.bigStairs.zM - S.bigStairs.widthM / 2);
 
+    // Only the real sponsors (no house banners), on the deck fence and the ring.
+    for (const o of [...ring, ...fence]) {
+      const id = sponsorOf(o);
+      if (id !== null) expect(["bipbop", "v4rgas"]).toContain(id);
+    }
     // Not wall-to-wall logos: at most a third of the ring carries a banner, and every
     // sponsor banner has plain wall on both sides.
     expect(ring.filter((o) => sponsorOf(o) !== null).length).toBeLessThanOrEqual(ring.length / 3);

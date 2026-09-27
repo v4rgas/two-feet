@@ -1,4 +1,3 @@
-import deckArtUrl from "../assets/deck-penguin.jpg";
 import { loadFont, loadImage, publicUrl } from "../textures/browser-assets";
 
 /*
@@ -8,11 +7,6 @@ import { loadFont, loadImage, publicUrl } from "../textures/browser-assets";
 
 type Ctx = CanvasRenderingContext2D;
 type Painter = (ctx: Ctx, w: number, h: number) => Promise<void>;
-
-/** Canvas `letterSpacing` where supported (Chrome, Firefox); ignored elsewhere. */
-function setLetterSpacing(ctx: Ctx, px: number): void {
-  if ("letterSpacing" in ctx) (ctx as Ctx & { letterSpacing: string }).letterSpacing = `${px}px`;
-}
 
 /**
  * BipBop Labs (their STYLE.md): cream-100 field with the moss corner glows, the penguin
@@ -100,76 +94,8 @@ const paintV4rgas: Painter = async (ctx, w, h) => {
   ctx.fillText(tld, x + nameW, h / 2);
 };
 
-/** House: the deck's penguin art beside the game's name, on ink. */
-const paintHouseDeck: Painter = async (ctx, w, h) => {
-  const [art] = await Promise.all([
-    loadImage(deckArtUrl),
-    loadFont("Inter", "800"),
-    loadFont("JetBrains Mono", "600"),
-  ]);
-  ctx.fillStyle = "#1c1b19";
-  ctx.fillRect(0, 0, w, h);
-  ctx.font = `800 ${Math.round(h * 0.42)}px Inter, system-ui, sans-serif`;
-  setLetterSpacing(ctx, h * 0.03);
-  const titleW = ctx.measureText("SKATE").width;
-  const total = h + h * 0.18 + titleW;
-  const x = (w - total) / 2;
-  ctx.drawImage(art, x, 0, h, h);
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "#efe6d2";
-  const tx = x + h * 1.18;
-  ctx.fillText("SKATE", tx, h * 0.6);
-  ctx.font = `600 ${Math.round(h * 0.085)}px "JetBrains Mono", monospace`;
-  setLetterSpacing(ctx, h * 0.03);
-  ctx.fillStyle = "#c9c4b8";
-  ctx.fillText("PUSH · POP · CATCH", tx + h * 0.02, h * 0.8);
-  setLetterSpacing(ctx, 0);
-};
-
-/** House: the HUD's two foot pads (green = front, blue = back) and the name, on concrete. */
-const paintHouseFeet: Painter = async (ctx, w, h) => {
-  await Promise.all([loadFont("Inter", "800"), loadFont("JetBrains Mono", "600")]);
-  ctx.fillStyle = "#e9e6df";
-  ctx.fillRect(0, 0, w, h);
-  const pad = h * 0.42;
-  const title = `800 ${Math.round(h * 0.34)}px Inter, system-ui, sans-serif`;
-  ctx.font = title;
-  setLetterSpacing(ctx, h * 0.02);
-  const titleW = ctx.measureText("SKATE").width;
-  const gap = h * 0.12;
-  const total = pad * 2 + gap * 0.6 + gap + titleW;
-  let x = (w - total) / 2;
-  const y = (h - pad) / 2;
-  const drawPad = (px: number, color: string, dotX: number, dotY: number): void => {
-    ctx.lineWidth = h * 0.028;
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(px, y, pad, pad, pad * 0.2);
-    ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(px + pad * dotX, y + pad * dotY, pad * 0.11, 0, Math.PI * 2);
-    ctx.fill();
-  };
-  drawPad(x, "#3d7a3a", 0.5, 0.5);
-  x += pad + gap * 0.6;
-  drawPad(x, "#3b6ea5", 0.5, 0.82);
-  x += pad + gap;
-  ctx.font = title;
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "#1c1b19";
-  ctx.fillText("SKATE", x, h * 0.56);
-  ctx.font = `600 ${Math.round(h * 0.075)}px "JetBrains Mono", monospace`;
-  setLetterSpacing(ctx, h * 0.025);
-  ctx.fillStyle = "#7d786e";
-  ctx.fillText("ONE STICK PER FOOT", x + h * 0.01, h * 0.74);
-  setLetterSpacing(ctx, 0);
-};
-
 /** Painter per registry id (the tests check every registry id has one). */
 export const BANNER_PAINTERS: Readonly<Record<string, Painter>> = Object.freeze({
   bipbop: paintBipBop,
   v4rgas: paintV4rgas,
-  "house-deck": paintHouseDeck,
-  "house-feet": paintHouseFeet,
 });

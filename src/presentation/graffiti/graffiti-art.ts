@@ -1,4 +1,3 @@
-import deckArtUrl from "../assets/deck-penguin.jpg";
 import { createCanvas, loadFont, loadImage, publicUrl } from "../textures/browser-assets";
 import type { GraffitiPiece } from "./graffiti-registry";
 import { seededRandom } from "./graffiti-registry";
@@ -324,39 +323,6 @@ async function paintPixelPenguin(ctx: Ctx, w: number, h: number, rng: Rng): Prom
   );
 }
 
-async function paintDeckRoundel(ctx: Ctx, w: number, h: number, rng: Rng): Promise<void> {
-  const art = await loadImage(deckArtUrl);
-  const r = Math.min(w, h) * 0.36;
-  const cx = w / 2;
-  const cy = h * 0.45;
-  spray(
-    ctx,
-    w,
-    h,
-    (c) => {
-      c.save();
-      c.beginPath();
-      c.arc(cx, cy, r, 0, Math.PI * 2);
-      c.clip();
-      c.drawImage(art, cx - r * 1.05, cy - r * 1.05, r * 2.1, r * 2.1);
-      c.restore();
-    },
-    {
-      haloColor: DECK,
-      haloBlurPx: w * 0.03,
-      haloAlpha: 0.5,
-      outlineColor: DECK,
-      outlinePx: w * 0.018,
-      drips: 12,
-      dripMinPx: h * 0.04,
-      dripMaxPx: h * 0.15,
-      dripWidthPx: w * 0.009,
-      speckles: 300,
-    },
-    rng,
-  );
-}
-
 async function paintPenguinKing(ctx: Ctx, w: number, h: number, rng: Rng): Promise<void> {
   const px = await penguinPixels();
   const cell = Math.floor((h * 0.56) / 32);
@@ -396,7 +362,6 @@ const PAINTERS: Readonly<
 > = Object.freeze({
   "v4rgas-throwup": paintThrowup,
   "pixel-penguin": paintPixelPenguin,
-  "deck-penguin-roundel": paintDeckRoundel,
   "penguin-king": paintPenguinKing,
 });
 

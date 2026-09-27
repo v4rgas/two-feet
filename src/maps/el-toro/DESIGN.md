@@ -99,8 +99,8 @@ in `el-toro.test.ts`).
      thick) fixed to each x = 0 wall, 1.9–2.6 m up, facing the courtyard: BipBop Labs on
      the north wall (z 2.8…5.6), v4rgas on the south wall (z −5.6…−2.8). They stay
      outside the handrail approaches (|z| ≤ 2.7) and below the lip.
-  The fence's other segments are mostly plain, with a house banner now and then; every
-  sponsor pair has plain wall either side.
+  The fence's other segments are plain concrete (no house banners); every sponsor pair
+  has plain wall either side.
 - **Graffiti** (two pieces, walls only, never the stairs or a riding surface):
   - a `v4rgas-throwup` on the south wing's end wall (x = 0, z ≈ −8.4), the backdrop of
     the 4-stair's landing;

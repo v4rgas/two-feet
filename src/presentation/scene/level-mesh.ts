@@ -5,7 +5,7 @@ import { Transform, Vec3 } from "../../shared";
 import { buildGraffitiMeshes, GraffitiMaterials } from "../graffiti/graffiti-decals";
 import type { PresentationConfig } from "../presentation.config";
 import { BannerMaterials } from "../sponsors/banner-materials";
-import { FALLBACK_SPONSOR_ID } from "../sponsors/sponsor-registry";
+import { sponsorById } from "../sponsors/sponsor-registry";
 import type { TextureLibrary } from "../textures/texture-library";
 import type { SurfaceTone } from "./materials";
 import { SurfaceMaterials } from "./materials";
@@ -178,10 +178,12 @@ export function buildLevelMesh(
         appendTone(merged[tone] ?? [], geometry, tone, obstacle.transform);
       }
       const shape = obstacle.shape;
-      const sponsorId =
-        shape.kind === "barrier"
-          ? (shape.banner?.sponsorId ?? FALLBACK_SPONSOR_ID)
-          : FALLBACK_SPONSOR_ID;
+      const sponsorId = shape.kind === "barrier" ? shape.banner?.sponsorId : undefined;
+      if (sponsorId === undefined || sponsorById(sponsorId) === undefined) {
+        // No (known) sponsor: a plain barrier. Any banner plate is drawn as concrete.
+        appendTone(merged.body ?? [], geometry, "banner", obstacle.transform);
+        continue;
+      }
       let entry = banners.get(sponsorId);
       if (entry === undefined) {
         entry = { positions: [], uvs: [] };
@@ -227,8 +229,9 @@ export function buildLevelMesh(
   }
   for (const [sponsorId, { positions, uvs }] of banners) {
     const geometry = toGeometry(positions, uvs);
-    if (geometry === null) continue;
-    shadowed(new THREE.Mesh(geometry, assets.banners.get(sponsorId))).name = `banner:${sponsorId}`;
+    const material = assets.banners.get(sponsorId);
+    if (geometry === null || material === undefined) continue;
+    shadowed(new THREE.Mesh(geometry, material)).name = `banner:${sponsorId}`;
   }
   for (const mesh of buildGraffitiMeshes(level.graffiti ?? [], assets.graffiti, config)) {
     group.add(mesh);

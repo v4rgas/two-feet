@@ -284,10 +284,6 @@ export const EL_TORO = deepFreeze({
       { side: "north", atM: 13.6, sponsorId: "bipbop" },
       { side: "north", atM: 9.7, sponsorId: "v4rgas" },
     ] satisfies BannerSpot[],
-    /** Every other segment, in ring order: mostly plain, a house banner now and then. */
-    rhythm: [null, "house-deck", null, null, "house-feet", null],
-    /** Only segments this long carry a banner (the art is a ≈ 5:1 tile on a 0.9 m wall). */
-    bannerSegmentM: { min: 3.4, max: 4.5 },
   },
   /**
    * Banner boards on the quad's retaining walls beside the stairs (x = 0), facing the

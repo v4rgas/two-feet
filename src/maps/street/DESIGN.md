@@ -124,12 +124,10 @@ Built in `street-dressing.ts` from `STREET_CONFIG.perimeter`, `deckFence` and `g
   - **v4rgas:** on the north run behind the 25 cm manual pad (x 5.8–9.8), the backdrop
     of the funbox and flat-bar shots, and on the west run behind the 7-stair deck
     (z −0.8…3), seen when you carve back toward the spawn.
-  - The other segments of banner length follow a rhythm of mostly plain wall with a
-    house banner (`house-deck`, `house-feet`) every third segment or so.
-- **Graffiti** (three pieces, walls only, clear of riding surfaces and grind edges):
+  - Every other segment is plain concrete (no house banners).
+- **Graffiti** (two pieces, walls only, clear of riding surfaces and grind edges):
   - a `v4rgas-throwup` on the 7-stair deck's south side wall (under the hubba, x ≈ −9),
     seen from the south lane and the euro gap;
-  - a small `deck-penguin-roundel` on the funbox's +Z wall, under its ledge edge;
   - a `penguin-king` on the plain barrier in the south-west corner, behind the gap
     platform.
   The other planned spots (the up-ledge's front face, the hip's back walls, the quarter

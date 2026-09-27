@@ -5,7 +5,7 @@ import { Quat, Transform, Vec3 } from "../../shared";
 
 /*
  * DEV-ONLY demo (`?level=barrier-demo`): a small plaza ringed by perimeter barriers with
- * sponsor and house banners, an opening on each short side, one ledge, and a couple of
+ * sponsor banners, an opening on each short side, one ledge, and a couple of
  * graffiti pieces. It shows map authors the barrier / banner / graffiti API; real maps
  * live in src/maps/<id>/ and place their own.
  */
@@ -21,8 +21,8 @@ export function createBarrierDemoLevel(): Level {
       { side: "west", centerM: 0, widthM: 4 },
       { side: "east", centerM: 0, widthM: 4 },
     ],
-    // BipBop Labs, v4rgas and the house banners, with a plain (paintable) segment now and then.
-    banners: ["bipbop", "v4rgas", "house-deck", null, "bipbop", "v4rgas", "house-feet", null],
+    // BipBop Labs and v4rgas, with plain (paintable) segments between them.
+    banners: ["bipbop", null, "v4rgas", null],
   });
   const ledge: Obstacle = {
     id: "demo-ledge",
@@ -37,9 +37,9 @@ export function createBarrierDemoLevel(): Level {
     graffitiOnFace(ledge, { pieceId: "pixel-penguin", face: "-z", sizeM: 0.34, alongM: 1.3 }),
     ...plain.slice(0, 2).map((o, i) =>
       graffitiOnFace(o, {
-        pieceId: i === 0 ? "deck-penguin-roundel" : "penguin-king",
+        pieceId: i === 0 ? "pixel-penguin" : "penguin-king",
         face: "+z",
-        sizeM: i === 0 ? 0.7 : 1.0,
+        sizeM: i === 0 ? 0.6 : 1.0,
         rotationRad: i === 0 ? 0.05 : -0.04,
       }),
     ),

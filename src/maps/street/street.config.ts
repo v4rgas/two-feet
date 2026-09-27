@@ -67,10 +67,6 @@ export const STREET_CONFIG = deepFreeze({
       // Plain: the south-west corner behind the gap platform (graffiti).
       { side: "south", atM: -19, sponsorId: null },
     ] satisfies BannerSpot[],
-    /** Every other segment, in ring order: mostly plain, a house banner now and then. */
-    rhythm: [null, null, "house-deck", null, null, "house-feet"],
-    /** Only segments this long carry a banner (the art is a ≈ 5:1 tile on a 0.9 m wall). */
-    bannerSegmentM: { min: 3.4, max: 4.5 },
   },
   /**
    * The deck fence on the quarter pipe: a banner wall standing on the back of its deck,
@@ -96,14 +92,6 @@ export const STREET_CONFIG = deepFreeze({
       face: "-z",
       sizeM: 1.3,
       alongM: -3.2,
-    } satisfies GraffitiOnFaceOptions,
-    /** The funbox's +Z wall, under its ledge edge, facing the flat bar. */
-    funbox: {
-      pieceId: "deck-penguin-roundel",
-      face: "+z",
-      sizeM: 0.36,
-      alongM: 1.6,
-      heightM: 0.22,
     } satisfies GraffitiOnFaceOptions,
     /** The plain barrier in the south-west corner, behind the gap platform. */
     corner: {

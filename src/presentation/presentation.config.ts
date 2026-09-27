@@ -125,7 +125,7 @@ export const PRESENTATION_CONFIG = deepFreeze({
     contactShadeHeightM: 0.35,
     contactShadeStrength: 0.22,
   },
-  /** Sponsor / house banners on barriers (sponsors/): canvas art, see the registry. */
+  /** Sponsor banners on barriers (sponsors/): canvas art, see the registry. */
   banners: {
     /** Canvas size of one banner tile, px (5:1, the panel of a 4 m × 0.9 m barrier). */
     widthPx: 2560,

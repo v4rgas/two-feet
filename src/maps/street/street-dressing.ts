@@ -15,7 +15,7 @@ import type { BannerSpot, StreetConfig } from "./street.config";
 
 /*
  * The street course's dressing (DESIGN.md "Barriers, banners and graffiti"): the
- * perimeter barriers with their sponsor and house banners, the banner fence on the
+ * perimeter barriers with their sponsor banners, the banner fence on the
  * quarter pipe's deck, and a couple of graffiti pieces. Barriers are solid (never
  * grindable); banners and graffiti are artwork only.
  */
@@ -51,9 +51,8 @@ function spotOn(o: Obstacle, spots: readonly BannerSpot[]): BannerSpot | undefin
 }
 
 /**
- * The perimeter ring: the sponsors on their spots (their neighbours stay plain, so a
- * sponsor never reads as one of a row of logos), every other segment of banner length
- * taking the next entry of the rhythm (mostly plain, a house banner now and then).
+ * The perimeter ring: the sponsors on their spots; every other segment is plain concrete
+ * (so a sponsor never reads as one of a row of logos, and there is wall for graffiti).
  */
 export function streetPerimeter(s: StreetConfig): Obstacle[] {
   const p = s.perimeter;
@@ -64,25 +63,7 @@ export function streetPerimeter(s: StreetConfig): Obstacle[] {
     segmentLengthM: p.segmentLengthM,
     openings: p.openings,
   });
-  const spots = ring.map((o) => spotOn(o, p.spots));
-  const sponsored = (i: number, side: PerimeterSide): boolean => {
-    const o = ring[i];
-    return o !== undefined && sideOf(o).side === side && (spots[i]?.sponsorId ?? null) !== null;
-  };
-  let beat = 0;
-  return ring.map((o, i) => {
-    if (o.shape.kind !== "barrier") return o;
-    const spot = spots[i];
-    if (spot !== undefined) return withBanner(o, spot.sponsorId);
-    const { side } = sideOf(o);
-    const { min, max } = p.bannerSegmentM;
-    const fits = o.shape.lengthM >= min && o.shape.lengthM <= max;
-    const besideSponsor = sponsored(i - 1, side) || sponsored(i + 1, side);
-    if (!fits || besideSponsor || p.rhythm.length === 0) return withBanner(o, null);
-    const sponsor = p.rhythm[beat % p.rhythm.length] ?? null;
-    beat += 1;
-    return withBanner(o, sponsor);
-  });
+  return ring.map((o) => withBanner(o, spotOn(o, p.spots)?.sponsorId ?? null));
 }
 
 /**
@@ -109,7 +90,7 @@ export function streetDeckFence(s: StreetConfig, qp: QuarterPipeShape): Obstacle
   );
 }
 
-/** The course's graffiti: the 7-stair deck's side, the funbox's +Z wall, the SW corner. */
+/** The course's graffiti: the 7-stair deck's side and the SW corner. */
 export function streetGraffiti(
   s: StreetConfig,
   obstacles: readonly Obstacle[],
@@ -130,7 +111,6 @@ export function streetGraffiti(
   const g = s.graffiti;
   return [
     graffitiOnFace(byId("big-stairs"), g.stairDeck),
-    graffitiOnFace(byId("funbox"), g.funbox),
     ...(corner === undefined ? [] : [graffitiOnFace(corner, g.corner)]),
   ];
 }

@@ -26,7 +26,7 @@ function placed(xM: number, zM: number, headingRad = 0): Transform {
  * - north lane: a 3-stair with a kinked handrail down its middle, two manual pads, a hip
  *   in the corner;
  * - south lanes: a long ledge; a euro-gap platform, an up-ledge and a bank-to-ledge.
- * Around it: the perimeter barriers with the sponsor and house banners, a banner fence on
+ * Around it: the perimeter barriers with the sponsor banners, a banner fence on
  * the quarter pipe's deck, and a couple of graffiti pieces (`street-dressing.ts`).
  * Every obstacle is data; `obstacleGeometry` builds the pieces.
  */

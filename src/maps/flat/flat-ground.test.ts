@@ -63,5 +63,7 @@ describe("flat map", () => {
     expect(ahead?.transform.positionM.z).toBeCloseTo(0, 9);
     expect(ahead?.transform.positionM.x).toBeGreaterThan(20);
     expect(bannered.some((o) => sponsor(o) === "v4rgas")).toBe(true);
+    // Only the real sponsors: no house banners.
+    for (const o of bannered) expect(["bipbop", "v4rgas"]).toContain(sponsor(o));
   });
 });
