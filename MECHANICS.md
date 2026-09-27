@@ -202,12 +202,16 @@ for the recognizer, based on stance.
   - The rider heading is **no longer frozen in the air** while `Q`/`E` are
     held. It only changes by this body spin, never by board yaw.
 - **The board follows the body through the feet:**
-  - On the ground, or in the air when **no flip and no shove channel is
-    running**, the feet steer the board's yaw toward the rider heading,
-    toward the nearest 0° or 180° of it, with a yaw PD. A plain ollie with
-    `E` is a 180 or 360 where the board turns with you.
-  - While a flip or shove channel is running, the feet are busy, so the board
-    keeps its own yaw and the body spins alone (a body varial).
+  - The wind-up's spin carries over to the board at the pop: board and body
+    start spinning together.
+  - The feet steer the board's yaw toward the rider heading (a yaw PD,
+    toward the nearest 0°/180° of it) at all times, **except while a shove
+    channel is running**. A flip is a roll, and it doesn't stop the board
+    turning with the body, so a "180 Kickflip" or "FS 180 Heelflip" is a real
+    180 of body and board together.
+  - A shove turns the board relative to the body. That is exactly what the
+    recognizer names as the shove: **board yaw minus body yaw**. So a body
+    varial is a shove made while spinning.
   - The catch snaps the board's yaw to the nearest 0° or 180° of the **rider**
     heading, not of the old travel direction.
 - **Landing:**
@@ -377,7 +381,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 12a. **Body 180:** load while holding `E`, pop, `W`, keep holding `E` until the rider has turned about π, `Space`. It lands rolling fakie on 4 wheels, rider heading Δ ≈ π, with no speed gained.
 12b. **Body 360:** the same with `Q` held until about 2π. It lands rolling forward.
 12c. **Line-up:** in the air, `E` held briefly to about 90°, no catch, landing on flat ground. That's a bail (sideways), with no explosion.
-12d. **Flip + body spin:** a kickflip with `Q` held, where the board keeps its own yaw while both feet are off. A catch near the end re-aligns it.
+12d. **180 flip:** wind up with `E`, pop, kickflip `A`, keep `E` held, then `Space`. The board and the body both turn about π (the board's yaw relative to the body is about 0) and it's named "BS 180 Kickflip" in regular. With a shove added, the board's yaw relative to the body is about ±π.
 12e. **Heelflip:** load, pop, `D` 0.05 s later, release, then `Space` near 2π. Roll = 2π ± 0.3 in the opposite direction to the kickflip, with a clean landing. Also `W`+`D`.
 12f. **Nollie heelflip:** hold `W` + `↑`, release `W`, `→` 0.05 s later, `Space`. Roll = 2π, heelflip direction, clean landing. Also nollie kickflip with `←`. Both stances.
 13. **Idle:** 10 s with no input. No drift and no bail.
