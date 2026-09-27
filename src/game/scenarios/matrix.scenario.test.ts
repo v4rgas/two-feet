@@ -138,14 +138,8 @@ describe("trick matrix: flip × shove × kick × stance", () => {
                 if (Vec3.length(r.board.angularVelocityRadps) > 2) continue;
                 expect(horizontalSpeed(r)).toBeLessThan(v0 + 0.3);
               }
-              // KNOWN (tricks context): the recognizer integrates roll as ∫ω·X, so a 360
-              // shove on a scooped (pitched) deck reads ~0.6 rad of roll and is bailed as
-              // under-rotated. It needs the flip coordinate (as `airSummary`). Until then the
-              // 360-shove columns check the physics only.
-              if (shove.turns !== 2) {
-                const landed = h.eventsOf("TrickLanded").filter((e) => e.timeS >= t0);
-                expect(landed.map((e) => e.name)).toEqual([expectedName(kick, flip, shove)]);
-              }
+              const landed = h.eventsOf("TrickLanded").filter((e) => e.timeS >= t0);
+              expect(landed.map((e) => e.name)).toEqual([expectedName(kick, flip, shove)]);
             },
             T,
           );

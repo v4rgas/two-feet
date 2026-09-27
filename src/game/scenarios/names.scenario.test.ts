@@ -191,10 +191,7 @@ describe("trick names, end to end", () => {
     T,
   );
 
-  // The 360 shove itself works (matrix.scenario.test.ts). The recognizer reads ~0.6 rad of
-  // roll from a 360 on a scooped (pitched) deck — it integrates ω·X, not the flip
-  // coordinate — and bails it as under-rotated. Unskip once the tricks context fixes that.
-  it.skip('360 shove → "360 Shove-it"; with a flick → "360 Flip"', () => {});
+  // 360 shove / 360 Flip / Laser Flip names are asserted per case in matrix.scenario.test.ts.
 
   // Needs the Q / E body spin (MECHANICS "Body spin"); the base rider heading is frozen
   // in the air, so the body channel always reads 0.
