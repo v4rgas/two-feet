@@ -6,7 +6,12 @@ import { nextAssistLevel, RIDER_CONFIG } from "../contexts/rider";
 import { LocalStorageAssistLevelRepository } from "../contexts/rider/infrastructure/local-storage-assist-level-repository";
 import { TRICKS_CONFIG } from "../contexts/tricks";
 import type { Level } from "../contexts/world";
-import { createFlatGroundLevel, createSkateparkLevel, WORLD_CONFIG } from "../contexts/world";
+import {
+  createFlatGroundLevel,
+  createSkateparkLevel,
+  createStreetCourseLevel,
+  WORLD_CONFIG,
+} from "../contexts/world";
 import { PRESENTATION_CONFIG } from "../presentation/presentation.config";
 import { ThreeRenderer } from "../presentation/three-renderer";
 import type { Clock } from "../shared";
@@ -16,12 +21,12 @@ import { createTunableConfigs, installDevTuningPanel } from "./dev-tuning";
 import { GAME_CONFIG } from "./game.config";
 import type { GameLoop } from "./loop";
 
-/** The level named by the `?level=` URL parameter: `park`, or the flat ground (default). */
+/** The level named by the `?level=` URL parameter: `park`, `street`, or the flat ground (default). */
 function levelFromUrl(search: string): Level {
   const name = new URLSearchParams(search).get("level");
-  return name === "park"
-    ? createSkateparkLevel(WORLD_CONFIG)
-    : createFlatGroundLevel(WORLD_CONFIG.flatGround);
+  if (name === "park") return createSkateparkLevel(WORLD_CONFIG);
+  if (name === "street") return createStreetCourseLevel(WORLD_CONFIG);
+  return createFlatGroundLevel(WORLD_CONFIG.flatGround);
 }
 
 /** Browser wall clock (the `Clock` port's production adapter). */

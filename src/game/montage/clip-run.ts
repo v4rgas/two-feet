@@ -7,6 +7,7 @@ import { TRICKS_CONFIG } from "../../contexts/tricks";
 import {
   createFlatGroundLevel,
   createSkateparkLevel,
+  createStreetCourseLevel,
   Level,
   WORLD_CONFIG,
 } from "../../contexts/world";
@@ -15,7 +16,7 @@ import { ManualClock, Transform, Vec3 } from "../../shared";
 import type { Simulation, SimulationConfigs } from "../compose";
 import { composeSimulation } from "../compose";
 import { GAME_CONFIG } from "../game.config";
-import type { MontageClip } from "./clip";
+import type { ClipLevel, MontageClip } from "./clip";
 
 /** The stance is the clip's, never the player's saved one (nothing is persisted). */
 class FixedStanceRepository implements StanceRepository {
@@ -26,12 +27,21 @@ class FixedStanceRepository implements StanceRepository {
   save(): void {}
 }
 
+/** A clip level by its `?level=` name, with its own spawn. */
+export function baseClipLevel(name: ClipLevel): Level {
+  switch (name) {
+    case "park":
+      return createSkateparkLevel(WORLD_CONFIG);
+    case "street":
+      return createStreetCourseLevel(WORLD_CONFIG);
+    case "flat":
+      return createFlatGroundLevel(WORLD_CONFIG.flatGround);
+  }
+}
+
 /** The level of a clip, with its spawn override applied. */
 export function clipLevel(clip: MontageClip): Level {
-  const base =
-    clip.level === "park"
-      ? createSkateparkLevel(WORLD_CONFIG)
-      : createFlatGroundLevel(WORLD_CONFIG.flatGround);
+  const base = baseClipLevel(clip.level);
   if (clip.spawn === undefined) return base;
   const { xM, yM, zM, headingRad } = clip.spawn;
   return Level.create({ ...base, spawn: { positionM: Vec3.create(xM, yM, zM), headingRad } });

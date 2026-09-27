@@ -2,8 +2,20 @@ import type { ObstacleId, SurfaceType } from "../../../shared";
 import { Transform, Vec3 } from "../../../shared";
 import type { WorldConfig } from "../world.config";
 import { WORLD_CONFIG } from "../world.config";
-import type { Obstacle, ObstacleShape, QuarterPipeShape, StairsShape } from "./obstacle";
+import type {
+  BankLedgeShape,
+  FunboxShape,
+  KinkedRailShape,
+  Obstacle,
+  ObstacleShape,
+  QuarterPipeShape,
+  StairsShape,
+} from "./obstacle";
 import {
+  bankLedgeRunM,
+  funboxRailLines,
+  handrailZM,
+  kinkedRailTopLine,
   quarterPipeCopingProfile,
   stairsFootXM,
   stairsHeightM,
@@ -112,11 +124,23 @@ function stairsEdges(shape: StairsShape, config: GeometryConfig): LocalEdge[] {
       twoSided: false,
       halfWidthM: r,
     });
+    if (shape.hubba.bothSides === true) {
+      // The mirror image on −Z (its top lies on the +Z side of its edge).
+      for (const e of out.slice()) {
+        out.push({
+          ...e,
+          name: `${e.name}-minus-z`,
+          startM: Vec3.create(e.startM.x, e.startM.y, -e.startM.z),
+          endM: Vec3.create(e.endM.x, e.endM.y, -e.endM.z),
+          outwardNormal: PLUS_Z,
+        });
+      }
+    }
   }
 
   if (shape.handrail !== undefined) {
-    const { heightM: rh, barRadiusM: r, offsetM } = shape.handrail;
-    const z = -halfW - offsetM;
+    const { heightM: rh, barRadiusM: r } = shape.handrail;
+    const z = handrailZM(shape);
     const inset = config.railPostInsetM;
     out.push({
       name: "handrail",
@@ -129,6 +153,90 @@ function stairsEdges(shape: StairsShape, config: GeometryConfig): LocalEdge[] {
     });
   }
   return out;
+}
+
+/** One two-sided bar edge per straight run of a rail's top line (local XY at z). */
+function barEdges(
+  name: string,
+  lineM: readonly (readonly [number, number])[],
+  zM: number,
+  radiusM: number,
+): LocalEdge[] {
+  const out: LocalEdge[] = [];
+  for (let i = 0; i + 1 < lineM.length; i += 1) {
+    const a = lineM[i];
+    const b = lineM[i + 1];
+    if (a === undefined || b === undefined) continue;
+    out.push({
+      name: lineM.length > 2 ? `${name}-${i}` : name,
+      surface: "grindable",
+      startM: Vec3.create(a[0], a[1], zM),
+      endM: Vec3.create(b[0], b[1], zM),
+      outwardNormal: PLUS_Z,
+      twoSided: true,
+      halfWidthM: radiusM,
+    });
+  }
+  return out;
+}
+
+function kinkedRailEdges(shape: KinkedRailShape): LocalEdge[] {
+  return barEdges("bar", kinkedRailTopLine(shape), 0, shape.barRadiusM);
+}
+
+function funboxEdges(shape: FunboxShape): LocalEdge[] {
+  const out: LocalEdge[] = [];
+  const h = shape.heightM;
+  const c = shape.edgeChamferM;
+  const hx = shape.topLengthM / 2;
+  const hz = shape.topWidthM / 2;
+  // Ledge sides: where the top meets the chamfer, along the whole top edge.
+  if (shape.sides.plusZ === "ledge") {
+    out.push(ledgeEdge("ledge+z", [-hx, h, hz - c], [hx, h, hz - c], PLUS_Z));
+  }
+  if (shape.sides.minusZ === "ledge") {
+    out.push(ledgeEdge("ledge-z", [-hx, h, -(hz - c)], [hx, h, -(hz - c)], MINUS_Z));
+  }
+  if (shape.sides.plusX === "ledge") {
+    out.push(ledgeEdge("ledge+x", [hx - c, h, -hz], [hx - c, h, hz], Vec3.UNIT_X));
+  }
+  if (shape.sides.minusX === "ledge") {
+    out.push(ledgeEdge("ledge-x", [-(hx - c), h, -hz], [-(hx - c), h, hz], Vec3.create(-1, 0, 0)));
+  }
+  for (const rail of funboxRailLines(shape)) {
+    out.push(...barEdges(rail.name, rail.lineM, rail.zM, rail.radiusM));
+  }
+  return out;
+}
+
+function ledgeEdge(
+  name: string,
+  start: readonly [number, number, number],
+  end: readonly [number, number, number],
+  outwardNormal: Vec3,
+): LocalEdge {
+  return {
+    name,
+    surface: "ledge",
+    startM: Vec3.create(...start),
+    endM: Vec3.create(...end),
+    outwardNormal,
+    twoSided: false,
+    halfWidthM: 0,
+  };
+}
+
+function bankLedgeEdges(shape: BankLedgeShape): LocalEdge[] {
+  const y = shape.bankHeightM + shape.ledgeHeightM;
+  const c = shape.edgeChamferM;
+  const halfW = shape.widthM / 2;
+  const front = bankLedgeRunM(shape) + c;
+  const back = bankLedgeRunM(shape) + shape.ledgeDepthM - c;
+  return [
+    // Over the bank: the edge you ride up to.
+    ledgeEdge("ledge-bank", [front, y, -halfW], [front, y, halfW], Vec3.create(-1, 0, 0)),
+    ledgeEdge("ledge-back", [back, y, -halfW], [back, y, halfW], Vec3.UNIT_X),
+  ];
 }
 
 /** Grind edges of a shape, in the obstacle's local frame. */
@@ -178,6 +286,12 @@ function shapeEdges(shape: ObstacleShape, config: GeometryConfig): LocalEdge[] {
       return quarterPipeEdges(shape, config);
     case "stairs":
       return stairsEdges(shape, config);
+    case "funbox":
+      return funboxEdges(shape);
+    case "kinkedRail":
+      return kinkedRailEdges(shape);
+    case "bankLedge":
+      return bankLedgeEdges(shape);
     case "box":
     case "bank":
     case "kicker":
