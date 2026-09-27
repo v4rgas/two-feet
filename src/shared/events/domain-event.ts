@@ -36,8 +36,10 @@ export type FootDetachReason =
   | "separated"
   /** The rider jumped (the pop): both feet leave the deck until the catch. */
   | "jumped"
-  /** Forced by a reset or bail. */
-  | "reset";
+  /** Forced by a reset. */
+  | "reset"
+  /** The rider bailed: the feet let go of the board and fall away with the rider. */
+  | "bailed";
 
 /** Why a landing or a run failed. */
 export type BailReason =

@@ -57,7 +57,7 @@ travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md
   is left alone (no thrust).
 - **Balance**: in [−1, 1], + toward the toe side. A seeded random walk scaled by the slope,
   the speed and the time on the edge; both feet leaning the same way counter it; past |1|
-  the rider falls off (bail `lostBalance`).
+  the rider falls off (bail `lostBalance`: the lock lets go, nothing is applied).
 - **Exits**: pop out (the ground's load and release; the pop also goes out along the edge's
   normal; the body turns on its own to the travel: `popOutTurnRad`), roll off the end
   (the feet stay on), fall off.
@@ -74,7 +74,15 @@ travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md
   the **pop-out airtime floor** (vertical only), the **pop-out buffer** (a load held as the
   board lands in the slide), and the **balance ease** (≤ 1 s).
 - **Bail**: a landing not lined up with the travel (forward or fakie), a landing tilted
-  against the surface, upside down, both feet off on the wheels, or resting upside down.
+  against the surface, upside down, a deck / tail / nose touching down outside the landing
+  tolerance for `bail.touchdownHoldS`, both feet off on the wheels, or resting upside down.
+- **Ragdoll** ([ADR 0013](../../../docs/adr/0013-ragdoll-bail.md)): from the step the bail
+  is decided until the reset the rider applies nothing (the trick controller returns no
+  forces and drops every buffered input, and `DefaultRiderSystem` applies nothing while
+  `bailed`), ignores every key (Space too), and the feet detach (`FootDetached`, reason
+  `bailed`) and fall with the torso. A touch outside the tolerance stops every controller
+  the step it happens. A grind fall-off lets go without a push. After the reset, a key still
+  held does nothing until released.
 
 ## Structural ports
 

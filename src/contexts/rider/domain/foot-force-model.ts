@@ -47,11 +47,13 @@ export interface BoardKinematics {
   readonly linearVelocityMps: Vec3;
   readonly angularVelocityRadps: Vec3;
   readonly grounded: boolean;
+  /** Time since the board last left the ground, s (0 while grounded). Absent = 0. */
+  readonly airtimeS?: number;
   /** `deck`: flat-section contact (e.g. lying upside down) — used for bail detection. */
   readonly contacts: { readonly tail: boolean; readonly nose: boolean; readonly deck: boolean };
   /**
-   * What the board touches: the surface type (grindable skips the landing yaw check) and,
-   * for the wheels, the part and the surface normal (the ground the board rolls on).
+   * What the board touches: the surface type (grindable skips the landing yaw check), the
+   * part and the surface normal (the ground the board rolls on; a bad touchdown).
    */
   readonly contactPoints?: readonly {
     readonly surface: string;

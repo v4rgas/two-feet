@@ -14,6 +14,7 @@ import {
   boardHeadingRad,
   boardUp,
   deckPointWorld,
+  offAngleTouchUpDot,
   spotUnder,
   supportNormal,
   wrapPi,
@@ -60,8 +61,10 @@ export const NEUTRAL_CONTROLS: RiderControls = Object.freeze({
  * - The pop lifts both feet off (`liftFeet`); a catch snaps them back on (`catchFeet`).
  *   An uncaught board that lands roughly level and on its wheels gets its feet back too.
  * - Bail: an uncaught landing that is not level, a caught landing that is badly tilted,
- *   the board upside down (`land`), both feet off on the wheels, or the board resting
- *   upside down.
+ *   the board upside down (`land`), a deck / tail / nose touchdown outside the landing
+ *   tolerance, both feet off on the wheels, or the board resting upside down. The bail is
+ *   RAGDOLL (MECHANICS.md "Bail: the board goes ragdoll"): the feet let go at once and fall
+ *   away with the torso, and every key is ignored until the reset.
  */
 export class Rider {
   private readonly feet: Record<FootId, Foot>;
@@ -80,6 +83,8 @@ export class Rider {
   private bailed = false;
   private bothFeetOffOnWheelsS = 0;
   private upsideDownRestingS = 0;
+  /** How long a deck / tail / nose has touched down outside the tolerance, s. */
+  private offAngleTouchS = 0;
   private cachedState: RiderState | null = null;
   private readonly footLimits: FootMotionLimits;
 
@@ -173,7 +178,7 @@ export class Rider {
     }
     if (exit !== null) this.lastGrindExit = exit;
     this.cachedState = null;
-    if (exit === "fellOff" && !this.bailed) return [this.bail("lostBalance")];
+    if (exit === "fellOff" && !this.bailed) return this.bail("lostBalance");
     return [];
   }
 
@@ -187,14 +192,16 @@ export class Rider {
 
   /** Loop step 5: moves the torso and feet and checks for a bail. */
   update(
-    controls: RiderControls,
+    input: RiderControls,
     board: BoardKinematics,
     dtS: number,
     loading = false,
   ): readonly RiderChange[] {
     this.cachedState = null;
-    this.updateWindUp(controls, board, loading, dtS);
-    this.updateHeading(controls, board, dtS);
+    // Bailed: every key is ignored until the reset (the feet stay where they let go).
+    const controls = this.bailed ? NEUTRAL_CONTROLS : input;
+    this.updateWindUp(controls, board, loading && !this.bailed, dtS);
+    if (!this.bailed) this.updateHeading(controls, board, dtS);
     this.updateTorso(board, dtS);
     for (const id of FOOT_IDS) {
       const foot = this.feet[id];
@@ -223,13 +230,13 @@ export class Rider {
    */
   land(upDot: number, board: BoardKinematics): readonly RiderChange[] {
     if (this.bailed) return [];
-    if (upDot < 0) return [this.bail("upsideDown")];
+    if (upDot < 0) return this.bail("upsideDown");
     // Too sideways to roll (neither forward nor fakie along the travel): bail, never a
     // violent redirect by the wheel grip.
-    if (this.landsSideways(board)) return [this.bail("offAngle")];
+    if (this.landsSideways(board)) return this.bail("offAngle");
     const tilt = Math.acos(Math.max(-1, Math.min(1, upDot)));
     // Caught or not, the same tolerance: being caught never skips the landing check.
-    if (tilt > this.config.tricks.landTiltRad) return [this.bail("offAngle")];
+    if (tilt > this.config.tricks.landTiltRad) return this.bail("offAngle");
     const caught = this.feet.front.isAttached || this.feet.back.isAttached;
     return caught ? [] : this.catchFeet(board);
   }
@@ -261,6 +268,7 @@ export class Rider {
     this.bailed = false;
     this.bothFeetOffOnWheelsS = 0;
     this.upsideDownRestingS = 0;
+    this.offAngleTouchS = 0;
     this.headingRad = boardHeadingRad(board) ?? 0;
     this.windUpRad = 0;
     this.bodySpinRateRadps = 0;
@@ -344,6 +352,11 @@ export class Rider {
   // ── bail ──────────────────────────────────────────────────────────────────
 
   private checkBail(board: BoardKinematics, dtS: number, changes: RiderChange[]): void {
+    const touchdown = this.badTouchdown(board, dtS);
+    if (touchdown !== null) {
+      changes.push(...this.bail(touchdown));
+      return;
+    }
     const bothOff = !this.feet.front.isAttached && !this.feet.back.isAttached;
     this.bothFeetOffOnWheelsS = board.grounded && bothOff ? this.bothFeetOffOnWheelsS + dtS : 0;
     const touching = board.contacts.deck || board.contacts.tail || board.contacts.nose;
@@ -352,22 +365,58 @@ export class Rider {
 
     const { bail } = this.config;
     if (this.bothFeetOffOnWheelsS > bail.feetDetachedAfterLandingS) {
-      changes.push(this.bail("feetDetached"));
+      changes.push(...this.bail("feetDetached"));
     } else if (this.upsideDownRestingS > bail.upsideDownRestS) {
-      changes.push(this.bail("upsideDown"));
+      changes.push(...this.bail("upsideDown"));
     }
   }
 
-  private bail(reason: RiderBailed["reason"]): RiderChange {
+  /**
+   * BAIL AT TOUCHDOWN (MECHANICS.md "Bail: the board goes ragdoll"): a deck / tail / nose
+   * touching down outside the landing tolerance (`offAngleTouchUpDot`) for at least
+   * `touchdownHoldS` cannot be landed any more (a one-step graze of a kick mid-flip still
+   * can): a bail, so no controller fights it. Upside down → `upsideDown`, else `offAngle`.
+   * Not on an edge (the lock owns the board there); a wheel touchdown is `land`'s.
+   */
+  private badTouchdown(board: BoardKinematics, dtS: number): RiderBailed["reason"] | null {
+    const { bail, tricks } = this.config;
+    const upDot =
+      this.grind === null
+        ? offAngleTouchUpDot(board, bail.touchdownMinAirS, tricks.landTiltRad)
+        : null;
+    this.offAngleTouchS = upDot === null ? 0 : this.offAngleTouchS + dtS;
+    if (upDot === null || this.offAngleTouchS < bail.touchdownHoldS - 1e-9) return null;
+    return upDot < 0 ? "upsideDown" : "offAngle";
+  }
+
+  /**
+   * The bail: the rider lets go of the board completely. Both feet detach (they fall away
+   * with the torso, drawn semi-transparent) and from now on nothing the rider does reaches
+   * the board until the reset.
+   */
+  private bail(reason: RiderBailed["reason"]): RiderChange[] {
+    const changes: RiderChange[] = [{ type: "RiderBailed", reason }];
+    for (const id of FOOT_IDS) {
+      const foot = this.feet[id];
+      if (!foot.isAttached) continue;
+      foot.detach();
+      changes.push({ type: "FootDetached", foot: id, reason: "bailed" });
+    }
     this.bailed = true;
+    this.bodySpinRateRadps = 0;
+    this.realignLeftRad = 0;
+    this.snapHeadingRad = null;
+    this.windUpRad = 0;
     this.cachedState = null;
-    return { type: "RiderBailed", reason };
+    return changes;
   }
 
   // ── torso / rider frame ───────────────────────────────────────────────────
 
+  /** Above the board; bailed, fallen down near it (the rider hits the ground too). */
   private torsoTarget(board: BoardKinematics): Vec3 {
-    return Vec3.add(board.transform.positionM, Vec3.create(0, this.config.torso.heightM, 0));
+    const heightM = this.bailed ? this.config.bail.fallenTorsoHeightM : this.config.torso.heightM;
+    return Vec3.add(board.transform.positionM, Vec3.create(0, heightM, 0));
   }
 
   /**

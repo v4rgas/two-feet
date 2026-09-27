@@ -4,7 +4,7 @@ import type { RiderState, RiderSystem } from "../contexts/rider";
 import type { TricksSystem } from "../contexts/tricks";
 import type { DebugVector, RenderFrame } from "../presentation/render-frame";
 import type { Clock, DomainEvent, EventBus, Transform } from "../shared";
-import { FixedStepAccumulator } from "../shared";
+import { FixedStepAccumulator, Vec3 } from "../shared";
 import type { GameConfig } from "./game.config";
 
 /** Everything the loop drives. Wired in `bootstrap.ts` (the composition root). */
@@ -40,7 +40,8 @@ export class GameLoop {
   private previousRider: RiderState;
   private physicsStepMs = 0;
   private stepsThisFrame = 0;
-  private resetAtS: number | null = null;
+  /** When the rider bailed (the reset is pending), s, or null. */
+  private bailedAtS: number | null = null;
   private recentEvents: DomainEvent[] = [];
   private debugVectors: TimedVector[] = [];
 
@@ -58,7 +59,7 @@ export class GameLoop {
     this.previousRider = systems.rider.state;
     systems.bus.subscribeAll((event) => this.recentEvents.push(event));
     systems.bus.subscribe("RiderBailed", (event) => {
-      this.resetAtS ??= event.timeS + config.bailResetDelayS;
+      this.bailedAtS ??= event.timeS;
     });
   }
 
@@ -183,9 +184,22 @@ export class GameLoop {
     }
   }
 
+  /**
+   * The bail reset (MECHANICS.md "Bail: the board goes ragdoll"): `bailResetDelayS` after
+   * the bail or once the board has come to rest, whichever is later, and never later than
+   * `bailResetMaxS`.
+   */
   private maybeResetAfterBail(): void {
-    if (this.resetAtS === null || this.timeS < this.resetAtS) return;
-    this.resetAtS = null;
+    if (this.bailedAtS === null) return;
+    const sinceS = this.timeS - this.bailedAtS + 1e-9;
+    const { bailResetDelayS, bailResetMaxS, bailRestSpeedMps, bailRestSpinRadps } = this.config;
+    if (sinceS < bailResetDelayS) return;
+    const b = this.current;
+    const resting =
+      Vec3.length(b.linearVelocityMps) < bailRestSpeedMps &&
+      Vec3.length(b.angularVelocityRadps) < bailRestSpinRadps;
+    if (!resting && sinceS < bailResetMaxS) return;
+    this.bailedAtS = null;
     const { board, rider, tricks, input, spawn } = this.systems;
     board.reset(spawn);
     rider.reset(board.snapshot);

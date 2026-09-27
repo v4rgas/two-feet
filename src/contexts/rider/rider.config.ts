@@ -359,8 +359,6 @@ export const RIDER_CONFIG = deepFreeze({
     balanceSeed: 20260926,
     /** The board rolls this much toward the side the balance leans, rad (visual). */
     balanceLeanRad: 0.1,
-    /** Falling off: the board is pushed toward the fall side at this speed, m/s. */
-    fallOffSpeedMps: 0.8,
     /** Edges within this horizontal distance count as a landing for the airtime prediction, m. */
     airtimeEdgeRadiusM: 0.5,
   },
@@ -486,6 +484,17 @@ export const RIDER_CONFIG = deepFreeze({
     feetDetachedAfterLandingS: 0.35,
     /** Board resting upside down (grip tape down, touching) for this long → bail, s. */
     upsideDownRestS: 0.25,
+    /**
+     * TOUCHDOWN (MECHANICS.md "Bail: the board goes ragdoll"): in the air for at least
+     * `touchdownMinAirS`, a deck / tail / nose touching the ground (not a grind edge) with
+     * the board tilted beyond `tricks.landTiltRad` from the contact normal. While it
+     * touches, no controller acts; held `touchdownHoldS` it is a bail (a one-step graze of
+     * a kick mid-flip is not), s.
+     */
+    touchdownMinAirS: 0.1,
+    touchdownHoldS: 0.05,
+    /** Bailed, the torso falls toward this height above the board, m (visual). */
+    fallenTorsoHeightM: 0.35,
   },
 });
 

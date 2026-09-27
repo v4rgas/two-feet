@@ -119,11 +119,22 @@ export class DefaultRiderSystem implements RiderSystem {
         this.grindEdgesNear?.(board.transform.positionM, this.config.grind.queryRadiusM) ?? [],
       assistLevel: this.assistLevel,
     });
-    this.forces = output.forces;
-    this.loading = output.loading === true;
     // These act during the step that produces snapshot `board.tick + 1`.
     const tick = board.tick + 1;
     const timeS = board.timeS + dtS;
+    // The grind lock first: falling off is a bail, decided this very step.
+    const grindChanges = this.rider.setGrind(output.grind ?? null, output.grindExit ?? null);
+    if (this.rider.state.bailed) {
+      // BAIL = RAGDOLL (MECHANICS.md): from the step the bail is decided until the reset
+      // the rider applies nothing at all — no force, no impulse, no pop, no catch.
+      this.forces = [];
+      this.loading = false;
+      this.rider.snapSpinTo(null);
+      this.publish(grindChanges, tick, timeS);
+      return;
+    }
+    this.forces = output.forces;
+    this.loading = output.loading === true;
     for (const f of this.forces) this.apply(f);
     if (output.popped !== null) {
       const pop = this.forces.find((f) => f.label === "pop" && f.kind === "impulse");
@@ -140,7 +151,7 @@ export class DefaultRiderSystem implements RiderSystem {
     }
     if (output.caught) this.publish(this.rider.catchFeet(board), tick, timeS);
     this.rider.snapSpinTo(output.spinSnapHeadingRad ?? null);
-    this.publish(this.rider.setGrind(output.grind ?? null, output.grindExit ?? null), tick, timeS);
+    this.publish(grindChanges, tick, timeS);
   }
 
   postPhysics(board: BoardSnapshot, dtS: number): void {

@@ -28,6 +28,29 @@ export function pitchRad(board: BoardKinematics): number {
   return Math.asin(Math.max(-1, Math.min(1, boardForward(board).y)));
 }
 
+/**
+ * A TOUCHDOWN OUTSIDE TOLERANCE (MECHANICS.md "Bail: the board goes ragdoll"): in the air
+ * for at least `minAirS`, a deck / tail / nose touching the ground or a ramp (grind edges
+ * and ledges are the lock-on's) with the board's up more than `maxTiltRad` from that
+ * contact's normal. Returns the worst up · normal, or null when there is no such touch.
+ */
+export function offAngleTouchUpDot(
+  board: BoardKinematics,
+  minAirS: number,
+  maxTiltRad: number,
+): number | null {
+  if (board.grounded || (board.airtimeS ?? 0) < minAirS) return null;
+  const up = boardUp(board);
+  let worst: number | null = null;
+  for (const c of board.contactPoints ?? []) {
+    if (c.part !== "deck" && c.part !== "tail" && c.part !== "nose") continue;
+    if (c.surface === "grindable" || c.surface === "ledge" || c.normalWorld === undefined) continue;
+    const upDot = Vec3.dot(up, c.normalWorld);
+    if (worst === null || upDot < worst) worst = upDot;
+  }
+  return worst !== null && worst < Math.cos(maxTiltRad) ? worst : null;
+}
+
 /** Heading of the board's long axis (+X flattened), rad around world +Y, or null if vertical. */
 export function boardHeadingRad(board: BoardKinematics, minHorizontal = 0.2): number | null {
   const f = boardForward(board);

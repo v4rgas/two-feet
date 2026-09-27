@@ -5,9 +5,15 @@ import { deckTopPointLocal } from "./deck-surface";
 import { NEUTRAL_CONTROLS, Rider, type RiderChange } from "./rider";
 import { board, controls, DECK, DT, REST_Y } from "./test-fixtures";
 
-function run(rider: Rider, c: ReturnType<typeof controls>, b = board(), steps = 1): RiderChange[] {
+function run(
+  rider: Rider,
+  c: ReturnType<typeof controls>,
+  b = board(),
+  steps = 1,
+  loading = false,
+): RiderChange[] {
   const out: RiderChange[] = [];
-  for (let i = 0; i < steps; i += 1) out.push(...rider.update(c, b, DT));
+  for (let i = 0; i < steps; i += 1) out.push(...rider.update(c, b, DT, loading));
   return out;
 }
 
@@ -81,8 +87,63 @@ describe("Rider aggregate", () => {
     const landed = tilted.land(Math.cos(RIDER_CONFIG.tricks.landTiltRad + 0.1), board());
     expect(landed).toEqual([{ type: "RiderBailed", reason: "offAngle" }]);
 
+    // A bail lets go of the board: the attached feet detach with it (ragdoll).
     const flipped = new Rider(DECK, RIDER_CONFIG, board());
-    expect(flipped.land(-0.9, board())).toEqual([{ type: "RiderBailed", reason: "upsideDown" }]);
+    expect(flipped.land(-0.9, board())).toEqual([
+      { type: "RiderBailed", reason: "upsideDown" },
+      { type: "FootDetached", foot: "front", reason: "bailed" },
+      { type: "FootDetached", foot: "back", reason: "bailed" },
+    ]);
+    expect(flipped.state.front.contact).toBe("airborne");
+    expect(flipped.state.back.contact).toBe("airborne");
+    // Bailed, nothing gets the feet back on before the reset.
+    expect(flipped.catchFeet(board())).toEqual([]);
+  });
+
+  it("a kick touching down outside the landing tolerance is a bail once it holds (a graze is not)", () => {
+    const touching = board({
+      grounded: false,
+      airtimeS: 0.3,
+      pitchRad: 1.2,
+      contacts: { tail: true, nose: false, deck: false },
+      contactPoints: [{ part: "tail", surface: "ground", normalWorld: Vec3.UNIT_Y }],
+    });
+    const free = board({ grounded: false, airtimeS: 0.31, pitchRad: 1.2 });
+    const steps = Math.ceil(RIDER_CONFIG.bail.touchdownHoldS / DT);
+    const grazed = new Rider(DECK, RIDER_CONFIG, board());
+    grazed.liftFeet();
+    expect(run(grazed, NEUTRAL_CONTROLS, touching, steps - 1)).toEqual([]);
+    expect(run(grazed, NEUTRAL_CONTROLS, free, 1)).toEqual([]);
+    expect(run(grazed, NEUTRAL_CONTROLS, touching, steps - 1)).toEqual([]);
+
+    const held = new Rider(DECK, RIDER_CONFIG, board());
+    held.liftFeet();
+    expect(run(held, NEUTRAL_CONTROLS, touching, steps)).toContainEqual({
+      type: "RiderBailed",
+      reason: "offAngle",
+    });
+    expect(held.state.bailed).toBe(true);
+    // A grind edge is the lock-on's, not a touchdown.
+    const edge = new Rider(DECK, RIDER_CONFIG, board());
+    const onEdge = board({
+      grounded: false,
+      airtimeS: 0.3,
+      pitchRad: 1.2,
+      contactPoints: [{ part: "tail", surface: "grindable", normalWorld: Vec3.UNIT_Y }],
+    });
+    expect(run(edge, NEUTRAL_CONTROLS, onEdge, 2 * steps)).toEqual([]);
+  });
+
+  it("bailed, every key is ignored: the heading does not spin and the wind-up stays 0", () => {
+    const rider = new Rider(DECK, RIDER_CONFIG, board());
+    rider.land(-0.9, board());
+    const heading = rider.state.headingRad;
+    const spin = { ...controls({ fx: 1, by: -1, feetDown: true }), spin: 1 };
+    run(rider, spin, board({ grounded: false }), 30);
+    run(rider, spin, board(), 30, true);
+    expect(rider.state.headingRad).toBe(heading);
+    expect(rider.state.windUpRad).toBe(0);
+    expect(rider.state.bodySpinRateRadps).toBe(0);
   });
 
   it("bails when both feet stay off on the wheels, or the board rests upside down", () => {

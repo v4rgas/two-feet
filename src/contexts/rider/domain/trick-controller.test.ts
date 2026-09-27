@@ -181,7 +181,7 @@ describe("TrickController — press, load, arm, pop", () => {
 });
 
 describe("TrickController — in the air", () => {
-  const inAir = (extra: { pitchRad?: number; rollRad?: number } = {}) =>
+  const inAir = (extra: Parameters<typeof board>[0] = {}) =>
     board({ grounded: false, y: 0.25, linearVelocityMps: Vec3.create(0, 1.5, 0), ...extra });
   const air = inAir();
 
@@ -249,5 +249,49 @@ describe("TrickController — in the air", () => {
     lift();
     step({ fy: 1 }, air);
     expect(step({}, air).caught).toBe(false);
+  });
+
+  it("bailed (ragdoll): nothing is applied and nothing is buffered, whatever the keys", () => {
+    const { model, rider, step, lift } = setup();
+    ollie(step);
+    lift();
+    step({ fx: -1 }, air);
+    rider.land(-0.9, board());
+    const mashes: Sticks[] = [
+      { feetDown: true },
+      { fx: -1, feetDown: true },
+      { by: -1, fy: -1 },
+      { by: -1, bx: 1, feetDown: true },
+      {},
+    ];
+    for (let i = 0; i < 60; i += 1) {
+      const b = i % 2 === 0 ? air : board();
+      const out = step(mashes[i % mashes.length] ?? {}, b, rider.state);
+      expect(out.forces).toEqual([]);
+      expect(out.popped).toBeNull();
+      expect(out.caught).toBe(false);
+    }
+    // After the reset, a Space still held does nothing (no catch, no push) until let go.
+    model.reset();
+    const fresh = new Rider(DECK, RIDER_CONFIG, board());
+    expect(step({ feetDown: true }, board(), fresh.state).forces).toEqual([]);
+    const held = step({ feetDown: true }, board(), fresh.state);
+    expect(held.forces.some((f) => f.label === "push" || f.label === "catch")).toBe(false);
+  });
+
+  it("a kick touching down outside the landing tolerance: no controller fights it", () => {
+    const { step, lift } = setup();
+    ollie(step);
+    lift();
+    steps(step, {}, 30, air);
+    const touching = inAir({
+      rollRad: 1.3,
+      airtimeS: 0.4,
+      contacts: { tail: true, nose: false, deck: false },
+      contactPoints: [{ part: "tail", surface: "ground", normalWorld: Vec3.UNIT_Y }],
+    });
+    const out = step({ feetDown: true, fx: -1 }, touching);
+    expect(out.forces).toEqual([]);
+    expect(out.caught).toBe(false);
   });
 });

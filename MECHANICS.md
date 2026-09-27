@@ -226,6 +226,9 @@ down, uncaught, lost balance, feet off), the rider **lets go completely**:
   controller may fight it.
 - The reset happens after `bailResetS` (1.5 s), or when the board comes to
   rest, whichever is later, capped at 3 s.
+- **Status:** implemented in [ADR 0013](docs/adr/0013-ragdoll-bail.md). A kick or the
+  deck touching down outside tolerance stops every controller that step, and is the bail
+  once it holds 0.05 s (a one-step graze mid-flip can still land).
 
 
 ## Body spin (`Q` / `E`): 180s, 360s, lining up

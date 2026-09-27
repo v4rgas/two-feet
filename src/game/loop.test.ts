@@ -12,7 +12,7 @@ import {
   StubTricksSystem,
 } from "./stubs";
 
-function createLoop(calls: string[]) {
+function createLoop(calls: string[], moving: (timeS: number) => boolean = () => false) {
   const bus = new InMemoryEventBus();
   const spawn = Transform.IDENTITY;
   const board = new (class extends StubBoardSystem {
@@ -24,7 +24,11 @@ function createLoop(calls: string[]) {
       if (tick === 1) {
         bus.publish({ type: "RiderBailed", tick, timeS, reason: "upsideDown" });
       }
-      return super.postPhysics(tick, timeS);
+      const snapshot = super.postPhysics(tick, timeS);
+      if (!moving(timeS)) return snapshot;
+      // The ragdoll board still tumbling.
+      this.snapshot = { ...snapshot, linearVelocityMps: Vec3.create(1, 0, 0) };
+      return this.snapshot;
     }
     override reset(transform: Transform): void {
       calls.push("board.reset");
@@ -103,5 +107,25 @@ describe("GameLoop", () => {
     for (let i = 0; i < stepsToReset; i += 1) loop.step();
     expect(calls.filter((c) => c === "board.reset")).toHaveLength(1);
     expect(Vec3.equals(board.snapshot.transform.positionM, Vec3.ZERO)).toBe(true);
+  });
+
+  it("a tumbling board resets once it comes to rest (after the delay), at the latest after the cap", () => {
+    const stepS = GAME_CONFIG.loop.fixedStepS;
+    const resetsAt = (moving: (timeS: number) => boolean): number => {
+      const calls: string[] = [];
+      const { loop } = createLoop(calls, moving);
+      for (let i = 1; i < 1000; i += 1) {
+        loop.step();
+        if (calls.includes("board.reset")) return i * stepS;
+      }
+      return Number.POSITIVE_INFINITY;
+    };
+    const bailS = stepS;
+    // Rests at 2.2 s: the reset waits for it.
+    expect(resetsAt((t) => t < 2.2) - bailS).toBeCloseTo(2.2 - bailS, 1);
+    // Never rests: the cap.
+    expect(resetsAt(() => true) - bailS).toBeCloseTo(GAME_CONFIG.bailResetMaxS, 1);
+    // Rests at once: the delay.
+    expect(resetsAt(() => false) - bailS).toBeCloseTo(GAME_CONFIG.bailResetDelayS, 1);
   });
 });

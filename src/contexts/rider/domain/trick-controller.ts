@@ -7,6 +7,7 @@ import {
   boardHeadingRad,
   boardUp,
   deckPointWorld,
+  offAngleTouchUpDot,
   restHeightM,
   supportNormal,
   wrapPi,
@@ -152,6 +153,8 @@ class BoardFrame {
  */
 export class TrickController implements FootForceModel {
   private wasGrounded = true;
+  /** Just reset (see `reset`): the next step applies nothing. */
+  private settling = false;
   /** The kick being loaded (the first one wins), or null. */
   private loadKick: Kick | null = null;
   private loadS = 0;
@@ -274,22 +277,13 @@ export class TrickController implements FootForceModel {
   }
 
   reset(): void {
-    this.wasGrounded = true;
-    this.loadKick = null;
-    this.loadS = 0;
-    this.endAir();
-    this.feetDownBefore = false;
-    this.releasedBefore = false;
-    this.landAssistLeftS = 0;
-    this.pushCooldownS = 0;
-    this.pushLocked = false;
-    this.steerLean = 0;
-    this.grind.reset();
-    this.airStart = null;
-    for (const id of FOOT_IDS) {
-      this.swipes[id].reset();
-      this.lastSwipe[id] = null;
-    }
+    this.letGo();
+    // The first step after a reset sees the spawn pose, not a physics read: no forces.
+    this.settling = true;
+    // A Space (or a key) still held through the reset does nothing until it is let go.
+    this.feetDownBefore = true;
+    this.releasedBefore = true;
+    this.pushLocked = true;
     this.clockS = 0;
     this.sinceTouchdownS = Number.POSITIVE_INFINITY;
     this.pressHeldAtS.tail = Number.NEGATIVE_INFINITY;
@@ -297,8 +291,41 @@ export class TrickController implements FootForceModel {
     this.lockedAtS = Number.NEGATIVE_INFINITY;
   }
 
+  /**
+   * BAIL = RAGDOLL (MECHANICS.md "Bail: the board goes ragdoll"): every controller lets go
+   * and every buffered input is dropped — the load, the channels, the catch buffer, the
+   * lock and the magnet (`endAir`), the steer lean, the swipes.
+   */
+  private letGo(): void {
+    this.wasGrounded = true;
+    this.loadKick = null;
+    this.loadS = 0;
+    this.endAir();
+    this.landAssistLeftS = 0;
+    this.pushCooldownS = 0;
+    this.steerLean = 0;
+    this.grind.reset();
+    this.airStart = null;
+    for (const id of FOOT_IDS) {
+      this.swipes[id].reset();
+      this.lastSwipe[id] = null;
+      this.graceBackS[id] = 0;
+    }
+    this.airLoadKick = null;
+    this.airLoadS = 0;
+  }
+
   computeForces(input: FootForceInput): FootForceOutput {
     const { controls, rider, board, dtS } = input;
+    // BAILED: the board is a free rigid body until the reset. Nothing is read, nothing is
+    // applied, nothing is buffered — not even Space.
+    if (rider.bailed || this.settling) {
+      this.settling = false;
+      this.letGo();
+      this.feetDownBefore = controls.feetDown;
+      if (controls.feetDown) this.pushLocked = true;
+      return { forces: [], popped: null, caught: false, loading: false, grind: null };
+    }
     this.assist = this.config.assist[input.assistLevel ?? "pro"];
     this.groundYM = input.groundBelowYM ?? 0;
     this.edges = input.edgesNear ?? [];
@@ -333,9 +360,18 @@ export class TrickController implements FootForceModel {
     const grounded = board.grounded;
     if (!grounded && controls.feetDown) this.pushLocked = true;
     if (!controls.feetDown) this.pushLocked = false;
-    if (rider.bailed) {
-      this.clearLoad();
-      this.grind.reset();
+    // BOUND TO BAIL: a kick or the deck touching down outside the landing tolerance. No
+    // controller fights it — the channels end, a buffered catch is dropped, nothing is
+    // applied — and held a moment it is the bail (`Rider`).
+    const { bail, tricks } = this.config;
+    if (
+      !this.grind.locked &&
+      offAngleTouchUpDot(board, bail.touchdownMinAirS, tricks.landTiltRad) !== null
+    ) {
+      this.flipChannel.active = false;
+      this.shoveChannel.active = false;
+      this.catchRequestS = 0;
+      this.catchArmed = false;
       this.wasGrounded = grounded;
       return { forces: [], popped: null, caught: false, loading: false, grind: null };
     }
@@ -514,6 +550,8 @@ export class TrickController implements FootForceModel {
       },
       out,
     );
+    // Fell off: a bail. The lock let go this step and nothing is applied (ragdoll).
+    if (exit === "fellOff") out.length = 0;
     if (exit !== null) {
       this.leftObstacleId = report?.obstacleId ?? null;
       this.airStart = { positionM: board.transform.positionM, headingRad: rider.headingRad };

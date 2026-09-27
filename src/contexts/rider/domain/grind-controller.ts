@@ -493,14 +493,8 @@ export class GrindController {
         g.balanceAssist * g.balanceLeanRatePerS * ctx.leanToe) *
       dtS;
     if (Math.abs(lock.balance) > 1) {
-      const fall = Vec3.scale(ctx.riderSide, ctx.toe * Math.sign(lock.balance));
-      out.push(
-        impulse(
-          "grind",
-          Vec3.scale(fall, mass.massKg * g.fallOffSpeedMps),
-          mass.centerOfMassWorldM,
-        ),
-      );
+      // Fell off: a bail, so the board goes ragdoll — the lock lets go and applies nothing
+      // (MECHANICS.md "Bail: the board goes ragdoll").
       this.release();
       return "fellOff";
     }
