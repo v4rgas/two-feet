@@ -2,6 +2,12 @@
 export type { ObstacleId, SurfaceType } from "../../shared";
 export { SURFACE_TYPES } from "../../shared";
 export { createFlatGroundLevel } from "./domain/flat-ground";
+export type {
+  GraffitiOnFaceOptions,
+  GraffitiPlacement,
+  ObstacleFaceSide,
+} from "./domain/graffiti";
+export { createGraffiti, graffitiOnFace } from "./domain/graffiti";
 export type { GrindEdge, GrindEdgeHit } from "./domain/grind-edges";
 export {
   closestOnEdge,
@@ -15,6 +21,9 @@ export { Level } from "./domain/level";
 export type {
   BankLedgeShape,
   BankShape,
+  BarrierBanner,
+  BarrierBannerSides,
+  BarrierShape,
   BoxShape,
   FunboxBankRail,
   FunboxShape,
@@ -60,6 +69,13 @@ export {
   stairsHeightM,
   stairsSlopeRad,
 } from "./domain/obstacle-geometry";
+export type {
+  PerimeterBounds,
+  PerimeterOpening,
+  PerimeterOptions,
+  PerimeterSide,
+} from "./domain/perimeter";
+export { perimeterBarriers } from "./domain/perimeter";
 export { createSkateparkLevel } from "./domain/skatepark";
 export { createStreetCourseLevel } from "./domain/street-course";
 export type { WorldConfig } from "./world.config";

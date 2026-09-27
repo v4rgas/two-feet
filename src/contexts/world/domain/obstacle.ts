@@ -246,6 +246,35 @@ export interface BankLedgeShape {
   readonly edgeChamferM: number;
 }
 
+/** Which long faces of a barrier carry the banner panel. */
+export type BarrierBannerSides = "front" | "both";
+
+/**
+ * A sponsor or house banner on a barrier. `sponsorId` names artwork in the presentation's
+ * sponsor registry (the world never knows what it looks like); an unknown id falls back
+ * to a house banner there.
+ */
+export interface BarrierBanner {
+  readonly sponsorId: string;
+  /** `front` (default): only the local +Z face; `both`: the +Z and −Z faces. */
+  readonly sides?: BarrierBannerSides;
+}
+
+/**
+ * A perimeter barrier segment: a low concrete wall along local X (`lengthM`, centred on
+ * the origin), standing on y = 0, `thicknessM` deep along Z, with chamfered top edges.
+ * Its local +Z face is the FRONT (the side that faces the park). An optional banner
+ * panel (a thin plate standing proud of the face) carries sponsor artwork. It is solid
+ * and `ground` everywhere: nothing on it is grindable (it has no grind edges).
+ */
+export interface BarrierShape {
+  readonly kind: "barrier";
+  readonly lengthM: number;
+  readonly heightM: number;
+  readonly thicknessM: number;
+  readonly banner?: BarrierBanner;
+}
+
 /** Obstacle geometry parameters, in the obstacle's local frame. */
 export type ObstacleShape =
   | BoxShape
@@ -257,7 +286,8 @@ export type ObstacleShape =
   | StairsShape
   | FunboxShape
   | KinkedRailShape
-  | BankLedgeShape;
+  | BankLedgeShape
+  | BarrierShape;
 
 /** Every shape kind. */
 export type ObstacleShapeKind = ObstacleShape["kind"];
@@ -418,6 +448,24 @@ function validate(shape: ObstacleShape): void {
         throw new RangeError(`${kind}: edgeChamferM is too large for the ledge`);
       }
       return;
+    case "barrier":
+      validateBarrier(shape);
+      return;
+  }
+}
+
+function validateBarrier(shape: BarrierShape): void {
+  const kind = shape.kind;
+  requirePositive(kind, "lengthM", shape.lengthM);
+  requirePositive(kind, "heightM", shape.heightM);
+  requirePositive(kind, "thicknessM", shape.thicknessM);
+  const banner = shape.banner;
+  if (banner === undefined) return;
+  if (typeof banner.sponsorId !== "string" || banner.sponsorId.trim() === "") {
+    throw new RangeError(`${kind}: banner.sponsorId must be a non-empty string`);
+  }
+  if (banner.sides !== undefined && banner.sides !== "front" && banner.sides !== "both") {
+    throw new RangeError(`${kind}: banner.sides must be front or both`);
   }
 }
 
@@ -498,4 +546,5 @@ export const ObstacleShape = Object.freeze({
   kinkedRail: (p: Omit<KinkedRailShape, "kind">): KinkedRailShape =>
     make({ kind: "kinkedRail", ...p }),
   bankLedge: (p: Omit<BankLedgeShape, "kind">): BankLedgeShape => make({ kind: "bankLedge", ...p }),
+  barrier: (p: Omit<BarrierShape, "kind">): BarrierShape => make({ kind: "barrier", ...p }),
 });

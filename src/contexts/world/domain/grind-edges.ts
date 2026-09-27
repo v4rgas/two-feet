@@ -296,6 +296,7 @@ function shapeEdges(shape: ObstacleShape, config: GeometryConfig): LocalEdge[] {
     case "box":
     case "bank":
     case "kicker":
+    case "barrier":
       return [];
   }
 }

@@ -11,9 +11,10 @@ import type { Renderer } from "./renderer";
 import type { BoardMesh } from "./scene/board-mesh";
 import { buildBoardMesh } from "./scene/board-mesh";
 import { FeetMesh } from "./scene/feet-mesh";
-import type { LevelMesh } from "./scene/level-mesh";
-import { buildLevelMesh } from "./scene/level-mesh";
+import type { LevelAssets, LevelMesh } from "./scene/level-mesh";
+import { buildLevelMesh, createLevelAssets, disposeLevelAssets } from "./scene/level-mesh";
 import { buildSky } from "./scene/sky";
+import { TextureLibrary } from "./textures/texture-library";
 
 /** Longest frame delta fed to smoothing (tab switches, breakpoints), s. */
 const MAX_FRAME_DT_S = 0.1;
@@ -49,6 +50,8 @@ export class ThreeRenderer implements Renderer {
   private board: BoardMesh | null = null;
   private level: LevelMesh | null = null;
   private spec: BoardSpec | null = null;
+  private readonly textures: TextureLibrary;
+  private readonly levelAssets: LevelAssets;
 
   // Per-frame scratch (no allocation in `render`).
   private readonly pose = createPose();
@@ -77,13 +80,23 @@ export class ThreeRenderer implements Renderer {
       powerPreference: "high-performance",
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    this.renderer.toneMapping =
+      config.renderer.toneMapping === "aces"
+        ? THREE.ACESFilmicToneMapping
+        : THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = config.renderer.toneMappingExposure;
     this.renderer.shadowMap.enabled = true;
     // PCFSoftShadowMap was folded into PCFShadowMap (three r18x); softness comes from `shadow.radius`.
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
-    this.scene.fog = new THREE.Fog(palette.skyBottom, lighting.fogNearM, lighting.fogFarM);
+    this.scene.fog = new THREE.Fog(palette.skyHorizon, lighting.fogNearM, lighting.fogFarM);
+    // Shared level materials: CC0 textures load once, reused by every level (and the grip).
+    const anisotropy = Math.min(
+      config.surfaces.anisotropy,
+      this.renderer.capabilities.getMaxAnisotropy(),
+    );
+    this.textures = new TextureLibrary(anisotropy);
+    this.levelAssets = createLevelAssets(config, this.textures, anisotropy);
     this.camera = new THREE.PerspectiveCamera(cam.fovDeg, 1, cam.nearM, cam.farM);
 
     this.sky = buildSky(config);
@@ -137,9 +150,9 @@ export class ThreeRenderer implements Renderer {
     this.level?.dispose();
 
     this.spec = setup.boardSpec;
-    this.board = buildBoardMesh(setup.boardSpec, this.config);
+    this.board = buildBoardMesh(setup.boardSpec, this.config, this.textures);
     this.boardPivot.add(this.board.group);
-    this.level = buildLevelMesh(setup.level, this.config);
+    this.level = buildLevelMesh(setup.level, this.config, this.levelAssets);
     this.scene.add(this.level.group);
     this.rig.snap();
   }
@@ -227,6 +240,8 @@ export class ThreeRenderer implements Renderer {
     window.removeEventListener("resize", this.onResize);
     this.board?.dispose();
     this.level?.dispose();
+    disposeLevelAssets(this.levelAssets);
+    this.textures.dispose();
     this.feet.dispose();
     this.debug.dispose();
     this.hud.dispose();

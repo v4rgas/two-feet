@@ -13,8 +13,11 @@ export const PRESENTATION_CONFIG = deepFreeze({
     concrete300: "#c9c4b8",
     concrete600: "#7d786e",
     ink: "#1c1b19",
-    skyTop: "#f3d9b1",
-    skyBottom: "#cfe0e6",
+    /** Sky: a soft blue zenith over a warm, hazy horizon (the fog colour too)… */
+    skyZenith: "#a9c6d8",
+    skyHorizon: "#ece3d3",
+    /** …and a warm glow around the low sun. */
+    sunGlow: "#ffd9a8",
     deck: "#c8553d",
     wheel: "#f4efe3",
     metal: "#9aa0a6",
@@ -27,10 +30,15 @@ export const PRESENTATION_CONFIG = deepFreeze({
   renderer: {
     /** devicePixelRatio is capped at this (fill-rate budget, REQUIREMENTS §1.9). */
     maxPixelRatio: 2,
+    /**
+     * `neutral` (Khronos PBR Neutral: keeps base colours, so the palette, the foot colours
+     * and the sponsors' brand colours stay true) or `aces` (filmic, more contrast).
+     */
+    toneMapping: "neutral" as "neutral" | "aces",
     toneMappingExposure: 1.05,
   },
   lighting: {
-    sunColor: "#ffeedc",
+    sunColor: "#ffead4",
     sunIntensity: 3.4,
     /** Sun elevation above the horizon (low, late afternoon), rad. */
     sunElevationRad: degToRad(28),
@@ -38,32 +46,117 @@ export const PRESENTATION_CONFIG = deepFreeze({
     sunAzimuthRad: degToRad(215),
     /** Distance of the sun from the board it follows, m. */
     sunDistanceM: 12,
-    /** Half size of the shadow camera frustum around the board, m. */
-    shadowHalfExtentM: 4,
-    shadowMapSizePx: 2048,
+    /**
+     * Half size of the shadow camera frustum around the board, m. Wide enough that the
+     * obstacles around the rider cast shadows too (texel ≈ 3.4 mm at 4096 px).
+     */
+    shadowHalfExtentM: 7,
+    shadowMapSizePx: 4096,
     /** PCF blur radius in texels (soft shadows). */
     shadowRadiusPx: 4,
     shadowBias: -0.0004,
-    shadowNormalBias: 0.01,
-    hemiSkyColor: "#eef0ea",
+    shadowNormalBias: 0.012,
+    /** Sky fill: a cool blue from above, warm concrete bounce from below. */
+    hemiSkyColor: "#dfe8ee",
     hemiGroundColor: "#d6d0c3",
-    hemiIntensity: 2.1,
+    hemiIntensity: 2.0,
     /** Fog blends the far ground into the horizon color, m. */
-    fogNearM: 25,
-    fogFarM: 110,
+    fogNearM: 30,
+    fogFarM: 130,
+    /** Sky dome: gradient curve exponent (lower = the blue starts nearer the horizon). */
+    skyGradientPower: 0.55,
+    /** Sun glow on the sky dome: tightness (higher = smaller) and strength. */
+    sunGlowPower: 6,
+    sunGlowStrength: 0.55,
+  },
+  /**
+   * Level surfaces (scene/level-mesh.ts): one shared material per tone. Each has a flat
+   * palette colour (used until its CC0 texture set loads, and in tests) and an optional
+   * texture set from `public/textures/<set>/` (color + normal + roughness, LICENSES.md).
+   * Textures tile in world space: one repeat every `metresPerRepeat`.
+   */
+  surfaces: {
+    /** Anisotropic filtering (capped by the GPU). */
+    anisotropy: 8,
+    /**
+     * Mean of the detail colour maps in linear light (they are neutral grey, mean 0.9
+     * sRGB): the palette colour is divided by it, so a textured surface keeps its token.
+     */
+    detailMeanLinear: 0.79,
+    ground: {
+      color: "#e9e6df",
+      textureSet: "concrete-ground",
+      /** One tile per slab (the joints hide the repeat). */
+      metresPerRepeat: 3,
+      roughness: 0.95,
+      metalness: 0,
+      normalScale: 0.55,
+    },
+    body: {
+      color: "#c9c4b8",
+      textureSet: "concrete-smooth",
+      metresPerRepeat: 3,
+      roughness: 0.82,
+      metalness: 0,
+      normalScale: 0.45,
+    },
+    edge: {
+      color: "#8a8478",
+      textureSet: "concrete-smooth",
+      metresPerRepeat: 3,
+      roughness: 0.75,
+      metalness: 0,
+      normalScale: 0.45,
+    },
+    metal: {
+      color: "#9aa0a6",
+      textureSet: "metal-brushed",
+      metresPerRepeat: 0.6,
+      roughness: 0.5,
+      metalness: 0.25,
+      normalScale: 0.35,
+    },
+    /** Banner rim and the fallback colour of a banner face before its art loads. */
+    bannerFallback: "#f7f5f0",
+    /**
+     * Contact shading on walls near the ground (a cheap stand-in for ambient occlusion):
+     * vertical faces darken by up to `strength` at y = 0, fading out by `heightM`.
+     */
+    contactShadeHeightM: 0.35,
+    contactShadeStrength: 0.22,
+  },
+  /** Sponsor / house banners on barriers (sponsors/): canvas art, see the registry. */
+  banners: {
+    /** Canvas size of one banner tile, px (5:1, the panel of a 4 m × 0.9 m barrier). */
+    widthPx: 2560,
+    heightPx: 512,
+    roughness: 0.6,
+  },
+  /** Graffiti decals (graffiti/): canvas art multiplied into the wall. */
+  graffiti: {
+    /** Longest side of a piece's canvas, px. */
+    canvasPx: 1024,
+    /** Paint strength: 1 = full colour, lower lets more wall through. */
+    opacity: 0.85,
+    /** How far the decal quad floats off the wall (plus polygon offset), m. */
+    liftM: 0.003,
   },
   ground: {
     /** Spacing of the concrete slab joints drawn on ground surfaces, m. */
     slabJointSpacingM: 3,
     /** Lift of the joint lines above the surface to avoid z-fighting, m. */
     slabJointLiftM: 0.001,
-    slabJointOpacity: 0.35,
+    slabJointOpacity: 0.3,
   },
   board: {
     /** Grip tape thickness on top of the deck, m (visual only, above the collider). */
     gripThicknessM: 0.0008,
     /** Grip tape inset from the deck edge on each side, m. */
     gripInsetM: 0.002,
+    /** CC0 grip texture set (public/textures/grip/); one repeat per this much deck, m. */
+    gripTextureSet: "grip",
+    gripMetresPerRepeat: 0.12,
+    gripNormalScale: 1.5,
     /**
      * Nose/tail rounding in the top view, as a fraction of the deck half width
      * (1 = full semicircle). Visual only: the collider tips stay square.

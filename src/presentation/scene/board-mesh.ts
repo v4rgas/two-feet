@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { BoardSpec, WHEEL_IDS } from "../../contexts/board";
 import deckGraphicUrl from "../assets/deck-penguin.jpg";
 import type { PresentationConfig } from "../presentation.config";
+import type { TextureLibrary } from "../textures/texture-library";
 import { flatMaterial } from "./materials";
 
 /**
@@ -225,7 +226,43 @@ function buildWheel(
   return pivot;
 }
 
-export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): BoardMesh {
+/**
+ * The CC0 grip texture (public/textures/grip, LICENSES.md) once it loads, tiled at
+ * `gripMetresPerRepeat` over the deck. Until then (and in tests) the noise grip stays.
+ * The textures are the library's (shared): the board never disposes them.
+ */
+function applyGripTexture(
+  material: THREE.MeshStandardMaterial,
+  spec: BoardSpec,
+  config: PresentationConfig,
+  textures: TextureLibrary | null,
+): void {
+  const look = config.board;
+  const pending = textures?.load(look.gripTextureSet) ?? null;
+  if (pending === null) return;
+  pending
+    .then((set) => {
+      const rx = spec.deck.lengthM / look.gripMetresPerRepeat;
+      const ry = spec.deck.widthM / look.gripMetresPerRepeat;
+      for (const t of [set.map, set.normalMap, set.roughnessMap]) t.repeat.set(rx, ry);
+      material.map = set.map;
+      material.normalMap = set.normalMap;
+      material.normalScale.set(look.gripNormalScale, look.gripNormalScale);
+      material.roughnessMap = set.roughnessMap;
+      // The detail map is light grey: keep the grip as dark as the ink token.
+      material.color.set(config.palette.ink).multiplyScalar(1 / config.surfaces.detailMeanLinear);
+      material.needsUpdate = true;
+    })
+    .catch(() => {
+      // No texture: the noise grip stays.
+    });
+}
+
+export function buildBoardMesh(
+  spec: BoardSpec,
+  config: PresentationConfig,
+  textures: TextureLibrary | null = null,
+): BoardMesh {
   const { palette, board: look } = config;
   const group = new THREE.Group();
   group.name = "board";
@@ -240,6 +277,7 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
   const gripMaterial = flatMaterial(palette.ink);
   gripMaterial.map = gripTexture;
   gripMaterial.roughness = 1;
+  applyGripTexture(gripMaterial, spec, config, textures);
   const metal = flatMaterial(palette.metal);
   metal.metalness = 0.4;
   metal.roughness = 0.5;
@@ -312,17 +350,12 @@ export function buildBoardMesh(spec: BoardSpec, config: PresentationConfig): Boa
       group.traverse((node) => {
         if (node instanceof THREE.Mesh) node.geometry.dispose();
       });
-      for (const m of [
-        deckMaterial,
-        graphicMaterial,
-        gripMaterial,
-        metal,
-        wheelMaterial,
-        hubMaterial,
-      ]) {
+      for (const m of [deckMaterial, graphicMaterial, metal, wheelMaterial, hubMaterial]) {
         m.map?.dispose();
         m.dispose();
       }
+      // The grip's CC0 maps belong to the shared texture library.
+      gripMaterial.dispose();
       gripTexture.dispose();
     },
   };

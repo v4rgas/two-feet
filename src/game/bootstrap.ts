@@ -16,6 +16,7 @@ import { ThreeRenderer } from "../presentation/three-renderer";
 import type { Clock } from "../shared";
 import type { SimulationConfigs } from "./compose";
 import { composeSimulation } from "./compose";
+import { createBarrierDemoLevel } from "./dev/barrier-demo";
 import { createTunableConfigs, installDevTuningPanel } from "./dev-tuning";
 import { GAME_CONFIG } from "./game.config";
 import type { GameLoop } from "./loop";
@@ -25,6 +26,7 @@ function levelFromUrl(search: string): Level {
   const name = new URLSearchParams(search).get("level");
   if (name === "park") return createSkateparkLevel(WORLD_CONFIG);
   if (name === "street") return createStreetCourseLevel(WORLD_CONFIG);
+  if (import.meta.env.DEV && name === "barrier-demo") return createBarrierDemoLevel();
   return createFlatGroundLevel(WORLD_CONFIG.flatGround);
 }
 
@@ -79,6 +81,8 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<GameLoop> {
   });
   renderer.setup({ boardSpec: sim.spec, level });
   if (tunables !== null) void installDevTuningPanel(tunables);
+  // Dev-only handle for visual checks (camera poses via `setMontageOverrides`).
+  if (import.meta.env.DEV) Object.assign(window, { __skateRenderer: renderer });
 
   let last = performance.now();
   const frame = (now: number): void => {
