@@ -185,6 +185,14 @@ const ALL: readonly [string, Shape, SurfaceType][] = [
   ["rail", RAIL, "grindable"],
   ["square rail", { ...RAIL, profile: "square" }, "grindable"],
   ["stairs", STAIRS, "ground"],
+  [
+    "stairs with a handrail down each side",
+    ObstacleShape.stairs({
+      ...STAIRS,
+      handrail: { heightM: 0.8, barRadiusM: 0.024, offsetM: 0.3, bothSides: true },
+    }),
+    "ground",
+  ],
   ["box", ObstacleShape.box({ halfExtentsM: Vec3.create(1, 0.5, 2) }), "ground"],
 ];
 
@@ -460,6 +468,29 @@ describe("stairs", () => {
       topDepthM: 1,
     });
     expect(handrailSpanXM(bare)).toBeNull();
+  });
+
+  it("`bothSides` mirrors the handrail (bar and posts) to the +Z side", () => {
+    const both = ObstacleShape.stairs({
+      stepCount: STAIRS.stepCount,
+      riseM: STAIRS.riseM,
+      runM: STAIRS.runM,
+      widthM: STAIRS.widthM,
+      topDepthM: STAIRS.topDepthM,
+      handrail: { heightM: 0.8, barRadiusM: 0.024, offsetM: 0.3, bothSides: true },
+    });
+    const pieces = shapeGeometry("ground", both).pieces;
+    const bars = pieces.filter((p) => p.surface === "grindable");
+    expect(bars).toHaveLength(2);
+    const [minus, plus] = bars.map((p) => bounds(p.verticesM));
+    expect(minus?.max.z).toBeLessThan(-STAIRS.widthM / 2);
+    expect(plus?.min.z).toBeGreaterThan(STAIRS.widthM / 2);
+    expect(plus?.min.z).toBeCloseTo(-(minus?.max.z ?? 0), 9);
+    expect(plus?.max.y).toBeCloseTo(minus?.max.y ?? 0, 9);
+    const posts = pieces.filter(
+      (p) => p.surface === "ground" && bounds(p.verticesM).min.z > STAIRS.widthM / 2,
+    );
+    expect(posts).toHaveLength(2);
   });
 });
 

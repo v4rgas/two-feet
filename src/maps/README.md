@@ -34,4 +34,4 @@ world context's `index.ts` and `src/shared`. Only `src/game` imports maps.
 
 - `street/`: the Street Course, the default map. `street.config.ts` holds the layout.
 - `flat/`: flat ground. The tutorial runs here (`tutorial: true`).
-- `el-toro/`: El Toro, the 20-stair with a handrail (a 3.3 m drop): the big-drop challenge.
+- `el-toro/`: El Toro, the 20-stair with a handrail down each side (a 3.3 m drop): the big-drop challenge, set in a school (upper quad, courtyard, walkway ramp, 4-stair, planter ledge, curb). `el-toro.config.ts` holds the layout, `DESIGN.md` the research.

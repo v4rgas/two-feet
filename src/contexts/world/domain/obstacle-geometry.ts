@@ -1264,6 +1264,10 @@ function stairsGeometry(
         boxPiece("ground", Vec3.create(x - p, 0, z - p), Vec3.create(x + p, axisY, z + p), "metal"),
       );
     }
+    if (shape.handrail.bothSides === true && shape.handrail.centered !== true) {
+      // The bar and its two posts (the last three pieces), mirrored to the +Z side.
+      for (const piece of pieces.slice(-3)) pieces.push(mirrorZ(piece));
+    }
   }
   if (shape.roundedBackSlope === true && shape.backSlopeRad !== undefined) {
     const frame = stairsBackFrame(shape, shape.backSlopeRad);
