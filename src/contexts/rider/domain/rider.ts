@@ -208,9 +208,8 @@ export class Rider {
    * Called when the board lands, with its up vector dotted with the landing SURFACE's
    * normal (`BoardLanded.surfaceUpDot`, so banks and transitions count as level; world up
    * when unknown). Upside down or sideways to the
-   * travel → bail. Caught: bail
-   * only if badly tilted. Uncaught: the feet come back if it is roughly level
-   * (`landTiltRad`), otherwise bail.
+   * travel → bail. Tilted beyond `landTiltRad` → bail, caught or not (the catch is feet,
+   * not magic). Uncaught and roughly level: the feet come back.
    */
   land(upDot: number, board: BoardKinematics): readonly RiderChange[] {
     if (this.bailed) return [];
@@ -219,12 +218,10 @@ export class Rider {
     // violent redirect by the wheel grip.
     if (this.landsSideways(board)) return [this.bail("offAngle")];
     const tilt = Math.acos(Math.max(-1, Math.min(1, upDot)));
-    const caught = this.feet.front.isAttached || this.feet.back.isAttached;
-    if (caught) {
-      return tilt > this.config.bail.maxLandingTiltRad ? [this.bail("offAngle")] : [];
-    }
+    // Caught or not, the same tolerance: being caught never skips the landing check.
     if (tilt > this.config.tricks.landTiltRad) return [this.bail("offAngle")];
-    return this.catchFeet(board);
+    const caught = this.feet.front.isAttached || this.feet.back.isAttached;
+    return caught ? [] : this.catchFeet(board);
   }
 
   /**

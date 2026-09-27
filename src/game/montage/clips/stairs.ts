@@ -73,9 +73,9 @@ export const varialHeelflipStairs: MontageClip = {
  * The M4 stairs line (scenario G4, `grinds.scenario.test.ts`, the same key timeline):
  * rolling at 3.5 m/s on the stairs' platform 0.33 m inside the hubba's steel edge, pop at
  * 0.88 s (x ≈ −1.97), W + A kickflip, ↓ held (tailslide), a Q quarter turn so the tail
- * swings over the hubba, Space; the tailslide locks at ≈ 1.41 s on the hubba's flat top and
- * runs down the slope; S + release ↓ pops out at 1.70 s, A + → hardflip, the body turns
- * back on its own; Space (window ≈ 2.27–2.34 s); lands ≈ 2.45 s past the stairs.
+ * swings over the hubba, Space at 1.35 s; the tailslide locks at ≈ 1.39 s on the hubba's
+ * flat top; S + release ↓ pops out at 1.53 s, W + A + → hardflip, the body turns back on
+ * its own; Space (window ≈ 2.08–2.14 s); it lands past the stairs.
  */
 export const stairsTailslideHardflip: MontageClip = {
   id: "stairs-tailslide-hardflip",
@@ -88,13 +88,14 @@ export const stairsTailslideHardflip: MontageClip = {
     .loadAndPop("tail", 0.56, 0.88)
     .level("tail", 0.93, 0.1)
     .flick("tail", "heel", 0.93, 0.08)
-    .foot("back", "down", 0.98, 0.67)
+    .foot("back", "down", 0.98, 0.55)
     .spin("left", 1.13, 0.14)
     .catch(1.35)
-    .foot("front", "down", 1.5, 0.19)
-    .flick("tail", "heel", 1.69, 0.08)
-    .sweep("tail", "toe", 1.69, 0.08)
-    .catch(2.27)
+    .foot("front", "down", 1.38, 0.19)
+    .level("tail", 1.57, 0.1)
+    .flick("tail", "heel", 1.57, 0.08)
+    .sweep("tail", "toe", 1.57, 0.08)
+    .catch(2.11)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "fisheyeFollow" } },

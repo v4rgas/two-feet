@@ -65,6 +65,13 @@ export function catchAt(h: ScenarioHarness, atS: number): void {
 }
 
 /**
+ * How far short of the target rotation a player hits Space, rad. The catch is feet, not
+ * magic (MECHANICS.md "Catch"): it damps a spin at ≤ `catchMaxAlphaRadps2`, so Space goes
+ * in at the end of the rotation, when the flip or shove has settled.
+ */
+export const CATCH_SLACK_RAD = 0.15;
+
+/**
  * Runs until the air's roll and yaw are near their targets (rad, magnitudes) and the board
  * looks upright, then presses Space: how a player catches a combo. Stops at touchdown.
  */
@@ -76,8 +83,8 @@ export function spaceWhenDone(
 ): void {
   for (let i = 0; i < 150 && !h.board.grounded; i += 1) {
     const air = airSummary(h, t0);
-    const rolled = Math.abs(air.rollRad) >= rollRad - 0.45;
-    const turned = Math.abs(air.yawRad) >= yawRad - 0.3;
+    const rolled = Math.abs(air.rollRad) >= rollRad - CATCH_SLACK_RAD;
+    const turned = Math.abs(air.yawRad) >= yawRad - CATCH_SLACK_RAD;
     if (rolled && turned && h.tiltRad() <= 0.5) break;
     h.run(1 / 120);
   }

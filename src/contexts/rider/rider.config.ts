@@ -1,4 +1,4 @@
-import { deepFreeze, degToRad } from "../../shared";
+import { deepFreeze } from "../../shared";
 
 /**
  * Every tunable constant of the `rider` context (REQUIREMENTS §2.5). SI units.
@@ -145,6 +145,18 @@ export const RIDER_CONFIG = deepFreeze({
     swipeDoubleTravel: 1.45,
     /** How firmly the flip / shove rates are held each step until the catch (0–1). */
     spinHoldAssist: 1,
+    /**
+     * SPIN SETTLE: as a flip / shove nears its target (N turns / half turns) its held rate
+     * eases down — over about `spinSettleS`, s (a deceleration of rate / spinSettleS, so
+     * flip and shove settle together) — to `spinCoastRadps`, rad/s, which it keeps past the
+     * target until the catch. So near the end the board turns slowly enough for the feet
+     * to grab it (|ω| < `catchMaxOmegaRadps`), and an uncaught board keeps turning. Caught
+     * before its target, the channel rides on under the feet to the target, slowing to
+     * `catchRideInRadps`, rad/s; then the catch correction (torque-limited) takes over.
+     */
+    spinSettleS: 0.12,
+    spinCoastRadps: 5,
+    catchRideInRadps: 3,
 
     /**
      * Body spin (Q / E) in the air: the heading's spin rate eases toward ±this, rad/s, at
@@ -163,17 +175,31 @@ export const RIDER_CONFIG = deepFreeze({
      */
     bodyFollowOmegaRadps: 20,
 
-    /** Catch cone: board tilt within this of upright… */
-    catchRollRad: 0.7,
-    /** …and yaw within this of 0° or 180° from the rider heading. */
-    catchYawRad: 0.6,
+    /**
+     * CATCH CONE (MECHANICS.md "Catch": feet, not magic): roll within this of upright, rad…
+     */
+    catchRollRad: 0.5,
+    /** …yaw within this of 0° or 180° from the rider heading (the stance angle), rad… */
+    catchYawRad: 0.45,
+    /** …pitch within this of level, rad… */
+    catchPitchRad: 0.6,
+    /** …and the board turning slower than this (feet cannot grab a whipping board), rad/s. */
+    catchMaxOmegaRadps: 14,
     /** After a catch attempt outside the cone, Space is locked out this long, s. */
     catchRetryS: 0.15,
     /** Easy mode: releasing every foot key in the air also catches. */
     autoCatchOnRelease: false,
-    /** Catch PD gain (0–1) and natural frequency, rad/s: kills spin, levels, snaps yaw. */
+    /**
+     * CATCH CORRECTION: a PD (gain `catchAssist`, 0–1) toward level and the nearest stance
+     * yaw that settles over about `catchSettleS`, s. Torque-limited: angular acceleration at
+     * most `catchMaxAlphaRadps2`, rad/s² (eased in while the feet reach the deck), and at most
+     * `catchMaxCorrectionRad` of each axis' error at the catch is corrected, rad; the rest
+     * stays, and the landing decides.
+     */
     catchAssist: 0.8,
-    catchOmegaRadps: 25,
+    catchSettleS: 0.18,
+    catchMaxAlphaRadps2: 60,
+    catchMaxCorrectionRad: 0.35,
     /**
      * At the catch the board rises to meet the feet: a vertical velocity that closes this
      * fraction of the sole-to-grip gap over `feet.catchReachS`, capped, m/s.
@@ -289,8 +315,6 @@ export const RIDER_CONFIG = deepFreeze({
   bail: {
     /** Both feet detached for longer than this while the board is on its wheels → bail, s. */
     feetDetachedAfterLandingS: 0.35,
-    /** A caught landing tilted beyond this (board up vs world up) → bail, rad. */
-    maxLandingTiltRad: degToRad(50),
     /** Board resting upside down (grip tape down, touching) for this long → bail, s. */
     upsideDownRestS: 0.25,
   },

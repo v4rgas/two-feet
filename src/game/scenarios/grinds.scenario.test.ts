@@ -118,7 +118,8 @@ async function slideOntoLedge(
   if (press !== "up") h.foot("front", "up", 0.37, 0.12);
   h.press({ code: spin, atS: 0.34, holdS: 0.14 });
   if (press !== null) h.foot(press === "down" ? "back" : "front", press, 0.42, 1.5);
-  h.press({ code: "Space", atS: 0.57, holdS: 0.1 });
+  // Space once the quarter turn has eased out (the catch damps a spin, never stops it dead).
+  h.press({ code: "Space", atS: 0.62, holdS: 0.1 });
   h.run(3);
   return h;
 }
@@ -129,15 +130,16 @@ async function slideOntoLedge(
  * edge (z = 1.75) — facing +X at 3.5 m/s:
  * - 0.56 ↓ + 0.58 S: load; release ↓ at 0.88: the pop (full load) at x ≈ −1.97;
  * - 0.93 W + A: kickflip with the level (its height bonus is needed to clear the hubba);
- * - 0.98 ↓ held until 1.70: the tail press that picks the TAILSLIDE at the lock;
+ * - 0.98 ↓ held until 1.53: the tail press that picks the TAILSLIDE at the lock;
  * - 1.13 Q for 0.14 s: a frontside quarter turn, so the tail swings over the hubba;
- * - 1.28 Space: the catch (the flip is done); the lock-on is at ≈ 1.41 s on the hubba's
- *   flat top, and the slide carries on over the kink and down the slope;
- * - 1.55 S, then ↓ released at 1.70: the pop out (load ↓ + S, release ↓) halfway down
- *   the slope (lower down the air is too short for a hardflip);
- * - 1.76 A + → (0.08 s): hardflip (kickflip + frontside shove); the body turns back a
- *   quarter on its own to line up with the travel;
- * - 2.30 Space: the catch (window ≈ 2.27–2.34 s); it lands at ≈ 2.45 s past the stairs.
+ * - 1.35 Space: the catch, once the (slower, ADR 0010) flip has turned; the lock-on is at
+ *   ≈ 1.39 s on the hubba's flat top;
+ * - 1.38 S, then ↓ released at 1.53: the pop out (load ↓ + S, release ↓) on the flat top
+ *   (later, the air left is too short to catch a hardflip that settles, ADR 0011);
+ * - 1.57 W + A + → (0.08 s): hardflip (kickflip + frontside shove) with the level (the
+ *   capped catch cannot level the hubba's pitch alone); the body turns back a quarter on
+ *   its own to line up with the travel;
+ * - 2.11 Space: the catch (window ≈ 2.08–2.14 s); it lands past the stairs.
  */
 const G4_SPAWN = { xM: -5, yM: 0.8, zM: 1.42, headingRad: 0, speedMps: 3.5 } as const;
 const G4_KEYS: readonly KeyPress[] = [
@@ -145,13 +147,14 @@ const G4_KEYS: readonly KeyPress[] = [
   { code: "KeyS", atS: 0.58, holdS: 0.37 },
   { code: "KeyW", atS: 0.93, holdS: 0.1 },
   { code: "KeyA", atS: 0.93, holdS: 0.08 },
-  { code: "ArrowDown", atS: 0.98, holdS: 0.67 },
+  { code: "ArrowDown", atS: 0.98, holdS: 0.55 },
   { code: "KeyQ", atS: 1.13, holdS: 0.14 },
   { code: "Space", atS: 1.35, holdS: 0.1 },
-  { code: "KeyS", atS: 1.5, holdS: 0.19 },
-  { code: "KeyA", atS: 1.69, holdS: 0.08 },
-  { code: "ArrowRight", atS: 1.69, holdS: 0.08 },
-  { code: "Space", atS: 2.27, holdS: 0.1 },
+  { code: "KeyS", atS: 1.38, holdS: 0.19 },
+  { code: "KeyW", atS: 1.57, holdS: 0.1 },
+  { code: "KeyA", atS: 1.57, holdS: 0.08 },
+  { code: "ArrowRight", atS: 1.57, holdS: 0.08 },
+  { code: "Space", atS: 2.11, holdS: 0.1 },
 ];
 const G4_NAME = "Kickflip → FS Tailslide → Hardflip out";
 
@@ -234,7 +237,7 @@ describe("grinds and slides (M4)", () => {
       expect(started(h)[0]?.obstacleId).toBe("stairs");
       const [end] = ended(h);
       expect(end?.exit).toBe("popOut");
-      expect(end?.durationS).toBeGreaterThan(0.25);
+      expect(end?.durationS).toBeGreaterThan(0.15);
       expect(landed(h)).toEqual([G4_NAME]);
       expect(bails(h)).toEqual([]);
       expect(h.board.wheelsDown).toBe(4);
@@ -274,13 +277,13 @@ describe("grinds and slides (M4)", () => {
   it(
     "G4 swipe out: → pre-positioned during the pop out's load, then ← (edge to edge) → a 360 shove out",
     async () => {
-      // G4 up to the pop out, where the hardflip's A + → becomes the 360's swipe: → held
-      // with the load (S at 1.50) through the pop (↓ released at 1.65), then ← across.
+      // G4 up to the pop out, where the hardflip's W + A + → becomes the 360's swipe: →
+      // held with the load (S at 1.38) through the pop (↓ released at 1.53), then ← across.
       const h = await playG4(
         [
-          ...G4_KEYS.filter((k) => k.atS < 1.6),
-          { code: "ArrowRight", atS: 1.5, holdS: 0.19 },
-          { code: "ArrowLeft", atS: 1.69, holdS: 0.14 },
+          ...G4_KEYS.filter((k) => k.atS < 1.5),
+          { code: "ArrowRight", atS: 1.38, holdS: 0.19 },
+          { code: "ArrowLeft", atS: 1.57, holdS: 0.14 },
         ],
         3,
       );
@@ -360,7 +363,8 @@ describe("grinds and slides (M4)", () => {
         if (a === undefined || b === undefined) continue;
         expect(along(b, u) - along(a, u)).toBeLessThanOrEqual(1e-3);
       }
-      const g4 = await playG4();
+      // The G4 tailslide without the pop out: it slides on down the hubba's slope.
+      const g4 = await playG4(G4_KEYS.filter((k) => k.atS < 1.38));
       const d = Vec3.normalize(Vec3.sub(hubba.endM, hubba.startM));
       const gravityPerStep = 9.81 * -d.y * (1 / 120);
       const onSlope = lockedSteps(g4).filter((r) => r.board.transform.positionM.x > 0.25);

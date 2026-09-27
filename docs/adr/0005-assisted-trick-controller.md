@@ -65,8 +65,9 @@ levels and flicks.
   offset per air, with the body's spin rate fed forward. They do this at all times
   **except while a shove runs**, so a 180 kickflip really turns the board with the body.
   A shove's rate is added on top of the body's spin.
-- **Catch.** Space, inside the cone. A PD kills the spin, levels the board and snaps its
-  yaw to the nearest 0/180 of the rider heading.
+- **Catch.** Space, inside the cone. (Superseded by [ADR 0011](0011-catch-feet-not-magic.md):
+  the catch is now a torque-limited, capped correction; it no longer kills the spin or
+  snaps the yaw.)
 - **Channels end on contact.** Touching anything with the deck, tail or nose ends the
   channels; no spin is ever driven on the ground.
 - **Push.** Space on the ground pushes along the travel, backwards when rolling fakie. A

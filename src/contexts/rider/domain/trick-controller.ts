@@ -9,7 +9,6 @@ import {
   deckPointWorld,
   restHeightM,
   supportNormal,
-  tiltRad,
   wrapPi,
 } from "./board-geometry";
 import type { FootForce, FootForceLabel } from "./foot-force";
@@ -142,8 +141,10 @@ class BoardFrame {
  *   that completes its turns over the predicted airtime), shove-it (a pop-foot swipe: the
  *   yaw rate for 180°, or 360°); a swipe's size is its sideways travel (`SwipeTracker`:
  *   from the middle = one unit, edge to edge = two);
- * - catch (feet down in the air, inside the cone): a PD that kills the spin, levels the
- *   board and snaps the yaw to 0°/180°; outside the cone it is locked out `catchRetryS`;
+ * - catch (feet down in the air, inside the cone: roll, pitch, yaw and |ω|): a
+ *   torque-limited PD toward level and 0°/180° that fixes at most `catchMaxCorrectionRad`
+ *   per axis and damps the spin (never snaps it); outside the cone it is locked out
+ *   `catchRetryS`; a caught board can still bail on landing;
  * - landing assist: damps bounce and rocking right after touchdown.
  *
  * No foot ever adds horizontal thrust: trick impulses are angular, plus the pop's
@@ -196,6 +197,13 @@ export class TrickController implements FootForceModel {
   /** Which board end is scooped: +1 the board's +X end, −1 its −X end (fixed at the shove). */
   private scoopEndSign = 0;
   private caught = false;
+  /** Time since the catch, s, and the error per axis it leaves (not corrected), rad. */
+  private caughtS = 0;
+  private catchLeftover: AttitudeErrors | null = null;
+  /** The body's spin rate last step and its angular acceleration now (rad/s, rad/s²). */
+  private lastBodySpinRateRadps = 0;
+  private bodySpinAccelRadps2 = 0;
+
   private catchLockS = 0;
   private feetDownBefore = false;
   private releasedBefore = false;
@@ -270,6 +278,9 @@ export class TrickController implements FootForceModel {
       return { forces: [], popped: null, caught: false, loading: false, grind: null };
     }
     const frame = new BoardFrame(board, rider.headingRad);
+    this.bodySpinAccelRadps2 =
+      dtS > 0 ? (rider.bodySpinRateRadps - this.lastBodySpinRateRadps) / dtS : 0;
+    this.lastBodySpinRateRadps = rider.bodySpinRateRadps;
     const out: FootForce[] = [];
     if (this.grind.locked) {
       // On the edge the lock owns the board: wheel contacts (a ledge top) are no landing.
@@ -297,10 +308,18 @@ export class TrickController implements FootForceModel {
       if (this.landAssistLeftS > 0) this.landAssist(input.mass, frame, out);
     } else {
       this.air(input, keys, frame, out);
+      // A catch attempt: Space pressed (or, in easy mode, every foot key let go). An
+      // assist's catch buffer (Space held until the board enters the cone) plugs in here,
+      // asking `catchConeMiss` each step.
       const attempt = feetDownPressed || (this.config.tricks.autoCatchOnRelease && releasedNow);
       if (attempt && !this.caught) caught = this.tryCatch(rider, frame);
       if (caught) this.catchRise(input, out);
-      if (this.caught) this.catchAssist(input.mass, rider, frame, out);
+      if (this.caught) {
+        this.caughtS += dtS;
+        if (!this.flipChannel.active && !this.shoveChannel.active) {
+          this.catchAssist(input.mass, rider, frame, out);
+        }
+      }
     }
     return { forces: out, popped, caught, loading: this.loadKick !== null, grind: null };
   }
@@ -724,6 +743,21 @@ export class TrickController implements FootForceModel {
       if (sweep !== null && !this.shoved) {
         this.shove(kick, sweep, input.controls, mass, frame, out);
       }
+    }
+    if (kick !== null) {
+      this.trackChannels(input.rider, frame, dtS);
+      // Caught: a channel still turning rides in under the feet and ends at its target
+      // (it has settled to `spinCoastRadps` there); then the catch correction takes over.
+      if (this.caught) {
+        for (const c of [this.flipChannel, this.shoveChannel]) {
+          if (c.active && Math.abs(c.turnedRad) >= c.targetRad) {
+            c.active = false;
+            // The shove has turned the board under the body: the body follow re-picks
+            // which way round (0 or π) it now sits.
+            if (c === this.shoveChannel) this.followOffsetRad = null;
+          }
+        }
+      }
       this.holdChannels(kick, input.rider, mass, frame, out);
     }
     if (!this.caught && !this.flipChannel.active && !this.shoveChannel.active) {
@@ -736,6 +770,24 @@ export class TrickController implements FootForceModel {
     this.scoopS += dtS;
     if (kick !== null && !this.caught && !this.flipped && Number.isFinite(this.scoopS)) {
       this.scoop(kick, mass, frame, out);
+    }
+  }
+
+  /**
+   * Accumulates how far each running channel has turned: the flip's roll about the board's
+   * long axis, the shove's yaw relative to the body (what the recognizer names).
+   */
+  private trackChannels(rider: RiderState, frame: BoardFrame, dtS: number): void {
+    const board = frame.board;
+    // ω = roll·f + yaw·Y + pitch·P (see `holdChannels`): recover roll and yaw.
+    const along = Vec3.dot(board.angularVelocityRadps, frame.forward);
+    const up = board.angularVelocityRadps.y;
+    const fy = frame.forward.y;
+    const det = Math.max(0.05, 1 - fy * fy);
+    if (this.flipChannel.active) this.flipChannel.turnedRad += ((along - up * fy) / det) * dtS;
+    if (this.shoveChannel.active) {
+      const yawRate = (up - along * fy) / det;
+      this.shoveChannel.turnedRad += (yawRate - rider.bodySpinRateRadps) * dtS;
     }
   }
 
@@ -781,10 +833,15 @@ export class TrickController implements FootForceModel {
       shove.active = false;
     }
     if (!flip.active && !shove.active) return;
-    const { spinHoldAssist: k, levelAssist, levelOmegaRadps } = this.config.tricks;
+    const t = this.config.tricks;
+    const { spinHoldAssist: k, levelAssist, levelOmegaRadps } = t;
     const w = frame.board.angularVelocityRadps;
+    // Caught, the feet ride the spin in to its target and slow it to `catchRideInRadps`.
+    const coast = this.caught ? t.catchRideInRadps : t.spinCoastRadps;
+    const settle = (c: TrickChannel): number =>
+      settledRate(c, Math.abs(c.rateRadps) / Math.max(1e-3, t.spinSettleS), coast);
     const yawRate = shove.active
-      ? shove.rateRadps + rider.bodySpinRateRadps
+      ? settle(shove) + rider.bodySpinRateRadps
       : this.followYawRate(rider, frame);
     if (!flip.active) {
       const delta = Vec3.create(0, k * (yawRate - w.y), 0);
@@ -797,7 +854,7 @@ export class TrickController implements FootForceModel {
     // inertia is not round), so all three are held: pitch 0, or the level assist's rate.
     const pitchRate = this.levelling ? -levelAssist * levelOmegaRadps * frame.frontPitchRad : 0;
     const wanted = Vec3.add(
-      Vec3.add(Vec3.scale(frame.forward, flip.rateRadps), Vec3.create(0, yawRate, 0)),
+      Vec3.add(Vec3.scale(frame.forward, settle(flip)), Vec3.create(0, yawRate, 0)),
       Vec3.scale(frame.pitchAxis, pitchRate),
     );
     const delta = Vec3.scale(Vec3.sub(wanted, w), k);
@@ -900,11 +957,19 @@ export class TrickController implements FootForceModel {
     this.flipped = true;
     const turns = swipe.units;
     const timeS = this.trickTimeS(frame.board, t.flipCompleteFraction);
-    const rate = Math.min(turns * t.maxFlipRatePerTurnRadps, (turns * TAU) / timeS);
+    const rate = alignedRate(
+      turns * TAU,
+      Math.min(turns * t.maxFlipRatePerTurnRadps, (turns * TAU) / timeS),
+      this.shoveChannel,
+    );
     // The rider's toe side, expressed on the board's own Z axis (the board may be backwards).
     const boardSide = Transform.toWorldDirection(frame.board.transform, Vec3.UNIT_Z);
     const facing = Math.sign(Vec3.dot(boardSide, frame.riderSide)) || 1;
-    startChannel(this.flipChannel, swipe.edge * toeSideSign(controls.stance) * facing * rate);
+    startChannel(
+      this.flipChannel,
+      swipe.edge * toeSideSign(controls.stance) * facing * rate,
+      turns * TAU,
+    );
     this.stopPitch(kick, guideFootOf(kick), "flick", mass, frame, out);
   }
 
@@ -945,14 +1010,15 @@ export class TrickController implements FootForceModel {
     this.shoved = true;
     const halfTurns = swipe.units;
     const timeS = this.trickTimeS(frame.board, t.shoveCompleteFraction);
-    const rate = Math.min(
-      halfTurns * t.maxShoveRatePerHalfTurnRadps,
-      (halfTurns * Math.PI) / timeS,
+    const rate = alignedRate(
+      halfTurns * Math.PI,
+      Math.min(halfTurns * t.maxShoveRatePerHalfTurnRadps, (halfTurns * Math.PI) / timeS),
+      this.flipChannel,
     );
     const wanted = Vec3.scale(frame.riderSide, swipe.edge * toeSideSign(controls.stance));
     const kickEnd = Vec3.scale(frame.riderForward, kickSign(kick));
     const sign = Math.sign(Vec3.dot(Vec3.cross(Vec3.UNIT_Y, kickEnd), wanted)) || 1;
-    startChannel(this.shoveChannel, sign * rate);
+    startChannel(this.shoveChannel, sign * rate, halfTurns * Math.PI);
     this.stopPitch(kick, popFootOf(kick), "shove", mass, frame, out);
     // The scoop lasts part of the spin; the board leans toward the side it is scooped to.
     this.scoopS = 0;
@@ -1024,22 +1090,41 @@ export class TrickController implements FootForceModel {
   // ── catch ─────────────────────────────────────────────────────────────────
 
   /**
-   * Feet down in the air: caught if the board is inside the cone (tilt within
-   * `catchRollRad`, yaw within `catchYawRad` of 0°/180° from the rider heading). Outside,
-   * the next try is locked out for `catchRetryS`.
+   * Feet down in the air: caught if the board is inside the cone (`catchConeMiss`); then
+   * the correction starts (`beginCatch`). Outside, the next try is locked out for
+   * `catchRetryS`, so mashing Space does not work.
    */
   private tryCatch(rider: RiderState, frame: BoardFrame): boolean {
-    const t = this.config.tricks;
     if (this.catchLockS > 0) return false;
-    const heading = boardHeadingRad(frame.board);
-    const yawOk =
-      heading !== null && Math.abs(axisErrorRad(heading - rider.headingRad)) <= t.catchYawRad;
-    if (tiltRad(frame.board) <= t.catchRollRad && yawOk) {
-      this.caught = true;
-      return true;
+    if (this.catchConeMiss(rider, frame) !== null) {
+      this.catchLockS = this.config.tricks.catchRetryS;
+      return false;
     }
-    this.catchLockS = t.catchRetryS;
-    return false;
+    this.beginCatch();
+    return true;
+  }
+
+  /**
+   * THE CATCH CONE (MECHANICS.md "Catch": feet, not magic): which limit the board is
+   * outside of, or null when the feet can grab it — roll within `catchRollRad` of upright,
+   * pitch within `catchPitchRad`, yaw within `catchYawRad` of 0°/180° from the rider
+   * heading, and |ω| below `catchMaxOmegaRadps`. Pure: it has no side effects.
+   */
+  private catchConeMiss(rider: RiderState, frame: BoardFrame): CatchMiss | null {
+    const t = this.config.tricks;
+    const e = attitudeErrors(rider, frame);
+    if (e === null || Math.abs(e.rollRad) > t.catchRollRad) return "roll";
+    if (Math.abs(e.pitchRad) > t.catchPitchRad) return "pitch";
+    if (Math.abs(e.yawRad) > t.catchYawRad) return "yaw";
+    if (Vec3.length(frame.board.angularVelocityRadps) >= t.catchMaxOmegaRadps) return "spin";
+    return null;
+  }
+
+  /** The feet are on. The correction starts once no channel is still turning. */
+  private beginCatch(): void {
+    this.caught = true;
+    this.caughtS = 0;
+    this.catchLeftover = null;
   }
 
   /**
@@ -1069,8 +1154,11 @@ export class TrickController implements FootForceModel {
   }
 
   /**
-   * CATCH PD (gain `catchAssist`): kills the spin, drives the board level and snaps its yaw
-   * to the nearest 0°/180° of the rider heading. Acts until the board lands.
+   * CATCH CORRECTION (gain `catchAssist`): a PD toward level and the nearest 0°/180° of the
+   * rider heading, minus the error it may not fix (`beginCatch`), settling over about
+   * `catchSettleS`. TORQUE-LIMITED: the angular acceleration is capped at
+   * `catchMaxAlphaRadps2`, eased in while the feet reach the deck (`feet.catchReachS`), so
+   * nothing snaps and a spin damps out instead of stopping dead. Acts until the landing.
    */
   private catchAssist(
     mass: BoardMassProperties,
@@ -1078,21 +1166,47 @@ export class TrickController implements FootForceModel {
     frame: BoardFrame,
     out: FootForce[],
   ): void {
-    const { catchAssist, catchOmegaRadps: w } = this.config.tricks;
-    const board = frame.board;
-    const levelError = Vec3.cross(frame.up, frame.support);
-    const heading = boardHeadingRad(board);
-    const yawError = heading === null ? 0 : -axisErrorRad(heading - rider.headingRad);
-    const side = Transform.toWorldDirection(board.transform, Vec3.UNIT_Z);
+    const { catchAssist, catchSettleS, catchMaxAlphaRadps2 } = this.config.tricks;
+    const e = attitudeErrors(rider, frame);
+    if (e === null) return;
+    // The correction may fix at most `catchMaxCorrectionRad` of each axis' error at its
+    // start; the rest is left for the landing to judge.
+    if (this.catchLeftover === null) {
+      const c = this.config.tricks.catchMaxCorrectionRad;
+      const leftover = (v: number): number => v - Math.max(-c, Math.min(c, v));
+      this.catchLeftover = {
+        rollRad: leftover(e.rollRad),
+        pitchRad: leftover(e.pitchRad),
+        yawRad: leftover(e.yawRad),
+      };
+    }
+    // Critically damped, settling (to ≈ 2 %) over catchSettleS.
+    const w = 5.8 / Math.max(1e-3, catchSettleS);
+    const side = Transform.toWorldDirection(frame.board.transform, Vec3.UNIT_Z);
+    const left = this.catchLeftover;
+    // Errors are "how far to turn to fix it": about the long axis (roll), the side axis
+    // (pitch) and world up (yaw).
     const axes: readonly [Vec3, number][] = [
-      [frame.forward, Vec3.dot(levelError, frame.forward)],
-      [side, Vec3.dot(levelError, side)],
-      [Vec3.UNIT_Y, yawError],
+      [frame.forward, e.rollRad - left.rollRad],
+      [side, e.pitchRad - left.pitchRad],
+      [Vec3.UNIT_Y, e.yawRad - left.yawRad],
     ];
-    // Wanted angular acceleration: spring on the errors, damping on the whole spin.
-    let accel = Vec3.scale(board.angularVelocityRadps, -2 * w);
+    // Damping of the spin relative to the body: the feet turn with a body still spinning.
+    const relative = Vec3.sub(
+      frame.board.angularVelocityRadps,
+      Vec3.create(0, rider.bodySpinRateRadps, 0),
+    );
+    let accel = Vec3.scale(relative, -2 * w);
     for (const [axis, error] of axes) accel = Vec3.add(accel, Vec3.scale(axis, w * w * error));
-    out.push(torqueOf("front", "catch", mass.angularInertiaTimes(Vec3.scale(accel, catchAssist))));
+    accel = Vec3.scale(accel, catchAssist);
+    const reach = clamp01(this.caughtS / Math.max(1e-3, this.config.feet.catchReachS));
+    const cap = catchMaxAlphaRadps2 * reach * reach * (3 - 2 * reach);
+    const size = Vec3.length(accel);
+    if (size > cap) accel = size > 0 ? Vec3.scale(accel, cap / size) : accel;
+    // The feet stand in the rider frame: a body still spinning (easing out) carries the
+    // board with it. That part is the body's, not a correction, so it is not capped.
+    accel = Vec3.add(accel, Vec3.create(0, this.bodySpinAccelRadps2, 0));
+    out.push(torqueOf("front", "catch", mass.angularInertiaTimes(accel)));
   }
 
   private endAir(): void {
@@ -1109,11 +1223,43 @@ export class TrickController implements FootForceModel {
     this.followOffsetRad = null;
     this.scoopS = Number.POSITIVE_INFINITY;
     this.caught = false;
+    this.caughtS = 0;
     this.catchLockS = 0;
   }
 }
 
 const KICKS: readonly Kick[] = ["tail", "nose"];
+
+/** Which catch-cone limit the board is outside of (`TrickController.catchConeMiss`). */
+export type CatchMiss = "roll" | "pitch" | "yaw" | "spin";
+
+/**
+ * The board's attitude error, rad, as "how far to turn to fix it": about its long axis
+ * (roll, to upright), its side axis (pitch, to level) — both against the support normal —
+ * and world up (yaw, to the nearest 0°/180° of the rider heading).
+ */
+interface AttitudeErrors {
+  readonly rollRad: number;
+  readonly pitchRad: number;
+  readonly yawRad: number;
+}
+
+/** Null while the long axis is too steep to have a heading. */
+function attitudeErrors(rider: RiderState, frame: BoardFrame): AttitudeErrors | null {
+  const heading = boardHeadingRad(frame.board);
+  if (heading === null) return null;
+  const side = Transform.toWorldDirection(frame.board.transform, Vec3.UNIT_Z);
+  const n = frame.support;
+  const levelError = Vec3.cross(frame.up, n);
+  const upDot = Vec3.dot(frame.up, n);
+  return {
+    // Signed angle about each axis that takes the board's up onto the support normal
+    // (atan2, so an upside-down board reads ≈ ±π, never small).
+    rollRad: Math.atan2(Vec3.dot(levelError, frame.forward), upDot),
+    pitchRad: Math.atan2(Vec3.dot(levelError, side), upDot),
+    yawRad: -axisErrorRad(heading - rider.headingRad),
+  };
+}
 
 /** Ballistic time to fall `heightM` (≥ 0) starting at vertical speed `vy`, s. */
 function airtimeTo(heightM: number, vy: number, g: number): number {
@@ -1154,15 +1300,49 @@ interface TrickChannel {
   active: boolean;
   /** Held rate, rad/s (signed: roll about board X, or yaw about world Y). */
   rateRadps: number;
+  /** Its target (N turns / half turns), rad, and how far it has turned so far, rad (signed). */
+  targetRad: number;
+  turnedRad: number;
 }
 
 function newChannel(): TrickChannel {
-  return { active: false, rateRadps: 0 };
+  return { active: false, rateRadps: 0, targetRad: 0, turnedRad: 0 };
 }
 
-function startChannel(channel: TrickChannel, rateRadps: number): void {
+function startChannel(channel: TrickChannel, rateRadps: number, targetRad: number): void {
   channel.active = true;
   channel.rateRadps = rateRadps;
+  channel.targetRad = targetRad;
+  channel.turnedRad = 0;
+}
+
+/**
+ * Flip and shove finish TOGETHER (a varial, a tre flip): a channel starting while the other
+ * runs takes the later of the two finishing times — it slows down to the other's, or the
+ * other slows down to its own (a capped flip is slower than its shove). Returns the new
+ * channel's rate magnitude.
+ */
+function alignedRate(targetRad: number, rateRadps: number, other: TrickChannel): number {
+  if (!other.active || rateRadps <= 0) return rateRadps;
+  const otherLeftRad = Math.max(0, other.targetRad - Math.abs(other.turnedRad));
+  const otherS = otherLeftRad / Math.max(1e-6, Math.abs(other.rateRadps));
+  const selfS = targetRad / rateRadps;
+  if (otherS > selfS) return targetRad / otherS;
+  if (otherLeftRad > 0) other.rateRadps = (Math.sign(other.rateRadps) * otherLeftRad) / selfS;
+  return rateRadps;
+}
+
+/**
+ * SPIN SETTLE: the rate a channel holds now — its rate, easing down at `alpha` near the
+ * target so it reaches it at `coast`, then `coast` past it (signed like the rate).
+ */
+function settledRate(channel: TrickChannel, alpha: number, coast: number): number {
+  const left = Math.max(0, channel.targetRad - Math.abs(channel.turnedRad));
+  const speed = Math.min(
+    Math.abs(channel.rateRadps),
+    Math.max(coast, Math.sqrt(coast * coast + 2 * alpha * left)),
+  );
+  return Math.sign(channel.rateRadps) * speed;
 }
 
 /** Signed lean in [-1, 1] (+ = toward +Z) when both feet lean the same way, else 0. */

@@ -177,6 +177,16 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
     dead.
   - The rest of the error stays: if the board was 0.4 rad off, it lands
     about 0.05+ rad off, and the landing rules decide.
+- **Spin settle and ride-in (how a spinning trick gets caught, ADR 0011):**
+  with rates of 9–32 rad/s and a 60 rad/s² catch, the feet alone could never
+  stop a flip without overshooting it. So each flip / shove channel **eases
+  its rate down** over its last part (about `spinSettleS` ≈ 0.12 s of
+  deceleration) to `spinCoastRadps` (≈ 5 rad/s) at its target, and keeps
+  coasting past it if not caught (the uncaught board keeps turning). Caught
+  before its target (inside the cone), the channel **rides in** under the feet
+  to the target, slowing to `catchRideInRadps` (≈ 3 rad/s); only then does the
+  capped correction act. Pressing `Space` at the end of the rotation is the
+  well-timed catch.
 - **Landing still decides:** a caught board that touches down beyond the
   landing tolerance (tilt > `landTiltRad`, yaw off the travel) **bails**.
   Being caught never skips the landing check.
@@ -609,6 +619,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `catchRollRad` / `catchYawRad` / `catchPitchRad` | 0.5 / 0.45 / 0.6 |
 | `catchMaxOmegaRadps` / `catchMaxAlphaRadps2` / `catchMaxCorrectionRad` / `catchSettleS` | 14 / 60 / 0.35 / 0.18 |
 | `catchAssist` | 0.8 |
+| `spinSettleS` / `spinCoastRadps` / `catchRideInRadps` | 0.12 / 5 / 3 (ADR 0011) |
 | `catchRetryS` | 0.15 |
 | `swipeLookbackS` / `swipeEndMin` / `swipeMinTravel` / `swipeDoubleTravel` | 0.3 / 0.6 / 0.55 / 1.45 (tuned from 0.8 / 0.7 / 1.6: see ADR 0010) |
 | `bodySpinRateRadps` / `bodySpinAccelRadps2` | 14 / 90 (a 360 in about 0.5 s with a full wind-up) |

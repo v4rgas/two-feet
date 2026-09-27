@@ -15,9 +15,12 @@ export interface CatchTarget {
   readonly bodyHalfTurns?: number;
 }
 
-/** Roll and yaw slack of the "looks done" check, rad (as in the scenario helpers). */
-const ROLL_SLACK_RAD = 0.45;
-const YAW_SLACK_RAD = 0.3;
+/**
+ * Roll and yaw slack of the "looks done" check, rad (as in the scenario helpers): the catch
+ * is torque-limited, so Space goes in at the end of the rotation.
+ */
+const ROLL_SLACK_RAD = 0.15;
+const YAW_SLACK_RAD = 0.15;
 /** The board looks upright when its tilt from world up is below this, rad. */
 const UPRIGHT_TILT_RAD = 0.5;
 
@@ -49,7 +52,8 @@ export async function findCatchTimeS(
       if (air === null) continue;
       const roll = Math.abs(air.rotation.rollRad);
       const body = Math.abs(air.bodyRad);
-      const shove = Math.abs(air.rotation.yawRad - air.bodyRad);
+      // The air's yaw is already the shove (the board's yaw relative to the body).
+      const shove = Math.abs(air.rotation.yawRad);
       const up = Transform.toWorldDirection(board.transform, Vec3.UNIT_Y);
       const tilt = Math.acos(Math.max(-1, Math.min(1, up.y)));
       const rolled = roll >= target.flipTurns * 2 * Math.PI - ROLL_SLACK_RAD;

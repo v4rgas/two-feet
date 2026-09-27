@@ -34,7 +34,12 @@ travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md
 - **Body follow**: in the air the feet keep the board's yaw under the body, unless a
   shove runs.
 - **Wind-up**: Q / E while loaded. At the pop it becomes the body's and the board's spin.
-- **Catch**: Space in the air, inside the cone (tilt and yaw near 0/180 of the heading).
+- **Catch** ([ADR 0011](../../../docs/adr/0011-catch-feet-not-magic.md)): Space in the air,
+  inside the cone (roll, pitch, yaw near 0/180 of the heading, and |ω| < 14 rad/s). Feet,
+  not magic: a torque-limited correction (≤ 60 rad/s², ≤ 0.35 rad per axis), eased in
+  while the feet reach the deck; a caught board can still bail on landing.
+- **Spin settle / ride-in**: a flip or shove eases its rate down to a coast at its target
+  (and coasts on if uncaught); caught before the target, it rides in under the feet.
 - **Support normal**: the mean normal of the wheel contacts. The press, the level
   assist and the landing tilt use it, so banks and transitions count as level.
 - **Toe side**: board +Z in regular, −Z in goofy (`toeSideSign`).
