@@ -145,21 +145,21 @@ const G4_KEYS: readonly KeyPress[] = [
   { code: "KeyS", atS: 0.58, holdS: 0.37 },
   { code: "KeyW", atS: 0.93, holdS: 0.1 },
   { code: "KeyA", atS: 0.93, holdS: 0.08 },
-  { code: "ArrowDown", atS: 0.98, holdS: 0.72 },
+  { code: "ArrowDown", atS: 0.98, holdS: 0.67 },
   { code: "KeyQ", atS: 1.13, holdS: 0.14 },
-  { code: "Space", atS: 1.28, holdS: 0.1 },
-  { code: "KeyS", atS: 1.55, holdS: 0.19 },
-  { code: "KeyA", atS: 1.76, holdS: 0.08 },
-  { code: "ArrowRight", atS: 1.76, holdS: 0.08 },
-  { code: "Space", atS: 2.3, holdS: 0.1 },
+  { code: "Space", atS: 1.35, holdS: 0.1 },
+  { code: "KeyS", atS: 1.5, holdS: 0.19 },
+  { code: "KeyA", atS: 1.69, holdS: 0.08 },
+  { code: "ArrowRight", atS: 1.69, holdS: 0.08 },
+  { code: "Space", atS: 2.27, holdS: 0.1 },
 ];
 const G4_NAME = "Kickflip → FS Tailslide → Hardflip out";
 
-async function playG4(keys: readonly KeyPress[] = G4_KEYS): Promise<ScenarioHarness> {
+async function playG4(keys: readonly KeyPress[] = G4_KEYS, runS = 4): Promise<ScenarioHarness> {
   const h = await parkAt(G4_SPAWN.xM, G4_SPAWN.yM, G4_SPAWN.zM, G4_SPAWN.headingRad, 0);
   h.launch(G4_SPAWN.speedMps);
   h.press(...keys);
-  h.run(4);
+  h.run(runS);
   return h;
 }
 
@@ -267,6 +267,35 @@ describe("grinds and slides (M4)", () => {
         const h = await playG4(keys);
         expect(landed(h)).toEqual([G4_NAME]);
       }
+    },
+    T,
+  );
+
+  it(
+    "G4 swipe out: → pre-positioned during the pop out's load, then ← (edge to edge) → a 360 shove out",
+    async () => {
+      // G4 up to the pop out, where the hardflip's A + → becomes the 360's swipe: → held
+      // with the load (S at 1.50) through the pop (↓ released at 1.65), then ← across.
+      const h = await playG4(
+        [
+          ...G4_KEYS.filter((k) => k.atS < 1.6),
+          { code: "ArrowRight", atS: 1.5, holdS: 0.19 },
+          { code: "ArrowLeft", atS: 1.69, holdS: 0.14 },
+        ],
+        3,
+      );
+      expect(ended(h)[0]?.exit).toBe("popOut");
+      // The swipe out is read as two units: a 360, named in the line. (The air after the
+      // pop out is short, and the body's own turn back to the travel eats into the spin,
+      // so it comes down ≈ 0.4 rad short of 360° and is not landed: see the report in
+      // ADR 0010.) A single-unit swipe out lands: G4's hardflip.
+      const outs = [
+        ...h.eventsOf("TrickLanded").map((e) => e.name),
+        ...h.eventsOf("TrickBailed").map((e) => e.name ?? ""),
+      ];
+      expect(outs).toHaveLength(1);
+      expect(outs[0]).toMatch(/→ (FS )?360 Shove-it out$/);
+      expectSane(h);
     },
     T,
   );

@@ -58,8 +58,9 @@ levels and flicks.
 - **Shared end time.** The first trick input of an air sets `trickEndS`, and every
   channel aims at it. Flip and spin then finish together, so a varial or tre flip can be
   caught.
-- **Doubles by hold.** Holding the flick key for `doubleFlickHoldS` targets 4π, and
-  holding the sweep key for `shove360HoldS` targets 2π.
+- **Doubles by swipe size** (superseded the hold rule; see
+  [ADR 0010](0010-swipe-size.md)). An edge-to-edge swipe of the flick foot targets 4π, and
+  of the sweep foot 2π.
 - **Body follow.** In the air, the feet keep the board's yaw under the body: a fixed 0/π
   offset per air, with the body's spin rate fed forward. They do this at all times
   **except while a shove runs**, so a 180 kickflip really turns the board with the body.
@@ -121,8 +122,9 @@ levels and flicks.
 - The snapshot velocity is the board frame **origin's**, not the centre of mass's. While
   spinning they differ by ω × offset (about ±0.4 m/s at 25 rad/s), so no-thrust checks
   are made where |ω| is small.
-- Rates were raised for the matrix: `maxFlipRateRadps` 60 and `maxShoveRateRadps` 30.
-  They bind only for doubles and 360s held late.
+- The rate caps were `maxFlipRateRadps` 60 and `maxShoveRateRadps` 30 (a snap). ADR 0010
+  replaced them with per-turn caps (16 rad/s per flip turn, 9 per shove half turn), so a
+  flip takes most of the air.
 
 ## Tuning
 

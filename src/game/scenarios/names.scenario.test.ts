@@ -89,7 +89,7 @@ async function flip(
   return names(h, t0);
 }
 
-/** Pop from `kick`, the pop foot sweeps to `side`, catch near the end of the air. */
+/** Pop from `kick`, the pop foot sweeps to `side`, Space once the board has turned 180°. */
 async function shove(
   kick: Kick,
   stance: (typeof STANCES)[number],
@@ -99,7 +99,8 @@ async function shove(
   const t0 = h.timeS;
   loadAndPop(h, 0.2, kick);
   h.foot(popFoot(kick), side === "heel" ? heel(stance) : toe(stance), 0.25, 0.1);
-  catchAt(h, 0.55);
+  h.run(0.3);
+  spaceWhenDone(h, t0, 0, Math.PI);
   h.run(1.5);
   return names(h, t0);
 }
@@ -179,12 +180,12 @@ describe("trick names, end to end", () => {
   }
 
   it(
-    'double kickflip (flick held ≥ doubleFlickHoldS) → "Double Kickflip"',
+    'double kickflip (D held through the load, swipe D → A) → "Double Kickflip"',
     async () => {
       const h = await track(rolling(1.3));
       const t0 = h.timeS;
-      playCombo(h, { kick: "tail", flick: "heel", sweep: null, flickHoldS: 0.2, sweepHoldS: 0 });
-      h.run(0.3);
+      const popAtS = playCombo(h, { kick: "tail", flick: "heel", sweep: null, flickUnits: 2 });
+      h.run(popAtS + 0.1);
       spaceWhenDone(h, t0, 2 * TAU, 0);
       h.run(1.5);
       expect(names(h, t0)).toEqual(["Double Kickflip"]);
@@ -277,8 +278,6 @@ describe("trick names, end to end", () => {
         kick: "tail",
         flick: "heel",
         sweep: "heel",
-        flickHoldS: 0.08,
-        sweepHoldS: 0.08,
       });
       h.run(0.3);
       spaceWhenDone(h, t0, TAU, Math.PI);

@@ -14,8 +14,11 @@ import {
 
 /*
  * MECHANICS.md "Trick matrix": flip {none, kick, heel, double kick, double heel} × shove
- * {none, BS, FS, BS 360, FS 360}, from both kicks, in both stances. Each case: load, pop,
- * the inputs 0.05 s after the pop (with the level key), Space once the board looks done
+ * {none, BS, FS, BS 360, FS 360}, from both kicks, in both stances. Each case: load (a
+ * full load for a double flip), pop,
+ * the swipes 0.05 s after the pop (with the level key) — a tap from the middle for one
+ * unit, edge to edge (the foot pre-positioned on the opposite edge during the load) for a
+ * double or a 360 (MECHANICS.md "Swipe size") — Space once the board looks done
  * (upright and turned), then a clean landing with the targeted roll and yaw and no thrust.
  * The flip and shove are independent channels: nothing here is special-cased.
  */
@@ -27,9 +30,6 @@ afterEach(() => {
 
 const T = 20_000;
 const TAU = 2 * Math.PI;
-/** A tap; held past `doubleFlickHoldS` / `shove360HoldS` (0.12 s) it doubles. */
-const TAP_S = 0.08;
-const HOLD_S = 0.2;
 
 interface FlipCase {
   readonly name: string;
@@ -106,16 +106,16 @@ describe("trick matrix: flip × shove × kick × stance", () => {
               open.push(h);
               const v0 = h.forwardSpeedMps();
               const t0 = h.timeS;
-              playCombo(h, {
+              const popAtS = playCombo(h, {
                 kick,
                 flick: flip.edge,
                 sweep: shove.side,
-                flickHoldS: flip.turns === 2 ? HOLD_S : TAP_S,
-                sweepHoldS: shove.turns === 2 ? HOLD_S : TAP_S,
+                flickUnits: flip.turns === 2 ? 2 : 1,
+                sweepUnits: shove.turns === 2 ? 2 : 1,
               });
               const rollTarget = flip.turns * TAU;
               const yawTarget = shove.turns * Math.PI;
-              h.run(0.3);
+              h.run(popAtS + 0.1);
               spaceWhenDone(h, t0, rollTarget, yawTarget);
               h.run(1.5);
               const air = airSummary(h, t0);

@@ -84,35 +84,78 @@ export function spaceWhenDone(
   catchAt(h, 0);
 }
 
-/** Pop from `kick`; the guide foot levels, flicks and the pop foot sweeps, held as given. */
+/** A board edge (MECHANICS.md: sideways keys are defined by edge). */
+export type Edge = "heel" | "toe";
+
+/** Stick direction of a foot toward an edge, in the harness's stance. */
+export function edgeKey(h: ScenarioHarness, edge: Edge): FootDirection {
+  return edge === "heel" ? heel(h.stance) : toe(h.stance);
+}
+
+/** The other edge. */
+export function opposite(edge: Edge): Edge {
+  return edge === "heel" ? "toe" : "heel";
+}
+
+/**
+ * How long a swipe's key is pressed, s. From the middle a 0.08 s tap is enough (the
+ * smoothed stick peaks ≈ 0.75); from the opposite edge the stick has twice as far to go
+ * and reaches the far side (−0.6) ≈ 0.1 s after the key goes down, so it is held longer.
+ */
+export const TAP_S = 0.08;
+export const EDGE_TO_EDGE_S = 0.14;
+
+/**
+ * A sideways SWIPE of `foot` toward `edge` at `atS` (MECHANICS.md "Swipe size"): a tap of
+ * that edge's key. One unit (a flip / a 180 shove) swipes from the middle. Two units (a
+ * double flip / a 360 shove) swipe edge to edge: the foot is held on the opposite edge
+ * from `preFromS` (the pre-position, e.g. during the load) and let go at `atS`, when the
+ * other key goes down.
+ */
+export function swipe(
+  h: ScenarioHarness,
+  foot: FootId,
+  edge: Edge,
+  atS: number,
+  units: 1 | 2 = 1,
+  preFromS = atS - 0.19,
+  tapS = units === 2 ? EDGE_TO_EDGE_S : TAP_S,
+): void {
+  if (units === 2) h.foot(foot, edgeKey(h, opposite(edge)), preFromS, atS - preFromS);
+  h.foot(foot, edgeKey(h, edge), atS, tapS);
+}
+
+/** Pop from `kick`; the guide foot levels and flicks, the pop foot sweeps (swipes). */
 export interface ComboInputs {
   readonly kick: Kick;
   /** Guide foot flick edge, or null. */
-  readonly flick: "heel" | "toe" | null;
+  readonly flick: Edge | null;
   /** Pop foot sweep side, or null. */
-  readonly sweep: "heel" | "toe" | null;
-  /** Hold times, s (past 0.12 s a flick doubles and a sweep becomes a 360). */
-  readonly flickHoldS: number;
-  readonly sweepHoldS: number;
+  readonly sweep: Edge | null;
+  /** Swipe size: 1, or 2 (edge to edge, pre-positioned during the load: a double / a 360). */
+  readonly flickUnits?: 1 | 2;
+  readonly sweepUnits?: 1 | 2;
 }
 
-/** Plays a combo 0.05 s after the pop (with the level key) from now. */
-export function playCombo(h: ScenarioHarness, c: ComboInputs): void {
-  loadAndPop(h, 0.2, c.kick);
+/**
+ * Plays a combo from now: load and pop at 0.2 s — at `FULL_POP_S` (a full load) for a
+ * double flip, which needs the whole air at the capped rate — with a double's or a 360's
+ * foot pre-positioned on the opposite edge from 0.06 s (during the load); then 0.05 s
+ * after the pop, the level key and the swipes. Returns the pop time (from now), s.
+ */
+export function playCombo(h: ScenarioHarness, c: ComboInputs): number {
+  const popAtS = c.flickUnits === 2 ? FULL_POP_S : 0.2;
+  loadAndPop(h, popAtS, c.kick);
   const guide = guideFoot(c.kick);
-  h.foot(guide, awayFrom(c.kick), 0.25, 0.1);
-  if (c.flick !== null) {
-    h.foot(guide, c.flick === "heel" ? heel(h.stance) : toe(h.stance), 0.25, c.flickHoldS);
-  }
-  if (c.sweep !== null) {
-    h.foot(
-      popFoot(c.kick),
-      c.sweep === "heel" ? heel(h.stance) : toe(h.stance),
-      0.25,
-      c.sweepHoldS,
-    );
-  }
+  const atS = popAtS + 0.05;
+  h.foot(guide, awayFrom(c.kick), atS, 0.1);
+  if (c.flick !== null) swipe(h, guide, c.flick, atS, c.flickUnits ?? 1, 0.06);
+  if (c.sweep !== null) swipe(h, popFoot(c.kick), c.sweep, atS, c.sweepUnits ?? 1, 0.06);
+  return popAtS;
 }
+
+/** Load time for a full pop (≥ `loadMaxS` after the set 0.02 s in), s. */
+export const FULL_POP_S = 0.34;
 
 /** Summary of the air after `fromS`. */
 export interface AirSummary {

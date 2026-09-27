@@ -47,7 +47,7 @@ export const bs180KickflipFlat: MontageClip = {
     .loadAndPop("tail", 0.75, 1.0)
     .level("tail", 1.05)
     .flick("tail", "heel", 1.05, 0.08)
-    .catch(1.44)
+    .catch(1.49)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "lowSide", side: "left", distanceM: 2.6, leadM: 1.2 } },

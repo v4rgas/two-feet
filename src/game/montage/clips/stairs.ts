@@ -28,7 +28,7 @@ export const kickflipStairs: MontageClip = {
   keys: pushAndPop(new KeyTimeline("regular"))
     .level("tail", POP_S + 0.05)
     .flick("tail", "heel", POP_S + 0.05, 0.08)
-    .catch(3.19)
+    .catch(3.27)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "fisheyeFollow" } },
@@ -58,7 +58,7 @@ export const varialHeelflipStairs: MontageClip = {
     .level("tail", POP_S + 0.05)
     .flick("tail", "toe", POP_S + 0.05, 0.08)
     .sweep("tail", "toe", POP_S + 0.05, 0.08)
-    .catch(3.19)
+    .catch(3.27)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "follow" } },
@@ -88,13 +88,13 @@ export const stairsTailslideHardflip: MontageClip = {
     .loadAndPop("tail", 0.56, 0.88)
     .level("tail", 0.93, 0.1)
     .flick("tail", "heel", 0.93, 0.08)
-    .foot("back", "down", 0.98, 0.72)
+    .foot("back", "down", 0.98, 0.67)
     .spin("left", 1.13, 0.14)
-    .catch(1.28)
-    .foot("front", "down", 1.55, 0.19)
-    .flick("tail", "heel", 1.76, 0.08)
-    .sweep("tail", "toe", 1.76, 0.08)
-    .catch(2.3)
+    .catch(1.35)
+    .foot("front", "down", 1.5, 0.19)
+    .flick("tail", "heel", 1.69, 0.08)
+    .sweep("tail", "toe", 1.69, 0.08)
+    .catch(2.27)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "fisheyeFollow" } },

@@ -101,19 +101,22 @@ export const RIDER_CONFIG = deepFreeze({
     /** Extra pop height for W right at the pop, fading to 0 at the end of the window. */
     levelHeightBonus: 0.25,
 
-    /** A (toward the heel edge) within this long after the pop flips the board, s. */
+    /** A guide-foot swipe ending within this long after the pop flips the board, s. */
     flickWindowS: 0.35,
-    /** The flip completes one turn in this fraction of the predicted airtime. */
-    flipCompleteFraction: 0.85,
-    /** Fast enough for a double flip (4π) held late in a normal pop. */
-    maxFlipRateRadps: 60,
+    /** The flip completes its turns in this fraction of the predicted remaining airtime. */
+    flipCompleteFraction: 0.92,
+    /**
+     * Flip rate cap per turn, rad/s (× 2 for a double): a flip takes most of the air, not
+     * a snap — a single on a normal pop turns in ≈ 0.4 s.
+     */
+    maxFlipRatePerTurnRadps: 16,
 
-    /** ←/→ (back foot) within this long after the pop shoves the board, s. */
+    /** A pop-foot swipe ending within this long after the pop shoves the board, s. */
     shoveWindowS: 0.2,
-    /** The shove completes 180° in this fraction of the predicted airtime. */
+    /** The shove completes its half turns in this fraction of the predicted airtime. */
     shoveCompleteFraction: 0.85,
-    /** Fast enough for a 360 shove held late in a normal pop. */
-    maxShoveRateRadps: 30,
+    /** Shove rate cap per half turn, rad/s (× 2 for a 360). */
+    maxShoveRatePerHalfTurnRadps: 9,
     /**
      * Scoop: the shove spins tilted. Peak dip of the scooped kick (far end up) and lean
      * toward the scoop side, reached mid-scoop, rad.
@@ -125,10 +128,21 @@ export const RIDER_CONFIG = deepFreeze({
     /** Scoop tracking PD natural frequency, rad/s. */
     scoopOmegaRadps: 45,
 
-    /** The flick key held at least this long makes it a double flip (4π), s. */
-    doubleFlickHoldS: 0.12,
-    /** The sweep key held at least this long makes it a 360 shove (2π), s. */
-    shove360HoldS: 0.12,
+    /**
+     * SWIPE SIZE (MECHANICS.md): a foot's sideways swipe ends when its stick reaches
+     * |x| ≥ `swipeEndMin` (the far side) and starts at the opposite extreme within the last
+     * `swipeLookbackS` (s, may be before the pop). Travel ≥ `swipeMinTravel` is one unit (a
+     * flip, a 180 shove), ≥ `swipeDoubleTravel` two (a double flip, a 360 shove): tap `A`
+     * from the middle = kickflip, `D` → `A` edge to edge = double kickflip.
+     * `swipeEndMin` is 0.6, not MECHANICS' first guess of 0.8: the smoothed stick of a
+     * key tapped for less than 0.1 s peaks below 0.8 (0.05 s → 0.6, 0.08 s → 0.75), so a
+     * quick tap would not flip. The travels follow: one unit from the middle (≥ 0.55), two
+     * only from a position held on the far edge (x_start ≤ −0.85: ≥ 1.45).
+     */
+    swipeLookbackS: 0.3,
+    swipeEndMin: 0.6,
+    swipeMinTravel: 0.55,
+    swipeDoubleTravel: 1.45,
     /** How firmly the flip / shove rates are held each step until the catch (0–1). */
     spinHoldAssist: 1,
 

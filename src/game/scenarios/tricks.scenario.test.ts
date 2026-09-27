@@ -278,7 +278,8 @@ describe("5–6. shove-it and varial", () => {
         const t0 = h.timeS;
         loadAndPop(h, 0.2);
         h.foot("back", dir === "heel" ? heel(h.stance) : toe(h.stance), 0.25, 0.1);
-        catchAt(h, 0.55);
+        h.run(0.3);
+        spaceWhenReversed(h, t0);
         h.run(1.5);
         const air = airSummary(h, t0);
         expect(Math.abs(Math.abs(air.yawRad) - Math.PI)).toBeLessThan(0.3);
@@ -308,11 +309,14 @@ describe("5–6. shove-it and varial", () => {
   );
 
   it(
-    "varial kickflip: flick and shove together → roll ≈ 2π and yaw ≈ π",
+    "varial kickflip: W + A and ← together → roll ≈ 2π and yaw ≈ π",
     async () => {
       const h = await track(rolling(1.3));
       const t0 = h.timeS;
       loadAndPop(h, 0.2);
+      // With the level (its height bonus): a flip takes ≈ 0.4 s, more than a half-load
+      // sloppy pop's air after the swipe.
+      h.foot("front", "up", 0.25, 0.1);
       h.foot("front", heel(h.stance), 0.25, 0.1);
       h.foot("back", heel(h.stance), 0.25, 0.1);
       h.run(0.3);
@@ -363,7 +367,11 @@ describe("5. shove-it scoop", () => {
       const t0 = h.timeS;
       loadAndPop(h, 0.2);
       h.foot("back", heel(h.stance), 0.25, 0.1);
-      h.run(0.55);
+      h.run(0.3);
+      // Until the board has turned about 180° (where a player would catch).
+      for (let i = 0; i < 60 && Math.abs(airSummary(h, t0).yawRad) < Math.PI - 0.3; i += 1) {
+        h.run(1 / 120);
+      }
       const records = h.since(t0);
       const shoveAt = records.find((r) => r.forces.some((f) => f.label === "shove"));
       expect(shoveAt).toBeDefined();
@@ -381,7 +389,7 @@ describe("5. shove-it scoop", () => {
         expect(endSign).not.toBe(0);
         expect(tailElevation).toBeLessThan(-0.2);
       }
-      // Just before the catch (Space at 0.55 s): level again.
+      // Just before the catch: level again.
       expect(Math.abs(h.pitchRad())).toBeLessThan(0.1);
       catchAt(h, 0);
       h.run(1.2);
@@ -444,7 +452,8 @@ describe("10. nollie (mirrored from the nose)", () => {
       const t0 = h.timeS;
       loadAndPop(h, 0.2, "nose");
       h.foot(popFoot("nose"), heel(h.stance), 0.25, 0.1);
-      catchAt(h, 0.55);
+      h.run(0.3);
+      spaceWhenReversed(h, t0);
       h.run(1.5);
       const air = airSummary(h, t0);
       expect(Math.abs(Math.abs(air.yawRad) - Math.PI)).toBeLessThan(0.3);

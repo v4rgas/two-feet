@@ -123,8 +123,8 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
   - Predict the remaining airtime `T` from the vertical velocity and height
     (ballistic).
   - Set the roll rate to reach one full turn in `T·flipCompleteFraction`
-    (≈ 0.85, so the flip finishes before landing).
-  - Cap it at `maxFlipRateRadps`.
+    (≈ 0.92, so the flip finishes before landing).
+  - Cap it at `maxFlipRatePerTurnRadps` per turn (see *Swipe size*).
   - Direction: flicking toward the heel edge = kickflip.
 - **Timing:** a late flick either makes the cap bind (under-rotation) or lands
   mid-flip, and that's a bail.
@@ -317,12 +317,12 @@ how long a key is held.
   (heel edge) to +1 (toe edge). A swipe **starts** where the foot was, at the
   opposite extreme it reached in the last `swipeLookbackS` (≈ 0.3 s), which
   may be before the pop. It **ends** when `x` reaches the far side
-  (|x| ≥ `swipeEndMin`, ≈ 0.8). Travel = |x_end − x_start|, anywhere from 0
+  (|x| ≥ `swipeEndMin`, ≈ 0.6). Travel = |x_end − x_start|, anywhere from 0
   to 2.
 - **One unit or two:**
-  - Travel ≥ `swipeMinTravel` (≈ 0.7) triggers the trick: 1 turn (flip) or
+  - Travel ≥ `swipeMinTravel` (≈ 0.55) triggers the trick: 1 turn (flip) or
     a half turn (shove).
-  - Travel ≥ `swipeDoubleTravel` (≈ 1.6) doubles it: a double flip, or a 360
+  - Travel ≥ `swipeDoubleTravel` (≈ 1.45) doubles it: a double flip, or a 360
     shove.
 - **Direction** is the direction of the swipe. For the guide foot, toward
   the heel edge is a kickflip and toward the toe edge is a heelflip. For the
@@ -333,6 +333,11 @@ how long a key is held.
   example `S` + `D` during the load) sets up a double. Holding it does
   nothing by itself: carving is off while loaded, and a held position isn't
   a swipe.
+- **Timing on the smoothed stick:** a tap from the middle reaches the far side
+  about 0.07 s after the key goes down, and a swipe from the opposite edge
+  about 0.1 s after (so hold the second key that long). A swipe counts if it
+  ends inside the flick / shove window after the pop. With the capped rates
+  a double flip needs a full load (a half-load pop is about 6% short of air).
 - **Regular-stance examples:**
 
   | Trick | Keys |
@@ -605,7 +610,7 @@ These are all first guesses. The dev tuning panel must expose them live.
 | `catchMaxOmegaRadps` / `catchMaxAlphaRadps2` / `catchMaxCorrectionRad` / `catchSettleS` | 14 / 60 / 0.35 / 0.18 |
 | `catchAssist` | 0.8 |
 | `catchRetryS` | 0.15 |
-| `swipeLookbackS` / `swipeEndMin` / `swipeMinTravel` / `swipeDoubleTravel` | 0.3 / 0.8 / 0.7 / 1.6 |
+| `swipeLookbackS` / `swipeEndMin` / `swipeMinTravel` / `swipeDoubleTravel` | 0.3 / 0.6 / 0.55 / 1.45 (tuned from 0.8 / 0.7 / 1.6: see ADR 0010) |
 | `bodySpinRateRadps` / `bodySpinAccelRadps2` | 14 / 90 (a 360 in about 0.5 s with a full wind-up) |
 | `windUpMaxRad` / `windUpSpinRadps` | 0.6 / 4 |
 | `landYawToleranceRad` | 0.35 |

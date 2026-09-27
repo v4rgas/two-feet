@@ -3,7 +3,8 @@
 Owns the rider: the rider frame (torso and heading), both feet, and the bail state.
 Reads the intents as tricks and turns them into targeted impulses and assist torques on
 the board (MECHANICS.md, assisted physics). The design is in
-[ADR 0005](../../../docs/adr/0005-assisted-trick-controller.md).
+[ADR 0005](../../../docs/adr/0005-assisted-trick-controller.md); trick size from the swipe
+travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md).
 
 ## Ubiquitous language
 
@@ -21,9 +22,15 @@ the board (MECHANICS.md, assisted physics). The design is in
   the front for a nollie) and the other foot, which sets, levels and flicks.
 - **Load / pop**: the pop foot on its kick plus the guide foot set toward it (↓ + S),
   then release the pop foot. **Press (manual)**: the pop foot alone, which never pops.
-- **Trick channels**: the **flip** (guide foot flicks to the heel edge for a kickflip or
-  the toe edge for a heelflip; held → double) and the **shove** (pop foot sweeps; held →
-  360). Each holds a rate until the catch, and both aim at the air's shared end time.
+- **Swipe** (VO `Swipe`, service `SwipeTracker`): a foot's sideways stick move that ends
+  when it reaches the far side (|x| ≥ `swipeEndMin`); it starts at the opposite extreme
+  within `swipeLookbackS`, which may be before the pop. Its **travel** sets the size: from
+  the middle = one unit, edge to edge (pre-positioned, e.g. S + D during the load, then
+  A) = two. Letting go of a key or a held position is never a swipe.
+- **Trick channels**: the **flip** (guide foot swipes to the heel edge for a kickflip or
+  the toe edge for a heelflip; two units → double) and the **shove** (pop foot swipes;
+  two units → 360). Each holds a rate until the catch (capped per turn / half turn), and
+  both aim at the air's shared end time.
 - **Body follow**: in the air the feet keep the board's yaw under the body, unless a
   shove runs.
 - **Wind-up**: Q / E while loaded. At the pop it becomes the body's and the board's spin.
@@ -70,7 +77,8 @@ wired in `compose.ts`); world's `GrindEdge` satisfies `GrindEdgeView`.
 - Aggregate: `Rider` (`update(controls, board, dtS, loading)`, `liftFeet`,
   `catchFeet`, `land(upDot, board)`, `reset(board)`, `state`); `NEUTRAL_CONTROLS`.
 - Domain service: `FootForceModel` (interface) and `TrickController(deck, config)`, which
-  runs `GrindController(deck, config)` (lock-on `tryLock`, locked step `hold`, `report`).
+  runs `GrindController(deck, config)` (lock-on `tryLock`, locked step `hold`, `report`)
+  and one `SwipeTracker` per foot (internal to the domain).
 - Read model: `RiderState` also carries `grind` (`RiderGrind`: kind, side, obstacle,
   surface, balance, or null), `lastGrindExit` and `popOutTurnRad`.
 - Helpers: `targetDeckPosition`, `feetPressure`, `toeSideSign`, `deckTopPointLocal`,

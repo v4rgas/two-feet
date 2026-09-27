@@ -61,9 +61,31 @@ export class KeyTimeline {
     return this.foot(guideFoot(kick), this.edgeDirection(edge), atS, holdS);
   }
 
-  /** The pop foot sweeps toward an edge: a shove-it (held ≥ 0.12 s = 360). */
+  /**
+   * The pop foot sweeps toward an edge from the middle: a 180 shove-it. (Sweeps and flicks
+   * are swipes, MECHANICS.md "Swipe size": their size is how far the foot travels.)
+   */
   sweep(kick: Kick, edge: Edge, atS: number, holdS = 0.1): this {
     return this.foot(popFoot(kick), this.edgeDirection(edge), atS, holdS);
+  }
+
+  /**
+   * Double flip: the guide foot waits on the opposite edge from `fromS` (the pre-position,
+   * during the load: S + D for a double kickflip in regular), lets go at `atS` and swipes
+   * across to `edge` (edge to edge: ≈ 0.1 s to reach the far side, so held a bit longer).
+   */
+  doubleFlick(kick: Kick, edge: Edge, fromS: number, atS: number, holdS = EDGE_TO_EDGE_S): this {
+    this.foot(guideFoot(kick), this.edgeDirection(other(edge)), fromS, atS - fromS);
+    return this.flick(kick, edge, atS, holdS);
+  }
+
+  /**
+   * 360 shove: the pop foot waits on the opposite side from `fromS` (during the load, kept
+   * through the pop: ↓ + → then release ↓ in regular), lets go at `atS` and swipes across.
+   */
+  sweep360(kick: Kick, edge: Edge, fromS: number, atS: number, holdS = EDGE_TO_EDGE_S): this {
+    this.foot(popFoot(kick), this.edgeDirection(other(edge)), fromS, atS - fromS);
+    return this.sweep(kick, edge, atS, holdS);
   }
 
   /** Body spin: Q (left, counter-clockwise from above) or E (right). */
@@ -80,6 +102,13 @@ export class KeyTimeline {
     const toeIsRight = this.stance === "regular";
     return (edge === "toe") === toeIsRight ? "right" : "left";
   }
+}
+
+/** How long an edge-to-edge swipe's key is held: the stick reaches the far side ≈ 0.1 s in, s. */
+const EDGE_TO_EDGE_S = 0.14;
+
+function other(edge: Edge): Edge {
+  return edge === "heel" ? "toe" : "heel";
 }
 
 /** The pop foot of a kick (back on the tail, front on the nose). */

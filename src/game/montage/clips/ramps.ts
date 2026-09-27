@@ -24,8 +24,8 @@ export const treFlipKicker: MontageClip = {
     .loadAndPop("tail", 1.52, 1.74)
     .level("tail", 1.79)
     .flick("tail", "heel", 1.79, 0.08)
-    .sweep("tail", "heel", 1.79, 0.2)
-    .catch(2.28)
+    .sweep360("tail", "heel", 1.58, 1.79)
+    .catch(2.31)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "lowSide", side: "left", distanceM: 2.4, leadM: 0.8 } },

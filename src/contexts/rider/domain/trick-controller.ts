@@ -27,11 +27,15 @@ import { stickMagnitude, toeSideSign } from "./foot-placement";
 import type { AirStart } from "./grind-controller";
 import { GrindController } from "./grind-controller";
 import type { RiderState } from "./rider-state";
+import type { Swipe } from "./swipe-tracker";
+import { SwipeTracker } from "./swipe-tracker";
 
 /** One foot's stick read as MECHANICS.md keys (stance resolved: toe/heel, not ±x). */
 interface FootKeys {
   /** Stick along the rider's front (+1 = toward the nose end). */
   readonly along: number;
+  /** Sideways stick, stance resolved: +1 = toe edge, −1 = heel edge (the swipe's `x`). */
+  readonly side: number;
   /** Toward the toe edge (+1) / heel edge (−1) past the key threshold, else 0. */
   readonly edge: -1 | 0 | 1;
 }
@@ -134,8 +138,10 @@ class BoardFrame {
  *   leaves the kick): a vertical impulse through the centre of mass for the target height
  *   plus the snap that lifts the other end; the first kick loaded wins;
  * - in the pop's windows: level (guide foot toward the far end: PD to level + height
- *   bonus), kickflip / heelflip (guide foot to the heel / toe edge: the roll rate that completes one turn
- *   over the predicted airtime), shove-it (pop foot sideways: yaw rate for 180°);
+ *   bonus), kickflip / heelflip (a guide-foot SWIPE to the heel / toe edge: the roll rate
+ *   that completes its turns over the predicted airtime), shove-it (a pop-foot swipe: the
+ *   yaw rate for 180°, or 360°); a swipe's size is its sideways travel (`SwipeTracker`:
+ *   from the middle = one unit, edge to edge = two);
  * - catch (feet down in the air, inside the cone): a PD that kills the spin, levels the
  *   board and snaps the yaw to 0°/180°; outside the cone it is locked out `catchRetryS`;
  * - landing assist: damps bounce and rocking right after touchdown.
@@ -158,10 +164,22 @@ export class TrickController implements FootForceModel {
   /**
    * The two trick channels (MECHANICS.md "Trick matrix"), independent of each other: the
    * FLIP holds a roll rate about the board's long axis, the SHOVE a yaw rate about world up,
-   * until the catch. Each has its key, how long that key has been held, its target in turns
-   * (1 or 2: a double flip / a 360 shove) and how far it has turned so far (rad, signed).
+   * until the catch. Their size (1 or 2 units) comes from the swipe that started them.
    */
   private readonly flipChannel = newChannel();
+  /**
+   * SWIPE SIZE (MECHANICS.md): each foot's sideways history, tracked always (on the ground,
+   * on an edge, in the air) so a swipe may start before the pop; and each foot's last
+   * finished swipe with the controller time it ended.
+   */
+  private readonly swipes: Record<FootId, SwipeTracker>;
+  private readonly lastSwipe: Record<FootId, { swipe: Swipe; endS: number } | null> = {
+    front: null,
+    back: null,
+  };
+  /** Controller time, s, and the time of this air's pop (swipes ending from it on count). */
+  private clockS = 0;
+  private popClockS = Number.POSITIVE_INFINITY;
   /**
    * When this air's tricks should be done (time since the pop, s), set by the first flick
    * or sweep: every channel aims at it, so a varial / tre flip finishes flip and spin
@@ -201,6 +219,7 @@ export class TrickController implements FootForceModel {
     private readonly config: RiderConfig,
   ) {
     this.grind = new GrindController(deck, config);
+    this.swipes = { front: new SwipeTracker(config.tricks), back: new SwipeTracker(config.tricks) };
   }
 
   reset(): void {
@@ -215,6 +234,11 @@ export class TrickController implements FootForceModel {
     this.pushLocked = false;
     this.grind.reset();
     this.airStart = null;
+    for (const id of FOOT_IDS) {
+      this.swipes[id].reset();
+      this.lastSwipe[id] = null;
+    }
+    this.clockS = 0;
   }
 
   computeForces(input: FootForceInput): FootForceOutput {
@@ -223,6 +247,11 @@ export class TrickController implements FootForceModel {
     this.edges = input.edgesNear ?? [];
     this.grind.tick(dtS);
     const keys = this.readKeys(controls);
+    this.clockS += dtS;
+    for (const id of FOOT_IDS) {
+      const swipe = this.swipes[id].step(keys[id].side, dtS);
+      if (swipe !== null) this.lastSwipe[id] = { swipe, endS: this.clockS };
+    }
     const feetDownPressed = controls.feetDown && !this.feetDownBefore;
     const releasedNow = keys.released && !this.releasedBefore;
     this.feetDownBefore = controls.feetDown;
@@ -386,7 +415,11 @@ export class TrickController implements FootForceModel {
     const toe = toeSideSign(controls.stance);
     const read = (stick: { readonly x: number; readonly y: number }): FootKeys => {
       const side = stick.x * toe;
-      return { along: stick.y, edge: side >= keyDownStick ? 1 : side <= -keyDownStick ? -1 : 0 };
+      return {
+        along: stick.y,
+        side,
+        edge: side >= keyDownStick ? 1 : side <= -keyDownStick ? -1 : 0,
+      };
     };
     const front = controls.front.stick;
     const back = controls.back.stick;
@@ -602,6 +635,7 @@ export class TrickController implements FootForceModel {
     }
     this.popKick = kick;
     this.sincePopS = 0;
+    this.popClockS = this.clockS;
     this.popSpeedMps = speedMps;
   }
 
@@ -675,19 +709,21 @@ export class TrickController implements FootForceModel {
     const kick = this.popKick;
     if (kick !== null && !this.caught) {
       const guide = keys[guideFootOf(kick)];
-      const pop = keys[popFootOf(kick)];
       // Level: the guide foot slides toward the far end (W for an ollie, ↓ for a nollie).
       const levelKey = guide.along * -kickSign(kick) >= tricks.keyDownStick;
       if (levelKey && !this.levelling && this.sincePopS <= tricks.levelWindowS) {
         this.startLevel(kick, mass, frame, out);
       }
-      if (guide.edge !== 0 && !this.flipped && this.sincePopS <= tricks.flickWindowS) {
-        this.flip(kick, guide.edge, input.controls, mass, frame, out);
+      // A swipe that ended since the pop, inside its window (the board may still have been
+      // touching the ground for a step or two after the pop).
+      const flick = this.swipeSincePop(guideFootOf(kick), tricks.flickWindowS);
+      if (flick !== null && !this.flipped) {
+        this.flip(kick, flick, input.controls, mass, frame, out);
       }
-      if (pop.edge !== 0 && !this.shoved && this.sincePopS <= tricks.shoveWindowS) {
-        this.shove(kick, pop.edge, input.controls, mass, frame, out);
+      const sweep = this.swipeSincePop(popFootOf(kick), tricks.shoveWindowS);
+      if (sweep !== null && !this.shoved) {
+        this.shove(kick, sweep, input.controls, mass, frame, out);
       }
-      this.trackChannels(guide.edge, pop.edge, input.rider, frame, dtS);
       this.holdChannels(kick, input.rider, mass, frame, out);
     }
     if (!this.caught && !this.flipChannel.active && !this.shoveChannel.active) {
@@ -703,60 +739,11 @@ export class TrickController implements FootForceModel {
     }
   }
 
-  /**
-   * Accumulates each channel's rotation and upgrades it when its key is held long enough:
-   * the flick key held ≥ `doubleFlickHoldS` → two flips, the sweep key held ≥
-   * `shove360HoldS` → a 360 shove. The new rate covers what is left over the remaining
-   * airtime (capped).
-   */
-  private trackChannels(
-    flickEdge: number,
-    sweepEdge: number,
-    rider: RiderState,
-    frame: BoardFrame,
-    dtS: number,
-  ): void {
-    const t = this.config.tricks;
-    const board = frame.board;
-    // ω = roll·f + yaw·Y + pitch·P (see `holdChannels`): recover roll and yaw.
-    const along = Vec3.dot(board.angularVelocityRadps, frame.forward);
-    const up = board.angularVelocityRadps.y;
-    const fy = frame.forward.y;
-    const det = Math.max(0.05, 1 - fy * fy);
-    const rollRate = (along - up * fy) / det;
-    const yawRate = (up - along * fy) / det;
-    const flip = this.flipChannel;
-    if (flip.active) {
-      flip.turnedRad += rollRate * dtS;
-      flip.heldS = flip.holding && flickEdge === flip.key ? flip.heldS + dtS : flip.heldS;
-      flip.holding = flip.holding && flickEdge === flip.key;
-      if (flip.turns === 1 && flip.heldS >= t.doubleFlickHoldS) {
-        this.upgrade(flip, 2 * TAU, t.flipCompleteFraction, t.maxFlipRateRadps, board);
-      }
-    }
-    const shove = this.shoveChannel;
-    if (shove.active) {
-      // The shove is the board's yaw relative to the body.
-      shove.turnedRad += (yawRate - rider.bodySpinRateRadps) * dtS;
-      shove.heldS = shove.holding && sweepEdge === shove.key ? shove.heldS + dtS : shove.heldS;
-      shove.holding = shove.holding && sweepEdge === shove.key;
-      if (shove.turns === 1 && shove.heldS >= t.shove360HoldS) {
-        this.upgrade(shove, TAU, t.shoveCompleteFraction, t.maxShoveRateRadps, board);
-      }
-    }
-  }
-
-  private upgrade(
-    channel: TrickChannel,
-    totalRad: number,
-    completeFraction: number,
-    maxRateRadps: number,
-    board: BoardKinematics,
-  ): void {
-    channel.turns = 2;
-    const left = Math.max(0, totalRad - Math.abs(channel.turnedRad));
-    const timeS = this.trickTimeS(board, completeFraction);
-    channel.rateRadps = Math.sign(channel.rateRadps) * Math.min(maxRateRadps, left / timeS);
+  /** `foot`'s last swipe if it ended at or after this air's pop, within `windowS` of it. */
+  private swipeSincePop(foot: FootId, windowS: number): Swipe | null {
+    const last = this.lastSwipe[foot];
+    if (last === null || last.endS < this.popClockS - 1e-9) return null;
+    return last.endS - this.popClockS <= windowS ? last.swipe : null;
   }
 
   /**
@@ -894,15 +881,16 @@ export class TrickController implements FootForceModel {
   }
 
   /**
-   * KICKFLIP / HEELFLIP: the roll rate that completes one turn in `flipCompleteFraction`
-   * of the predicted remaining airtime (capped at `maxFlipRateRadps`, so a late flick
-   * under-rotates). The guide foot flicks off an edge and that edge goes down first:
-   * heel edge (kickflip) → roll −toeSide about the board's nose axis (−X in regular), toe
-   * edge (heelflip) → the opposite; for an ollie and a nollie alike.
+   * KICKFLIP / HEELFLIP: the roll rate that completes the swipe's turns (1, or 2 for a
+   * double) in `flipCompleteFraction` of the predicted remaining airtime, capped at
+   * turns × `maxFlipRatePerTurnRadps` (so a late swipe under-rotates). The guide foot swipes
+   * toward an edge and that edge goes down first: heel edge (kickflip) → roll −toeSide about
+   * the board's nose axis (−X in regular), toe edge (heelflip) → the opposite; for an ollie
+   * and a nollie alike.
    */
   private flip(
     kick: Kick,
-    edge: -1 | 1,
+    swipe: Swipe,
     controls: RiderControls,
     mass: BoardMassProperties,
     frame: BoardFrame,
@@ -910,12 +898,13 @@ export class TrickController implements FootForceModel {
   ): void {
     const t = this.config.tricks;
     this.flipped = true;
+    const turns = swipe.units;
     const timeS = this.trickTimeS(frame.board, t.flipCompleteFraction);
-    const rate = Math.min(t.maxFlipRateRadps, TAU / timeS);
+    const rate = Math.min(turns * t.maxFlipRatePerTurnRadps, (turns * TAU) / timeS);
     // The rider's toe side, expressed on the board's own Z axis (the board may be backwards).
     const boardSide = Transform.toWorldDirection(frame.board.transform, Vec3.UNIT_Z);
     const facing = Math.sign(Vec3.dot(boardSide, frame.riderSide)) || 1;
-    startChannel(this.flipChannel, edge, edge * toeSideSign(controls.stance) * facing * rate);
+    startChannel(this.flipChannel, swipe.edge * toeSideSign(controls.stance) * facing * rate);
     this.stopPitch(kick, guideFootOf(kick), "flick", mass, frame, out);
   }
 
@@ -939,13 +928,14 @@ export class TrickController implements FootForceModel {
   }
 
   /**
-   * SHOVE-IT: the yaw rate that turns 180° in `shoveCompleteFraction` of the predicted
-   * airtime. The pop foot's end swings toward the pressed side: heel side = backside, toe
-   * side = frontside. About the board's own up axis (principal): yaw only.
+   * SHOVE-IT: the yaw rate that turns the swipe's half turns (1 = 180°, 2 = 360°) in
+   * `shoveCompleteFraction` of the predicted airtime, capped at half turns ×
+   * `maxShoveRatePerHalfTurnRadps`. The pop foot's end swings toward the side it swipes
+   * to: heel side = backside, toe side = frontside. About world up: yaw only.
    */
   private shove(
     kick: Kick,
-    side: -1 | 1,
+    swipe: Swipe,
     controls: RiderControls,
     mass: BoardMassProperties,
     frame: BoardFrame,
@@ -953,16 +943,20 @@ export class TrickController implements FootForceModel {
   ): void {
     const t = this.config.tricks;
     this.shoved = true;
+    const halfTurns = swipe.units;
     const timeS = this.trickTimeS(frame.board, t.shoveCompleteFraction);
-    const rate = Math.min(t.maxShoveRateRadps, Math.PI / timeS);
-    const wanted = Vec3.scale(frame.riderSide, side * toeSideSign(controls.stance));
+    const rate = Math.min(
+      halfTurns * t.maxShoveRatePerHalfTurnRadps,
+      (halfTurns * Math.PI) / timeS,
+    );
+    const wanted = Vec3.scale(frame.riderSide, swipe.edge * toeSideSign(controls.stance));
     const kickEnd = Vec3.scale(frame.riderForward, kickSign(kick));
     const sign = Math.sign(Vec3.dot(Vec3.cross(Vec3.UNIT_Y, kickEnd), wanted)) || 1;
-    startChannel(this.shoveChannel, side, sign * rate);
+    startChannel(this.shoveChannel, sign * rate);
     this.stopPitch(kick, popFootOf(kick), "shove", mass, frame, out);
     // The scoop lasts part of the spin; the board leans toward the side it is scooped to.
     this.scoopS = 0;
-    this.scoopDurationS = (Math.PI / rate) * t.scoopDurationFraction;
+    this.scoopDurationS = ((halfTurns * Math.PI) / rate) * t.scoopDurationFraction;
     const boardSide = Transform.toWorldDirection(frame.board.transform, Vec3.UNIT_Z);
     this.scoopLeanSign = Math.sign(Vec3.dot(wanted, boardSide));
     this.scoopEndSign =
@@ -1158,29 +1152,17 @@ const TAU = 2 * Math.PI;
 /** One trick channel (flip or shove): see `TrickController.flipChannel`. */
 interface TrickChannel {
   active: boolean;
-  /** The key that started it (edge sign), whether it is still held, and for how long, s. */
-  key: number;
-  holding: boolean;
-  heldS: number;
-  /** 1 or 2 (a double flip / a 360 shove). */
-  turns: 1 | 2;
   /** Held rate, rad/s (signed: roll about board X, or yaw about world Y). */
   rateRadps: number;
-  turnedRad: number;
 }
 
 function newChannel(): TrickChannel {
-  return { active: false, key: 0, holding: false, heldS: 0, turns: 1, rateRadps: 0, turnedRad: 0 };
+  return { active: false, rateRadps: 0 };
 }
 
-function startChannel(channel: TrickChannel, key: number, rateRadps: number): void {
+function startChannel(channel: TrickChannel, rateRadps: number): void {
   channel.active = true;
-  channel.key = key;
-  channel.holding = true;
-  channel.heldS = 0;
-  channel.turns = 1;
   channel.rateRadps = rateRadps;
-  channel.turnedRad = 0;
 }
 
 /** Signed lean in [-1, 1] (+ = toward +Z) when both feet lean the same way, else 0. */
