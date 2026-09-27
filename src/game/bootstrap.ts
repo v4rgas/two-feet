@@ -5,12 +5,6 @@ import { LocalStorageStanceRepository } from "../contexts/input/infrastructure/l
 import { RIDER_CONFIG } from "../contexts/rider";
 import { TRICKS_CONFIG } from "../contexts/tricks";
 import type { Level } from "../contexts/world";
-import {
-  createFlatGroundLevel,
-  createSkateparkLevel,
-  createStreetCourseLevel,
-  WORLD_CONFIG,
-} from "../contexts/world";
 import { PRESENTATION_CONFIG } from "../presentation/presentation.config";
 import { ThreeRenderer } from "../presentation/three-renderer";
 import type { Clock } from "../shared";
@@ -19,13 +13,13 @@ import { composeSimulation } from "./compose";
 import { createTunableConfigs, installDevTuningPanel } from "./dev-tuning";
 import { GAME_CONFIG } from "./game.config";
 import type { GameLoop } from "./loop";
+import { MAPS } from "./maps/maps";
 
-/** The level named by the `?level=` URL parameter: `park`, `street`, or the flat ground (default). */
+/** The map named by `?map=` / `?level=`, or the default map. */
 function levelFromUrl(search: string): Level {
-  const name = new URLSearchParams(search).get("level");
-  if (name === "park") return createSkateparkLevel(WORLD_CONFIG);
-  if (name === "street") return createStreetCourseLevel(WORLD_CONFIG);
-  return createFlatGroundLevel(WORLD_CONFIG.flatGround);
+  const params = new URLSearchParams(search);
+  const id = params.get("map") ?? params.get("level");
+  return (MAPS.get(id ?? "") ?? MAPS.defaultMap).createLevel();
 }
 
 /**

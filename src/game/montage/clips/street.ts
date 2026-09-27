@@ -1,10 +1,10 @@
-import { WORLD_CONFIG } from "../../../contexts/world";
+import { STREET_CONFIG } from "../../../maps/street/street.config";
 import type { MontageClip } from "../clip";
 import { KeyTimeline } from "../timeline";
 
-/* Street course clips (`?level=street`, see WORLD_CONFIG.street). */
+/* Street course clips (`?map=street`, see STREET_CONFIG). */
 
-const street = WORLD_CONFIG.street;
+const street = STREET_CONFIG;
 const stairs = street.bigStairs;
 
 /**

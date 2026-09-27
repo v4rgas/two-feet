@@ -3,17 +3,14 @@ import type { BoardSnapshot } from "../../contexts/board";
 import { BOARD_CONFIG, BoardSpec } from "../../contexts/board";
 import { BoardHarness, STEP_S } from "../../contexts/board/infrastructure/board-harness";
 import type { GrindEdge } from "../../contexts/world";
-import {
-  createStreetCourseLevel,
-  obstacleCollider,
-  obstacleGrindEdges,
-  WORLD_CONFIG,
-} from "../../contexts/world";
+import { obstacleCollider, obstacleGrindEdges } from "../../contexts/world";
+import { STREET_CONFIG } from "../../maps/street/street.config";
+import { createStreetCourseLevel } from "../../maps/street/street-course";
 import type { DomainEvent } from "../../shared";
 import { Quat, Transform, Vec3 } from "../../shared";
 
 /*
- * STREET COURSE, BOARD ONLY (real Rapier, no rider, the `?level=street` geometry — the
+ * STREET COURSE, BOARD ONLY (real Rapier, no rider, the `?map=street` geometry — the
  * same convex pieces the renderer draws, ADR 0008). A board launched at 4–5 m/s must roll
  * over every bank and funbox transition without a bounce:
  * - never airborne on a transition (no `BoardLeftGround`): the rounded crests keep it on;
@@ -24,7 +21,7 @@ import { Quat, Transform, Vec3 } from "../../shared";
  */
 
 const LEVEL = createStreetCourseLevel();
-const S = WORLD_CONFIG.street;
+const S = STREET_CONFIG;
 const SPEC = BoardSpec.create(BOARD_CONFIG.spec);
 const REST_M = BoardSpec.restHeightM(SPEC);
 

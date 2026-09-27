@@ -12,7 +12,7 @@ import { StickValue } from "../contexts/input";
 import type { FootState, RiderState } from "../contexts/rider";
 import { DeckPosition, RIDER_CONFIG } from "../contexts/rider";
 import type { AirSession } from "../contexts/tricks";
-import { createFlatGroundLevel, WORLD_CONFIG } from "../contexts/world";
+import { createFlatGroundLevel } from "../maps/flat/flat-ground";
 import type { PresentationConfig } from "../presentation/presentation.config";
 import { PRESENTATION_CONFIG } from "../presentation/presentation.config";
 import type { DebugVector, RenderFrame } from "../presentation/render-frame";
@@ -459,7 +459,7 @@ export function startDemo(canvas: HTMLCanvasElement, params: URLSearchParams): v
   const renderer = new ThreeRenderer({ canvas, config });
   renderer.setup({
     boardSpec: game.boardSpec,
-    level: createFlatGroundLevel(WORLD_CONFIG.flatGround),
+    level: createFlatGroundLevel(),
   });
   if (params.has("debug")) renderer.setDebugEnabled(true);
   let last = performance.now();

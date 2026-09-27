@@ -15,7 +15,7 @@ import { KeyboardInputSource } from "../../contexts/input/infrastructure/keyboar
 import type { FootForce, RiderConfig, RiderState } from "../../contexts/rider";
 import { RIDER_CONFIG } from "../../contexts/rider";
 import type { Level } from "../../contexts/world";
-import { createFlatGroundLevel, WORLD_CONFIG } from "../../contexts/world";
+import { createFlatGroundLevel } from "../../maps/flat/flat-ground";
 import type { DomainEvent, FootId, Stance } from "../../shared";
 import { ManualClock, Transform, Vec3 } from "../../shared";
 import type { Simulation } from "../compose";
@@ -97,7 +97,7 @@ export class ScenarioHarness {
         input: options.input ?? INPUT_CONFIG,
         game,
       },
-      level: options.level ?? createFlatGroundLevel(WORLD_CONFIG.flatGround),
+      level: options.level ?? createFlatGroundLevel(),
       inputSource: new KeyboardInputSource(keys, INPUT_CONFIG.keys),
       stanceRepository: new MemoryStanceRepository(stance),
       clock: new ManualClock(),

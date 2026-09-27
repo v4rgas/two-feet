@@ -71,8 +71,8 @@ describe("montage mode", () => {
     expect(all.clips).toHaveLength(MONTAGE_CLIPS.length);
     expect(all.record).toBe("off");
     expect(all.pads).toBe(false);
-    const one = montageOptionsFromUrl(new URLSearchParams("montage=tre-flip-kicker&pads&record"));
-    expect(one.clips.map((c) => c.id)).toEqual(["tre-flip-kicker"]);
+    const one = montageOptionsFromUrl(new URLSearchParams("montage=tre-flip-euro-gap&pads&record"));
+    expect(one.clips.map((c) => c.id)).toEqual(["tre-flip-euro-gap"]);
     expect(one.pads).toBe(true);
     expect(one.record).toBe("auto");
     expect(montageOptionsFromUrl(new URLSearchParams("montage&record=realtime")).record).toBe(

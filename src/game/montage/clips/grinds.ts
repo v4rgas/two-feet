@@ -1,31 +1,32 @@
-import { WORLD_CONFIG } from "../../../contexts/world";
+import { STREET_CONFIG } from "../../../maps/street/street.config";
 import type { MontageClip } from "../clip";
 import { KeyTimeline } from "../timeline";
 
-/* Park grind clips (M4): the flat rail and the ledge (see WORLD_CONFIG.park). */
+/* Street grind clips (M4): the flat bar and the long ledge (see STREET_CONFIG). */
 
-const park = WORLD_CONFIG.park;
+const bar = STREET_CONFIG.flatBar;
+const ledge = STREET_CONFIG.longLedge;
 
 /**
- * 50-50 on the flat rail (scenario G1): rolling at 4 m/s from 7 m before its middle, 0.15 m
- * to its side and angled 0.03 rad onto it; full-load pop at 0.96 s (pops from ≈ 0.84 to
- * ≈ 1.1 s lock on: the middle of the window, ADR 0012), W; the lock-on (nothing held: a
- * 50-50, backside — the rail was on the heel side) is near the rail's start, it grinds to
+ * 50-50 on the flat bar (scenario G1): rolling at 4 m/s from 4 m before its start, 0.15 m
+ * to its side and angled 0.03 rad onto it; full-load pop at 0.70 s (pops from ≈ 0.55 to
+ * ≈ 0.85 s lock on: the middle of the window, ADR 0012), W; the lock-on (nothing held: a
+ * 50-50, backside — the bar was on the heel side) is near the bar's start, it grinds to
  * the end and rolls off (the feet stay on), then lands.
  */
 export const railFiftyFifty: MontageClip = {
   id: "rail-fifty-fifty",
-  title: "BS 50-50 · flat rail",
-  level: "park",
+  title: "BS 50-50 · flat bar",
+  level: "street",
   stance: "regular",
-  spawn: { xM: park.rail.xM - 7, yM: 0, zM: park.rail.zM + 0.15, headingRad: 0.03, speedMps: 4 },
+  spawn: { xM: bar.xM - 6.5, yM: 0, zM: bar.zM + 0.15, headingRad: 0.03, speedMps: 4 },
   durationS: 3.6,
-  keys: new KeyTimeline("regular").loadAndPop("tail", 0.6, 0.96).level("tail", 1.01).build(),
+  keys: new KeyTimeline("regular").loadAndPop("tail", 0.34, 0.7).level("tail", 0.75).build(),
   shots: [
     { fromS: 0, shot: { kind: "lowSide", side: "left", distanceM: 2.4, leadM: 0.8 } },
-    { fromS: 2.2, blendS: 0.5, shot: { kind: "follow" } },
+    { fromS: 2.0, blendS: 0.5, shot: { kind: "follow" } },
   ],
-  slowMotion: [{ fromS: 1.2, toS: 1.7, scale: 0.4 }],
+  slowMotion: [{ fromS: 1.0, toS: 1.5, scale: 0.4 }],
   expect: { tricks: ["BS 50-50"] },
 };
 
@@ -38,19 +39,25 @@ export const railFiftyFifty: MontageClip = {
  */
 export const ledgeBoardslide: MontageClip = {
   id: "ledge-boardslide",
-  title: "FS Boardslide · ledge",
-  level: "park",
+  title: "FS Boardslide · long ledge",
+  level: "street",
   stance: "regular",
-  spawn: { xM: park.ledge.xM - 7, yM: 0, zM: park.ledge.zM - 0.35, headingRad: 0, speedMps: 4 },
-  durationS: 3.4,
+  spawn: {
+    xM: ledge.xM - ledge.lengthM / 2 - 5,
+    yM: 0,
+    zM: ledge.zM - 0.35,
+    headingRad: 0,
+    speedMps: 4,
+  },
+  durationS: 3.6,
   keys: new KeyTimeline("regular")
     .loadAndPop("tail", 0.6, 0.92)
     .level("tail", 0.97, 0.12)
     .spin("left", 0.94, 0.14)
     .catch(1.18)
-    .loadAndPop("tail", 1.7, 1.9)
-    .level("tail", 1.95, 0.1)
-    .catch(2.25)
+    .loadAndPop("tail", 1.9, 2.1)
+    .level("tail", 2.15, 0.1)
+    .catch(2.31)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "fisheyeFollow" } },

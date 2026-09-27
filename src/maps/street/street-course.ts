@@ -1,11 +1,14 @@
-import { Quat, Transform, Vec3 } from "../../../shared";
-import type { WorldConfig } from "../world.config";
-import { WORLD_CONFIG } from "../world.config";
-import { createFlatGroundLevel } from "./flat-ground";
-import { Level } from "./level";
-import type { Obstacle } from "./obstacle";
-import { ObstacleShape } from "./obstacle";
-import { stairsHeightM, stairsSlopeRad } from "./obstacle-geometry";
+import type { Obstacle } from "../../contexts/world";
+import {
+  groundObstacle,
+  Level,
+  ObstacleShape,
+  stairsHeightM,
+  stairsSlopeRad,
+} from "../../contexts/world";
+import { Quat, Transform, Vec3 } from "../../shared";
+import type { StreetConfig } from "./street.config";
+import { STREET_CONFIG } from "./street.config";
 
 /** Pose on the ground at (x, z), turned `headingRad` about world +Y. */
 function placed(xM: number, zM: number, headingRad = 0): Transform {
@@ -13,8 +16,8 @@ function placed(xM: number, zM: number, headingRad = 0): Transform {
 }
 
 /**
- * The contest-style street course (`?level=street`): a big plaza built for lines, laid out
- * along world X between two quarter pipes (see `WORLD_CONFIG.street`):
+ * The contest-style street course (`?map=street`): a big plaza built for lines, laid out
+ * along world X between two quarter pipes (see `STREET_CONFIG`):
  * - west: the 7-stair (hubba each side, handrail down the middle), spawn on its landing;
  * - middle: the funbox (banks on three sides, a ledge on the fourth, a flat rail over the
  *   top and a down rail on the +X bank);
@@ -23,10 +26,7 @@ function placed(xM: number, zM: number, headingRad = 0): Transform {
  * - south: a long ledge, a flat bar, a bank-to-ledge; a euro-gap platform and an up-ledge.
  * Every obstacle is data; `obstacleGeometry` builds the pieces.
  */
-export function createStreetCourseLevel(config: WorldConfig = WORLD_CONFIG): Level {
-  const s = config.street;
-  const ground = createFlatGroundLevel(config.flatGround).obstacles;
-
+export function createStreetCourseLevel(s: StreetConfig = STREET_CONFIG): Level {
   const qpShape = ObstacleShape.quarterPipe({
     radiusM: s.quarterPipes.radiusM,
     heightM: s.quarterPipes.heightM,
@@ -70,7 +70,7 @@ export function createStreetCourseLevel(config: WorldConfig = WORLD_CONFIG): Lev
   const bl = s.bankLedge;
 
   const obstacles: Obstacle[] = [
-    ...ground,
+    groundObstacle(s.ground),
     {
       id: "qp-west",
       name: "Quarter pipe (west)",

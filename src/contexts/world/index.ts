@@ -1,7 +1,6 @@
 /** Public API of the `world` context. */
 export type { ObstacleId, SurfaceType } from "../../shared";
 export { SURFACE_TYPES } from "../../shared";
-export { createFlatGroundLevel } from "./domain/flat-ground";
 export type { GrindEdge, GrindEdgeHit } from "./domain/grind-edges";
 export {
   closestOnEdge,
@@ -10,8 +9,12 @@ export {
   nearestGrindEdge,
   obstacleGrindEdges,
 } from "./domain/grind-edges";
+export type { GroundParams } from "./domain/ground";
+export { groundObstacle } from "./domain/ground";
 export type { Spawn } from "./domain/level";
 export { Level } from "./domain/level";
+export type { MapDefinition } from "./domain/map-definition";
+export { isMapDefinition } from "./domain/map-definition";
 export type {
   BankLedgeShape,
   BankShape,
@@ -60,7 +63,5 @@ export {
   stairsHeightM,
   stairsSlopeRad,
 } from "./domain/obstacle-geometry";
-export { createSkateparkLevel } from "./domain/skatepark";
-export { createStreetCourseLevel } from "./domain/street-course";
 export type { WorldConfig } from "./world.config";
 export { WORLD_CONFIG } from "./world.config";

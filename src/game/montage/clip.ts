@@ -8,8 +8,8 @@ import type { ShotSegment } from "../../presentation/cinematic/cinematic-directo
  * Clips live in `clips/*.ts` and are listed in `clips/index.ts`.
  */
 
-/** Which level a clip is filmed on (`?level=` names). */
-export type ClipLevel = "park" | "street" | "flat";
+/** Which map a clip is filmed on (map ids, `src/maps/<id>/`). */
+export type ClipLevel = "street" | "flat";
 
 /** Where the clip starts: overrides the level's spawn. */
 export interface ClipSpawn {

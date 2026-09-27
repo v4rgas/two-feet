@@ -18,6 +18,10 @@ export const GAME_CONFIG = deepFreeze({
   /** "At rest" for the reset: board speed below this, m/s, and spin below this, rad/s. */
   bailRestSpeedMps: 0.15,
   bailRestSpinRadps: 0.5,
+  maps: {
+    /** The map the game opens on after the tutorial (GAME.md "First launch"). */
+    defaultMapId: "street",
+  },
   /** localStorage keys of settings that no longer exist, removed on boot. */
   obsoleteStorageKeys: ["skate.assistLevel"],
   debug: {

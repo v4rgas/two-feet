@@ -593,18 +593,20 @@ the swipe sizes all stay the same.
 
   Results needed: the rates are measured and kept as regression floors
   (see ADR 0012 for the history).
-- **Same test for the tricks alone** (kickflip down the stairs, ollie to
-  50-50 on the rail, 360 flip off the kicker): measured floors, as above.
-- **No feel change:** every existing scenario (matrix, park, grinds,
+- **Same test for the tricks alone** (kickflip down the 7-stair, ollie to
+  50-50 on the flat bar, 360 flip down the euro gap): measured floors, as above.
+- **No feel change:** every existing scenario (matrix, street, grinds,
   names) passes in the one mode, and `montage:verify` passes.
 - **No thrust:** no assist raises horizontal speed except the pop-out's
   vertical impulse and the nudge's sideways component, which is at most
   0.35 m/s.
 - **Status:** implemented in [ADR 0012](docs/adr/0012-assists.md), which has the
-  tunables per level and the measured rates (`pnpm test:human`). G4H, the rail
-  and the kicker are below these targets. The limit is the along-path pop-time
-  window, which the assists (sideways and in time only) cannot widen. The hubba's
-  flat top now reaches 0.9 m back onto the platform.
+  tunables per level and the measured rates (`pnpm test:human`). The lines now
+  run on the Street Course (the park was removed, GAME.md; ADR 0014): G4H 28 %,
+  7-stair kickflip 98 %, flat-bar 50-50 76 %, euro-gap 360 flip 84 %. G4H is still
+  below the target. The limit is the along-path pop-time window, which the assists
+  (sideways and in time only) cannot widen. The hubba's flat top reaches 0.9 m back
+  onto the landing.
 
 ## Tunables (`rider.config.ts` → `grind` block)
 | Key | Start value |
@@ -615,7 +617,12 @@ the swipe sizes all stay the same.
 | `balanceDriftPerS` / `balanceAssist` | 0.6 / 1.0 |
 | `lockSpring` / `lockDamping` | tune |
 
-### Acceptance scenarios (park, headless)
+### Acceptance scenarios (Street Course, headless)
+
+On the Street Course (`grinds.scenario.test.ts`; they ran on the removed park,
+ADR 0014): the flat rail is the 0.3 m flat bar, the ledge the long ledge, the
+hubba the 7-stair's 0.28 m hubba, the coping the east quarter pipe's.
+
 - **G1:** ollie onto the flat rail parallel, nothing held. It's a 50-50 for
   at least 0.5 s, rolls off the end, lands clean and is named "FS/BS 50-50".
 - **G2:** the same with `↓` held: "5-0".

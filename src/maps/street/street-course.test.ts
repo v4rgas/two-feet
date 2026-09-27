@@ -1,19 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { Transform, Vec3 } from "../../../shared";
-import { WORLD_CONFIG } from "../world.config";
-import { levelGrindEdges, obstacleGrindEdges } from "./grind-edges";
-import type { Obstacle } from "./obstacle";
-import { obstacleGeometry, stairsFootXM, stairsHeightM } from "./obstacle-geometry";
+import type { Obstacle } from "../../contexts/world";
+import {
+  levelGrindEdges,
+  obstacleGeometry,
+  obstacleGrindEdges,
+  stairsFootXM,
+  stairsHeightM,
+} from "../../contexts/world";
+import { Transform, Vec3 } from "../../shared";
+import { map } from "./map";
+import { STREET_CONFIG } from "./street.config";
 import { createStreetCourseLevel } from "./street-course";
 
 /*
- * The street course layout (`?level=street`): obstacles don't overlap, every drop has a
+ * The street course layout (`?map=street`): obstacles don't overlap, every drop has a
  * clear roll-out, the spawn has a run-up, every grind edge is there, and the heights stay
  * within the ≈ 0.45 m pop from where you take off.
  */
 
 const level = createStreetCourseLevel();
-const S = WORLD_CONFIG.street;
+const S = STREET_CONFIG;
 
 interface Rect {
   readonly minX: number;
@@ -253,5 +259,16 @@ describe("street course level", () => {
     expect(top.endM.x).toBeCloseTo(small.transform.positionM.x, 9);
     expect(top.endM.y).toBeCloseTo(stairsHeightM(small.shape) + S.kinkedRail.heightM, 9);
     expect(down.endM.x).toBeCloseTo(small.transform.positionM.x + stairsFootXM(small.shape), 9);
+  });
+});
+
+describe("street map definition", () => {
+  it("is the `street` map, its spawn the level's", () => {
+    expect(map.id).toBe("street");
+    expect(map.tutorial).toBeUndefined();
+    const built = map.createLevel();
+    expect(built.id).toBe("street");
+    expect(built.spawn).toEqual(map.spawn);
+    expect(built.obstacles.map((o) => o.id)).toEqual(level.obstacles.map((o) => o.id));
   });
 });

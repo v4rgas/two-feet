@@ -172,6 +172,26 @@ module.exports = {
       to: { pathNot: "^src/game/" },
     },
 
+    // ── Maps (GAME.md "Maps", ADR 0014) ───────────────────────────────────
+    {
+      name: "maps-are-data",
+      comment:
+        "A map folder (src/maps/<id>/) builds its level from the world context's public API " +
+        "and the shared kernel, and imports nothing from other map folders.",
+      severity: "error",
+      from: { path: "^src/maps/([^/]+)/", pathNot: TEST_FILE },
+      to: {
+        pathNot: ["^src/maps/$1/", "^src/contexts/world/index\\.ts$", "^src/shared/"],
+      },
+    },
+    {
+      name: "only-game-finds-maps",
+      comment: "Only the composition root (src/game) discovers and loads maps.",
+      severity: "error",
+      from: { pathNot: ["^src/game/", "^src/maps/"] },
+      to: { path: "^src/maps/" },
+    },
+
     // ── General hygiene ───────────────────────────────────────────────────
     {
       name: "no-circular",

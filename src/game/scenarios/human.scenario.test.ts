@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MontageClip } from "../montage/clip";
 import { railFiftyFifty } from "../montage/clips/grinds";
-import { treFlipKicker } from "../montage/clips/ramps";
+import { treFlipEuroGap } from "../montage/clips/ramps";
 import { kickflipStairs, stairsTailslideHardflip } from "../montage/clips/stairs";
 import type { JitterOptions, JitterRun } from "./human-jitter";
 import { HUMAN_JITTER, jitterRuns, landedRate } from "./human-jitter";
@@ -20,16 +20,20 @@ import { HUMAN_JITTER, jitterRuns, landedRate } from "./human-jitter";
  * and in time, never along the path). One mode: the assists always on (the pro / normal /
  * easy levels were removed; their last rates are in ADR 0012).
  *
- * | line                               | measured |
- * |------------------------------------|----------|
- * | G4H kickflip → tailslide → hardflip | 20 % |
- * | kickflip down the 5-stair          | 100 % |
- * | ollie to 50-50 on the rail         | 52 % |
- * | 360 flip off the kicker            | 62 % |
+ * Measured on the Street Course (GAME.md: the park they ran on was removed; its rates were
+ * G4H 20 %, 5-stair kickflip 100 %, flat-rail 50-50 52 %, kicker 360 flip 62 %):
+ *
+ * | line                                        | measured |
+ * |---------------------------------------------|----------|
+ * | G4H kickflip → tailslide → hardflip (hubba) | 28 % |
+ * | kickflip down the 7-stair                   | 98 % |
+ * | ollie to 50-50 on the flat bar              | 76 % |
+ * | 360 flip down the euro gap                  | 84 % |
  *
  * Each 50-run batch takes ≈ 5–7 s.
  */
 
+// `MEASURE=1 pnpm test:human --silent=false` prints each rate (vitest exposes the environment).
 const RUNS = 50;
 const T = 120_000;
 
@@ -45,23 +49,23 @@ const LINES: readonly Line[] = [
   {
     name: "G4H: kickflip → FS tailslide → hardflip out (the G4 line)",
     clip: stairsTailslideHardflip,
-    floor: 0.18,
+    floor: 0.26,
   },
   {
-    name: "kickflip down the 5-stair",
+    name: "kickflip down the 7-stair",
     clip: kickflipStairs,
     floor: 0.96,
   },
   {
-    name: "ollie to 50-50 on the flat rail (either side; balancing like a person)",
+    name: "ollie to 50-50 on the flat bar (either side; balancing like a person)",
     clip: railFiftyFifty,
     options: { names: [/^(FS|BS) 50-50$/], balanceReflex: true },
-    floor: 0.48,
+    floor: 0.74,
   },
   {
-    name: "360 flip off the kicker",
-    clip: treFlipKicker,
-    floor: 0.58,
+    name: "360 flip down the euro gap",
+    clip: treFlipEuroGap,
+    floor: 0.82,
   },
 ];
 
@@ -82,6 +86,7 @@ describe("human jitter: lines land with sloppy human timing (the assists)", () =
       `${line.name}: ≥ ${line.floor}`,
       async () => {
         const runs = await jitterRuns(line.clip, RUNS, line.options);
+        if (import.meta.env.MEASURE) console.log(`MEASURED ${line.name}: ${summary(runs)}`);
         expect(landedRate(runs), summary(runs)).toBeGreaterThanOrEqual(line.floor);
       },
       T,

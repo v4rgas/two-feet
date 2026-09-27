@@ -1,7 +1,7 @@
 import type { MontageClip } from "../clip";
 import { bs180KickflipFlat, nollieHeelflipFlat } from "./flat";
 import { ledgeBoardslide, railFiftyFifty } from "./grinds";
-import { quarterPipeFakie, treFlipKicker } from "./ramps";
+import { quarterPipeFakie, treFlipEuroGap } from "./ramps";
 import { kickflipStairs, stairsTailslideHardflip, varialHeelflipStairs } from "./stairs";
 import { ollieSevenStair } from "./street";
 
@@ -13,7 +13,7 @@ import { ollieSevenStair } from "./street";
 export const MONTAGE_CLIPS: readonly MontageClip[] = [
   stairsTailslideHardflip,
   kickflipStairs,
-  treFlipKicker,
+  treFlipEuroGap,
   nollieHeelflipFlat,
   bs180KickflipFlat,
   varialHeelflipStairs,

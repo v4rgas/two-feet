@@ -1,81 +1,82 @@
-import { WORLD_CONFIG } from "../../../contexts/world";
+import { STREET_CONFIG } from "../../../maps/street/street.config";
 import type { MontageClip } from "../clip";
 import { KeyTimeline } from "../timeline";
 
-/* Park ramp clips: the kicker and the mini halfpipe (see WORLD_CONFIG.park). */
+/* Street launch and transition clips: the euro gap and the east quarter pipe (see STREET_CONFIG). */
 
-const park = WORLD_CONFIG.park;
-const hp = park.halfpipe;
+const gap = STREET_CONFIG.gapPlatform;
+const qp = STREET_CONFIG.quarterPipes;
 
 /**
- * 360 flip off the kicker: rolling in at 4.5 m/s from 6 m before it, a full load, the pop
- * at 1.76 s near the lip (pops from ≈ 1.68 to ≈ 1.82 s land); W + A flick (0.12 s), and
- * the 360 backside sweep as an edge-to-edge swipe (→ held with the load from 1.6 s, ← at
- * 1.81 s: MECHANICS "Swipe size"); Space at 2.26 s as flip and 360 settle together. Timed
- * like a person would for the human-jitter test (ADR 0012).
+ * 360 flip off the euro gap (the kicker's launch on the street: the park had a kicker): rolling at
+ * 4.5 m/s on the gap platform (0.6 m), 5 m behind its drop edge, a full load and the pop
+ * at 0.9 s before the edge (pops from ≈ 0.56 to ≈ 1.24 s land); W + A flick (0.12 s), and
+ * the 360 backside sweep as an edge-to-edge swipe (→ held with the load from 0.74 s, ← at
+ * 0.95 s: MECHANICS "Swipe size"); Space at 1.34 s as flip and 360 settle together (the
+ * middle of ≈ 1.2–1.48 s). Timed like a person would for the human-jitter
+ * test (ADR 0012).
  */
-export const treFlipKicker: MontageClip = {
-  id: "tre-flip-kicker",
-  title: "360 Flip · kicker",
-  level: "park",
+export const treFlipEuroGap: MontageClip = {
+  id: "tre-flip-euro-gap",
+  title: "360 Flip · euro gap",
+  level: "street",
   stance: "regular",
-  spawn: { xM: park.kicker.xM - 6, yM: 0, zM: park.kicker.zM, headingRad: 0, speedMps: 4.5 },
-  durationS: 3.6,
+  spawn: { xM: gap.xM - 5, yM: gap.heightM, zM: gap.zM, headingRad: 0, speedMps: 4.5 },
+  durationS: 3.2,
   keys: new KeyTimeline("regular")
-    .loadAndPop("tail", 1.4, 1.76)
-    .level("tail", 1.81)
-    .flick("tail", "heel", 1.81, 0.12)
-    .sweep360("tail", "heel", 1.6, 1.81)
-    .catch(2.26)
+    .loadAndPop("tail", 0.54, 0.9)
+    .level("tail", 0.95)
+    .flick("tail", "heel", 0.95, 0.12)
+    .sweep360("tail", "heel", 0.74, 0.95)
+    .catch(1.34)
     .build(),
   shots: [
     { fromS: 0, shot: { kind: "lowSide", side: "left", distanceM: 2.4, leadM: 0.8 } },
     {
-      fromS: 1.6,
+      fromS: 0.74,
       shot: {
         kind: "fixedTripod",
-        positionM: [park.kicker.xM + 3.4, 0.35, park.kicker.zM - 2.6],
+        positionM: [gap.xM + 3.4, 0.35, gap.zM + 2.6],
         fovStartDeg: 50,
         fovEndDeg: 36,
         zoomS: 4,
       },
     },
   ],
-  slowMotion: [{ fromS: 1.72, toS: 2.5, scale: 0.3 }],
+  slowMotion: [{ fromS: 0.86, toS: 1.64, scale: 0.3 }],
   expect: { tricks: ["360 Flip"] },
 };
 
 /**
- * Quarter pipe: rolling in at 5 m/s across the halfpipe's flat bottom, up the east
- * quarter pipe (the feet keep their places on the tilted deck, so 5 m/s climbs about as
- * high as 5.5 did), back down fakie, and a fakie ollie on the way down (pop 1.95 s, the
- * middle of the 1.9–2.0 s that land).
+ * Quarter pipe: rolling in at 4.6 m/s toward the east quarter pipe (1.2 m: at 5 m/s the
+ * board would reach its coping), up it, back down fakie, and a fakie ollie low on the
+ * transition on the way down (pop 2.25 s, in the 2.05–2.55 s that land).
  */
 export const quarterPipeFakie: MontageClip = {
   id: "quarter-pipe-fakie",
   title: "Quarter pipe · Fakie Ollie",
-  level: "park",
+  level: "street",
   stance: "regular",
-  spawn: { xM: hp.xM - 1.7, yM: 0, zM: hp.zM, headingRad: 0, speedMps: 5 },
-  durationS: 3.5,
+  spawn: { xM: qp.toeXM - 3.7, yM: 0, zM: 0, headingRad: 0, speedMps: 4.6 },
+  durationS: 3.6,
   keys: new KeyTimeline("regular")
-    .loadAndPop("tail", 1.73, 1.95)
-    .level("tail", 2.0)
-    .catch(2.4)
+    .loadAndPop("tail", 2.03, 2.25)
+    .level("tail", 2.3)
+    .catch(2.7)
     .build(),
   shots: [
     {
       fromS: 0,
       shot: {
         kind: "fixedTripod",
-        positionM: [hp.xM, 0.9, hp.zM + hp.widthM / 2 + 1.4],
+        positionM: [qp.toeXM - 2, 0.9, 4],
         fovStartDeg: 55,
         fovEndDeg: 38,
         zoomS: 3,
       },
     },
-    { fromS: 1.8, blendS: 0.35, shot: { kind: "fisheyeFollow" } },
+    { fromS: 2.1, blendS: 0.35, shot: { kind: "fisheyeFollow" } },
   ],
-  slowMotion: [{ fromS: 1.92, toS: 2.5, scale: 0.4 }],
+  slowMotion: [{ fromS: 2.22, toS: 2.8, scale: 0.4 }],
   expect: { tricks: ["Fakie Ollie"], rollsFakieAtS: 1.75 },
 };

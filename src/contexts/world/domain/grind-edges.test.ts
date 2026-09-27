@@ -8,12 +8,72 @@ import {
   nearestGrindEdge,
   obstacleGrindEdges,
 } from "./grind-edges";
+import { Level } from "./level";
 import type { Obstacle } from "./obstacle";
 import { ObstacleShape } from "./obstacle";
 import { obstacleGeometry, stairsFootXM, stairsHeightM, stairsSlopeRad } from "./obstacle-geometry";
-import { createSkateparkLevel } from "./skatepark";
 
 const G = WORLD_CONFIG.geometry;
+
+/** A 5-stair with a hubba (+Z) and a handrail (−Z): the stairs kind's fixture. */
+const STAIRS = {
+  stepCount: 5,
+  riseM: 0.16,
+  runM: 0.32,
+  widthM: 3.5,
+  topDepthM: 8,
+  hubba: { widthM: 0.45, heightM: 0.35, edgeRadiusM: 0.02, flatTopM: 0.9 },
+  handrail: { heightM: 0.8, barRadiusM: 0.024, offsetM: 0.3 },
+} as const;
+
+/**
+ * One of every grindable kind, placed on a ground point (a fixture, not a map): the
+ * stairs at the origin, a ledge at (19, 1.8), a round flat rail at (19, −1.8), and two
+ * quarter pipes facing each other across a 4 m flat bottom at z = −12.
+ */
+function kindsLevel(): Level {
+  const qp = ObstacleShape.quarterPipe({
+    radiusM: 2.2,
+    heightM: 1.3,
+    widthM: 5,
+    deckDepthM: 1.2,
+    copingRadiusM: 0.03,
+  });
+  const o = (
+    id: string,
+    surface: Obstacle["surface"],
+    transform: Transform,
+    shape: Obstacle["shape"],
+  ): Obstacle => ({
+    id,
+    name: id,
+    surface,
+    transform,
+    shape,
+  });
+  return Level.create({
+    id: "kinds",
+    name: "Kinds",
+    obstacles: [
+      o("stairs", "ground", at(0, 0), ObstacleShape.stairs(STAIRS)),
+      o(
+        "ledge",
+        "ledge",
+        at(19, 1.8),
+        ObstacleShape.ledge({ lengthM: 4, depthM: 0.5, heightM: 0.4, edgeChamferM: 0.03 }),
+      ),
+      o(
+        "flat-rail",
+        "grindable",
+        at(19, -1.8),
+        ObstacleShape.rail({ lengthM: 4, heightM: 0.35, barRadiusM: 0.024, profile: "round" }),
+      ),
+      o("qp-east", "ramp", at(12, -12), qp),
+      o("qp-west", "ramp", at(8, -12, Math.PI), qp),
+    ],
+    spawn: { positionM: Vec3.ZERO, headingRad: 0 },
+  });
+}
 
 function at(x: number, z: number, headingRad = 0): Transform {
   return Transform.create(Vec3.create(x, 0, z), Quat.fromAxisAngle(Vec3.UNIT_Y, headingRad));
@@ -117,16 +177,8 @@ describe("grind edges", () => {
   });
 
   it("stairs: the hubba steel edge (flat + sloped) and the handrail follow the nosings", () => {
-    const park = WORLD_CONFIG.park.stairs;
-    const shape = ObstacleShape.stairs({
-      stepCount: park.stepCount,
-      riseM: park.riseM,
-      runM: park.runM,
-      widthM: park.widthM,
-      topDepthM: park.topDepthM,
-      hubba: park.hubba,
-      handrail: park.handrail,
-    });
+    const st = STAIRS;
+    const shape = ObstacleShape.stairs(STAIRS);
     const edges = obstacleGrindEdges(obstacle(shape));
     const byName = (n: string) => edges.find((e) => e.id === `o:${n}`);
     const flat = byName("hubba-flat");
@@ -134,8 +186,8 @@ describe("grind edges", () => {
     const rail = byName("handrail");
     const h = stairsHeightM(shape);
     const a = stairsSlopeRad(shape);
-    const halfW = park.widthM / 2;
-    expect(flat?.startM.y).toBeCloseTo(h + park.hubba.heightM + G.copingRevealM);
+    const halfW = st.widthM / 2;
+    expect(flat?.startM.y).toBeCloseTo(h + st.hubba.heightM + G.copingRevealM);
     expect(flat?.startM.z).toBeCloseTo(halfW);
     expect(slope?.startM.z).toBeCloseTo(halfW);
     // The sloped edge drops at the stairs' angle and ends over the foot of the stairs.
@@ -144,20 +196,20 @@ describe("grind edges", () => {
     expect(d.x).toBeCloseTo(stairsFootXM(shape));
     // It ends `heightM·cos²` + reveal·cos above the ground at the foot: about the hubba height.
     expect(slope?.endM.y).toBeGreaterThan(0.25);
-    expect(slope?.endM.y).toBeLessThan(park.hubba.heightM + 0.01);
+    expect(slope?.endM.y).toBeLessThan(st.hubba.heightM + 0.01);
     // Flat and slope meet over the top nosing, with a gap where the steel turns (≈ 16 cm).
     expect(Vec3.distance(flat?.endM ?? Vec3.ZERO, slope?.startM ?? Vec3.ZERO)).toBeLessThan(0.2);
     expect(flat?.outwardNormal.z).toBeCloseTo(-1);
     expect(slope?.twoSided).toBe(false);
     // Handrail: two-sided, on the −Z side, `heightM` square above the nosings.
     expect(rail?.twoSided).toBe(true);
-    expect(rail?.startM.z).toBeCloseTo(-halfW - park.handrail.offsetM);
+    expect(rail?.startM.z).toBeCloseTo(-halfW - st.handrail.offsetM);
     const r = Vec3.sub(rail?.endM ?? Vec3.ZERO, rail?.startM ?? Vec3.ZERO);
     expect(Math.atan2(-r.y, r.x)).toBeCloseTo(a);
     // At x = 0 the rail top is heightM / cos(a) above the top nosing.
     const t0 = -(rail?.startM.x ?? 0) / r.x;
     const y0 = (rail?.startM.y ?? 0) + t0 * r.y;
-    expect(y0 - h).toBeCloseTo(park.handrail.heightM / Math.cos(a), 6);
+    expect(y0 - h).toBeCloseTo(st.handrail.heightM / Math.cos(a), 6);
   });
 
   it("stairs without a hubba or handrail, banks, kickers and boxes have no edges", () => {
@@ -179,8 +231,8 @@ describe("grind edges", () => {
     ).toEqual([]);
   });
 
-  it("the skatepark exposes every edge kind with unique ids", () => {
-    const edges = levelGrindEdges(createSkateparkLevel().obstacles);
+  it("a level with every grindable kind exposes every edge kind with unique ids", () => {
+    const edges = levelGrindEdges(kindsLevel().obstacles);
     const ids = edges.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(
@@ -204,7 +256,7 @@ describe("grind edges", () => {
   });
 
   describe("queries", () => {
-    const edges = levelGrindEdges(createSkateparkLevel().obstacles);
+    const edges = levelGrindEdges(kindsLevel().obstacles);
 
     it("closestOnEdge clamps to the segment's ends", () => {
       const rail = edges.find((e) => e.id === "flat-rail:bar");

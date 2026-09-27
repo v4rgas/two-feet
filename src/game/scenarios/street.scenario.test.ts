@@ -1,18 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { RIDER_CONFIG } from "../../contexts/rider";
-import {
-  createStreetCourseLevel,
-  Level,
-  levelGrindEdges,
-  WORLD_CONFIG,
-} from "../../contexts/world";
+import { Level, levelGrindEdges } from "../../contexts/world";
+import { STREET_CONFIG } from "../../maps/street/street.config";
+import { createStreetCourseLevel } from "../../maps/street/street-course";
 import { Vec3 } from "../../shared";
 import type { ScenarioHarness, StepRecord } from "./scenario-harness";
 import { ScenarioHarness as Harness } from "./scenario-harness";
 import { awayFrom, catchAt, feetOn, loadAndPop } from "./scenario-helpers";
 
 /*
- * RIDER ON THE STREET COURSE (full loop, real Rapier, the `?level=street` geometry), with
+ * RIDER ON THE STREET COURSE (full loop, real Rapier, the `?map=street` geometry), with
  * the existing gesture timelines and adapted spawns: an ollie down the 7-stair with a
  * Space catch (the park's stairs ollie), an ollie to 50-50 on the funbox's flat rail (G1),
  * a 50-50 and a boardslide along the whole kinked rail (the lock keeps the board's speed
@@ -28,7 +25,7 @@ afterEach(() => {
 
 const T = 30_000;
 const STREET = createStreetCourseLevel();
-const S = WORLD_CONFIG.street;
+const S = STREET_CONFIG;
 
 /** The course with the board spawned at ground point (x, y, z), heading `headingRad`. */
 async function streetAt(x: number, y: number, z: number, headingRad = 0): Promise<ScenarioHarness> {

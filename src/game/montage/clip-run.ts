@@ -4,13 +4,9 @@ import { INPUT_CONFIG, keyEventsFromPresses } from "../../contexts/input";
 import { ScriptedInputSource } from "../../contexts/input/infrastructure/scripted-input-source";
 import { RIDER_CONFIG } from "../../contexts/rider";
 import { TRICKS_CONFIG } from "../../contexts/tricks";
-import {
-  createFlatGroundLevel,
-  createSkateparkLevel,
-  createStreetCourseLevel,
-  Level,
-  WORLD_CONFIG,
-} from "../../contexts/world";
+import { Level } from "../../contexts/world";
+import { createFlatGroundLevel } from "../../maps/flat/flat-ground";
+import { createStreetCourseLevel } from "../../maps/street/street-course";
 import type { DomainEvent, Stance } from "../../shared";
 import { ManualClock, Transform, Vec3 } from "../../shared";
 import type { Simulation, SimulationConfigs } from "../compose";
@@ -27,15 +23,13 @@ class FixedStanceRepository implements StanceRepository {
   save(): void {}
 }
 
-/** A clip level by its `?level=` name, with its own spawn. */
+/** A clip level by its map id, with its own spawn. */
 export function baseClipLevel(name: ClipLevel): Level {
   switch (name) {
-    case "park":
-      return createSkateparkLevel(WORLD_CONFIG);
     case "street":
-      return createStreetCourseLevel(WORLD_CONFIG);
+      return createStreetCourseLevel();
     case "flat":
-      return createFlatGroundLevel(WORLD_CONFIG.flatGround);
+      return createFlatGroundLevel();
   }
 }
 

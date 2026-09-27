@@ -18,7 +18,6 @@ import {
   stairsHeightM,
   transitionPoints,
 } from "./obstacle-geometry";
-import { createSkateparkLevel } from "./skatepark";
 
 const G = WORLD_CONFIG.geometry;
 
@@ -711,95 +710,29 @@ describe("obstacleCollider", () => {
   });
 });
 
-describe("skatepark level", () => {
-  const level = createSkateparkLevel();
-  const park = WORLD_CONFIG.park;
-
-  function worldBounds(o: Obstacle): Box3 {
-    const pts = shapeGeometry(o.surface, o.shape).pieces.flatMap((p) =>
-      p.verticesM.map((v) => Transform.toWorldPoint(o.transform, v)),
-    );
-    return bounds(pts);
-  }
-
-  it("has every kind of obstacle", () => {
-    const kinds = new Set(level.obstacles.map((o) => o.shape.kind));
-    for (const kind of ["box", "quarterPipe", "bank", "kicker", "ledge", "rail", "stairs"]) {
-      expect(kinds.has(kind as Shape["kind"])).toBe(true);
-    }
-    expect(level.obstacles.filter((o) => o.shape.kind === "quarterPipe")).toHaveLength(2);
-  });
-
-  it("spawns on the stairs platform with at least 6 m of run-up", () => {
-    const stairs = level.obstacles.find((o) => o.shape.kind === "stairs");
-    if (stairs === undefined || stairs.shape.kind !== "stairs") throw new Error("no stairs");
-    expect(level.spawn.positionM.y).toBeCloseTo(stairsHeightM(stairs.shape), 9);
-    expect(stairs.transform.positionM.x - level.spawn.positionM.x).toBeGreaterThanOrEqual(6);
-    expect(level.spawn.positionM.x).toBeGreaterThan(
-      stairs.transform.positionM.x - park.stairs.topDepthM,
-    );
-  });
+describe("stairs with a roll-up back slope", () => {
+  // The old park's 5-stair (a fixture of the kind; the maps are in src/maps).
+  const stairs = {
+    stepCount: 5,
+    riseM: 0.16,
+    runM: 0.32,
+    widthM: 3.5,
+    topDepthM: 8,
+    backSlopeRad: degToRad(14),
+  } as const;
 
   it("a roll-up slope, part of the platform piece, leads from the ground to the platform", () => {
-    const stairs = level.obstacles.find((o) => o.id === "stairs");
-    if (stairs === undefined) throw new Error("no stairs");
-    const platform = shapeGeometry(stairs.surface, stairs.shape).pieces[0];
+    const platform = shapeGeometry("ground", ObstacleShape.stairs(stairs)).pieces[0];
     if (platform === undefined) throw new Error("no platform");
-    const h = park.stairs.stepCount * park.stairs.riseM;
+    const h = stairs.stepCount * stairs.riseM;
     const slope = platform.faces
       .map((f) => Vec3.normalize(newell(facePoints(platform, f.indices))))
       .find((n) => n.y > 0.01 && n.y < 0.999 && Math.abs(n.z) < 0.5);
     if (slope === undefined) throw new Error("no slope face");
-    expect(Math.acos(slope.y)).toBeCloseTo(park.stairs.backSlopeRad, 9);
+    expect(Math.acos(slope.y)).toBeCloseTo(stairs.backSlopeRad, 9);
     const b = bounds(platform.verticesM);
     expect(b.max.y).toBeCloseTo(h, 9);
     expect(b.min.y).toBeLessThan(-G.seamBuryM + 1e-9); // toe buried under the ground
-    expect(b.min.x).toBeLessThan(-park.stairs.topDepthM - h / Math.tan(park.stairs.backSlopeRad));
-  });
-
-  it("leaves at least 8 m of clear roll-away below the stairs", () => {
-    const stairs = level.obstacles.find((o) => o.id === "stairs");
-    if (stairs === undefined) throw new Error("no stairs");
-    const foot = park.stairs.xM + (park.stairs.stepCount - 1) * park.stairs.runM;
-    const half = park.stairs.widthM / 2 + 0.5;
-    for (const o of level.obstacles) {
-      if (o.id === "ground" || o.id === "stairs") continue;
-      const b = worldBounds(o);
-      const overlapsZ = b.max.z > park.stairs.zM - half && b.min.z < park.stairs.zM + half;
-      const overlapsX = b.max.x > foot && b.min.x < foot + 8;
-      expect(overlapsZ && overlapsX, `${o.id} blocks the roll-away`).toBe(false);
-    }
-  });
-
-  it("the two quarter pipes face each other across the flat bottom", () => {
-    const east = level.obstacles.find((o) => o.id === "qp-east");
-    const west = level.obstacles.find((o) => o.id === "qp-west");
-    if (east === undefined || west === undefined) throw new Error("no halfpipe");
-    const intoEast = Transform.toWorldDirection(east.transform, Vec3.UNIT_X);
-    const intoWest = Transform.toWorldDirection(west.transform, Vec3.UNIT_X);
-    expect(Vec3.dot(intoEast, intoWest)).toBeCloseTo(-1, 9);
-    expect(east.transform.positionM.x - west.transform.positionM.x).toBeCloseTo(
-      park.halfpipe.flatBottomM,
-      9,
-    );
-  });
-
-  it("no two obstacles overlap (apart from standing on the ground)", () => {
-    const boxes = level.obstacles
-      .filter((o) => o.id !== "ground")
-      .map((o) => ({ id: o.id, b: worldBounds(o) }));
-    for (let i = 0; i < boxes.length; i += 1) {
-      for (let j = i + 1; j < boxes.length; j += 1) {
-        const a = boxes[i];
-        const c = boxes[j];
-        if (a === undefined || c === undefined) continue;
-        const overlap =
-          a.b.max.x > c.b.min.x + 1e-6 &&
-          c.b.max.x > a.b.min.x + 1e-6 &&
-          a.b.max.z > c.b.min.z + 1e-6 &&
-          c.b.max.z > a.b.min.z + 1e-6;
-        expect(overlap, `${a.id} overlaps ${c.id}`).toBe(false);
-      }
-    }
+    expect(b.min.x).toBeLessThan(-stairs.topDepthM - h / Math.tan(stairs.backSlopeRad));
   });
 });

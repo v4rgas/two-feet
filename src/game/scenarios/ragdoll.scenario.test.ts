@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createSkateparkLevel, Level } from "../../contexts/world";
+import { Level } from "../../contexts/world";
+import { STREET_CONFIG } from "../../maps/street/street.config";
+import { createStreetCourseLevel } from "../../maps/street/street-course";
 import type { RiderBailed } from "../../shared";
 import { Vec3 } from "../../shared";
 import { GAME_CONFIG } from "../game.config";
@@ -83,14 +85,16 @@ async function caughtOffAngle(): Promise<ScenarioHarness> {
   return h;
 }
 
-/** Ollie onto the park's flat rail with no balance input (G5): it falls off. */
+/** Ollie onto the street's flat bar with no balance input (G5): it falls off. */
 async function grindFallOff(): Promise<ScenarioHarness> {
-  const park = createSkateparkLevel();
+  const street = createStreetCourseLevel();
+  const bar = STREET_CONFIG.flatBar;
+  const barStartX = bar.xM - bar.lengthM / 2;
   const level = Level.create({
-    id: park.id,
-    name: park.name,
-    obstacles: park.obstacles,
-    spawn: { positionM: Vec3.create(12, 0, -1.65), headingRad: 0.03 },
+    id: street.id,
+    name: street.name,
+    obstacles: street.obstacles,
+    spawn: { positionM: Vec3.create(barStartX - 4, 0, bar.zM + 0.15), headingRad: 0.03 },
   });
   const h = await Harness.create({ level });
   open.push(h);
@@ -98,7 +102,7 @@ async function grindFallOff(): Promise<ScenarioHarness> {
   h.launch(2.5);
   for (let i = 0; i < 2400; i += 1) {
     const x = h.board.transform.positionM.x;
-    if (x + h.board.linearVelocityMps.x * 0.34 >= 16.3) break;
+    if (x + h.board.linearVelocityMps.x * 0.34 >= barStartX - 0.7) break;
     h.run(STEP_S);
   }
   loadAndPop(h, 0.32);

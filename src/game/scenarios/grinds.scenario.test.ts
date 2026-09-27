@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { KeyPress } from "../../contexts/input";
-import { createSkateparkLevel, Level, levelGrindEdges } from "../../contexts/world";
+import { Level, levelGrindEdges } from "../../contexts/world";
+import { STREET_CONFIG } from "../../maps/street/street.config";
+import { createStreetCourseLevel } from "../../maps/street/street-course";
 import type { GrindEnded, GrindStarted } from "../../shared";
 import { Vec3 } from "../../shared";
 import { stairsTailslideHardflip } from "../montage/clips/stairs";
@@ -10,9 +12,11 @@ import { airSummary, awayFrom, loadAndPop } from "./scenario-helpers";
 
 /*
  * GRINDS AND SLIDES (MECHANICS.md M4 "Acceptance scenarios", full loop, real Rapier, the
- * `?level=park` geometry). G1–G7. G4 is the montage clip: its key timeline is written
- * out below as data (`G4_KEYS`, from the clip start) and is the same as the
- * `stairs-tailslide-hardflip` montage clip.
+ * Street Course, `?map=street`). G1–G7: G1/G2/G5/G6 on the flat bar (0.3 m, square), G3 on
+ * the long ledge (0.4 m), G4 on the 7-stair's +Z hubba (0.28 m), G7 on the east quarter
+ * pipe's coping. G4 is the montage clip: its key timeline is written out below as data
+ * (`G4_KEYS`, from the clip start) and is the same as the `stairs-tailslide-hardflip`
+ * montage clip. (They ran on the removed park until the game shell: GAME.md.)
  */
 
 const open: ScenarioHarness[] = [];
@@ -21,11 +25,17 @@ afterEach(() => {
 });
 
 const T = 30_000;
-const PARK = createSkateparkLevel();
-const EDGES = levelGrindEdges(PARK.obstacles);
+const STREET = createStreetCourseLevel();
+const EDGES = levelGrindEdges(STREET.obstacles);
+const S = STREET_CONFIG;
+const BAR = S.flatBar;
+const LEDGE = S.longLedge;
+/** Where the flat bar and the long ledge start (their near ends, x). */
+const BAR_START_X = BAR.xM - BAR.lengthM / 2;
+const LEDGE_START_X = LEDGE.xM - LEDGE.lengthM / 2;
 
-/** The park with the board spawned at ground point (x, y, z), heading `headingRad`. */
-async function parkAt(
+/** The course with the board spawned at ground point (x, y, z), heading `headingRad`. */
+async function streetAt(
   x: number,
   y: number,
   z: number,
@@ -33,9 +43,9 @@ async function parkAt(
   settleS = 0.3,
 ): Promise<ScenarioHarness> {
   const level = Level.create({
-    id: PARK.id,
-    name: PARK.name,
-    obstacles: PARK.obstacles,
+    id: STREET.id,
+    name: STREET.name,
+    obstacles: STREET.obstacles,
     spawn: { positionM: Vec3.create(x, y, z), headingRad },
   });
   const h = await Harness.create({ level });
@@ -86,15 +96,18 @@ function expectSane(h: ScenarioHarness): void {
 }
 
 /**
- * Ollie onto the flat rail from 3.6 m before it, rolling at `speedMps` slightly toward it
- * (heading 0.03 rad), full load; `down` holds ↓ from just after the pop (a 5-0).
+ * Ollie onto the flat bar from 4 m before it, 0.15 m to its side, rolling at `speedMps`
+ * slightly toward it (heading 0.03 rad), full load; `down` holds ↓ from just after the pop
+ * (a 5-0). The pop is `popBeforeM` before the bar's start (it locks for pops ≈ 0.6–1.8 m
+ * before it at 4 m/s).
  */
 async function ollieOntoRail(
   down: boolean,
   speedMps = 4,
-  popAtXM = 15.6,
+  popBeforeM = 1.2,
 ): Promise<ScenarioHarness> {
-  const h = await parkAt(12, 0, -1.65, 0.03);
+  const popAtXM = BAR_START_X - popBeforeM;
+  const h = await streetAt(BAR_START_X - 4, 0, BAR.zM + 0.15, 0.03);
   h.launch(speedMps);
   runUntilX(h, popAtXM, 0.34);
   loadAndPop(h, 0.32);
@@ -104,15 +117,19 @@ async function ollieOntoRail(
   return h;
 }
 
-/** A slide on the ledge: ollie, a body quarter turn (`spin`), `press` held from the air. */
+/**
+ * A slide on the long ledge, from its −Z side (`offsetM` outside its near edge): ollie, a
+ * body quarter turn (`spin`), `press` held from the air.
+ */
 async function slideOntoLedge(
-  zM: number,
+  offsetM: number,
   spin: "KeyQ" | "KeyE",
   press: "down" | "up" | null,
 ): Promise<ScenarioHarness> {
-  const h = await parkAt(12, 0, zM, 0);
+  const nearEdgeZ = LEDGE.zM - LEDGE.depthM / 2;
+  const h = await streetAt(LEDGE_START_X - 5, 0, nearEdgeZ - offsetM, 0);
   h.launch(4);
-  runUntilX(h, 15.6, 0.34);
+  runUntilX(h, LEDGE_START_X - 1.4, 0.34);
   loadAndPop(h, 0.32);
   // The level key is W: a noseslide holds W from the level on.
   if (press !== "up") h.foot("front", "up", 0.37, 0.12);
@@ -127,41 +144,49 @@ async function slideOntoLedge(
 /**
  * G4, the stairs line, as a key timeline from the clip start (regular stance), timed the
  * way a person would (ADR 0012: the middle of each window, full load, 0.12 s taps; the
- * human-jitter test G4H plays it perturbed). The board starts on the stairs' platform at
- * (−5, 0.8, 1.38) — 0.37 m inside the hubba's steel edge (z = 1.75) — facing +X at 3.5 m/s:
- * - 0.35 ↓ + 0.37 S: load; release ↓ at 0.8: the pop (full load) at x ≈ −2.3 (it locks for
- *   pops from ≈ 0.68 to ≈ 0.92 s: the hubba's flat top reaches 0.9 m back);
- * - 0.85 W + A: kickflip with the level (its height bonus is needed to clear the hubba);
- * - 1.05 ↓ held until 1.5: the tail press that picks the TAILSLIDE at the lock;
- * - 1.05 Q for 0.14 s: a frontside quarter turn, so the tail swings over the hubba;
- * - 1.3 Space: the catch; the lock-on is at ≈ 1.33 s on the hubba's flat top;
- * - 1.25 S, then ↓ released at 1.5: the pop out (load ↓ + S, release ↓);
- * - 1.54 W + A + → (0.12 s): hardflip (kickflip + frontside shove) with the level; the body
+ * human-jitter test G4H plays it perturbed). The board starts on the 7-stair's landing at
+ * (−13, 1.05, 1.63) — 5 m behind the top nosing and 0.37 m inside the +Z hubba's steel edge
+ * (z = 2) — facing +X at 3.5 m/s:
+ * - 0.3 ↓ + 0.32 S: load; release ↓ at 0.75: the pop (full load) at x ≈ −10.4 (the line
+ *   lands for pops ≈ 0.16 s either side);
+ * - 0.8 W + A: kickflip with the level (its height bonus clears the 0.28 m hubba);
+ * - 1.0 ↓ held until 1.78: the tail press that picks the TAILSLIDE at the lock;
+ * - 1.0 Q for 0.14 s: a frontside quarter turn, so the tail swings over the hubba;
+ * - 1.25 Space: the catch; the lock-on is at ≈ 1.37 s on the hubba's flat top;
+ * - 1.53 S, then ↓ released at 1.78: the pop out (load ↓ + S, release ↓), a third of the
+ *   way down the slope (a longer hubba than the park's: the slide is ≈ 0.4 s);
+ * - 1.82 W + A + → (0.12 s): hardflip (kickflip + frontside shove) with the level; the body
  *   turns back a quarter on its own to line up with the travel;
- * - 2.09 Space: the catch (pro window ≈ 2.06–2.12 s); it lands past the stairs.
+ * - 2.31 Space: the catch (≈ 2.13–2.37 s land); it lands past the stairs.
  */
-const G4_SPAWN = { xM: -5, yM: 0.8, zM: 1.38, headingRad: 0, speedMps: 3.5 } as const;
+const G4_SPAWN = {
+  xM: S.bigStairs.xM - 5,
+  yM: S.bigStairs.stepCount * S.bigStairs.riseM,
+  zM: S.bigStairs.widthM / 2 - 0.37,
+  headingRad: 0,
+  speedMps: 3.5,
+} as const;
 /** When the pop out's load starts (S) and when ↓ is released (the pop out), s. */
-const G4_POP_OUT_LOAD_S = 1.25;
-const G4_POP_OUT_S = 1.5;
+const G4_POP_OUT_LOAD_S = 1.53;
+const G4_POP_OUT_S = 1.78;
 const G4_KEYS: readonly KeyPress[] = [
-  { code: "ArrowDown", atS: 0.35, holdS: 0.45 },
-  { code: "KeyS", atS: 0.37, holdS: 0.5 },
-  { code: "KeyW", atS: 0.85, holdS: 0.1 },
-  { code: "KeyA", atS: 0.85, holdS: 0.12 },
-  { code: "ArrowDown", atS: 1.05, holdS: 0.45 },
-  { code: "KeyQ", atS: 1.05, holdS: 0.14 },
-  { code: "Space", atS: 1.3, holdS: 0.1 },
-  { code: "KeyS", atS: 1.25, holdS: 0.29 },
-  { code: "KeyW", atS: 1.54, holdS: 0.1 },
-  { code: "KeyA", atS: 1.54, holdS: 0.12 },
-  { code: "ArrowRight", atS: 1.54, holdS: 0.12 },
-  { code: "Space", atS: 2.09, holdS: 0.1 },
+  { code: "ArrowDown", atS: 0.3, holdS: 0.45 },
+  { code: "KeyS", atS: 0.32, holdS: 0.5 },
+  { code: "KeyW", atS: 0.8, holdS: 0.1 },
+  { code: "KeyA", atS: 0.8, holdS: 0.12 },
+  { code: "ArrowDown", atS: 1.0, holdS: 0.78 },
+  { code: "KeyQ", atS: 1.0, holdS: 0.14 },
+  { code: "Space", atS: 1.25, holdS: 0.1 },
+  { code: "KeyS", atS: 1.53, holdS: 0.29 },
+  { code: "KeyW", atS: 1.82, holdS: 0.1 },
+  { code: "KeyA", atS: 1.82, holdS: 0.12 },
+  { code: "ArrowRight", atS: 1.82, holdS: 0.12 },
+  { code: "Space", atS: 2.31, holdS: 0.1 },
 ];
 const G4_NAME = "Kickflip → FS Tailslide → Hardflip out";
 
-async function playG4(keys: readonly KeyPress[] = G4_KEYS, runS = 4): Promise<ScenarioHarness> {
-  const h = await parkAt(G4_SPAWN.xM, G4_SPAWN.yM, G4_SPAWN.zM, G4_SPAWN.headingRad, 0);
+async function playG4(keys: readonly KeyPress[] = G4_KEYS, runS = 4.2): Promise<ScenarioHarness> {
+  const h = await streetAt(G4_SPAWN.xM, G4_SPAWN.yM, G4_SPAWN.zM, G4_SPAWN.headingRad, 0);
   h.launch(G4_SPAWN.speedMps);
   h.press(...keys);
   h.run(runS);
@@ -170,13 +195,13 @@ async function playG4(keys: readonly KeyPress[] = G4_KEYS, runS = 4): Promise<Sc
 
 describe("grinds and slides (M4)", () => {
   it(
-    "G1: ollie onto the flat rail, nothing held: a 50-50 for ≥ 0.5 s, rolls off the end, lands clean",
+    "G1: ollie onto the flat bar, nothing held: a 50-50 for ≥ 0.5 s, rolls off the end, lands clean",
     async () => {
       const h = await ollieOntoRail(false);
       const [start, ...moreStarts] = started(h);
       expect(moreStarts).toEqual([]);
       expect(start?.grind).toBe("fiftyFifty");
-      expect(start?.obstacleId).toBe("flat-rail");
+      expect(start?.obstacleId).toBe("flat-bar");
       expect(start?.name).toMatch(/^(FS|BS) 50-50$/);
       const [end] = ended(h);
       expect(end?.exit).toBe("rollOff");
@@ -186,7 +211,7 @@ describe("grinds and slides (M4)", () => {
       expect(h.board.wheelsDown).toBe(4);
       // It rode on top of the bar.
       for (const r of lockedSteps(h).slice(12)) {
-        expect(Math.abs(r.board.transform.positionM.z - -1.8)).toBeLessThan(0.02);
+        expect(Math.abs(r.board.transform.positionM.z - BAR.zM)).toBeLessThan(0.02);
       }
       expectSane(h);
     },
@@ -211,18 +236,18 @@ describe("grinds and slides (M4)", () => {
     T,
   );
 
-  for (const [label, zM, spin, press, kind] of [
-    ["Boardslide", 1.45, "KeyQ", null, "boardslide"],
-    ["Tailslide", 1.2, "KeyQ", "down", "tailslide"],
-    ["Noseslide", 1.2, "KeyE", "up", "noseslide"],
+  for (const [label, offsetM, spin, press, kind] of [
+    ["Boardslide", 0.1, "KeyQ", null, "boardslide"],
+    ["Tailslide", 0.35, "KeyQ", "down", "tailslide"],
+    ["Noseslide", 0.35, "KeyE", "up", "noseslide"],
   ] as const) {
     it(
-      `G3: a quarter turn in the air onto the ledge${press === null ? "" : `, ${press === "down" ? "↓" : "W"} held`}: ${label}`,
+      `G3: a quarter turn in the air onto the long ledge${press === null ? "" : `, ${press === "down" ? "↓" : "W"} held`}: ${label}`,
       async () => {
-        const h = await slideOntoLedge(zM, spin, press);
+        const h = await slideOntoLedge(offsetM, spin, press);
         const [start] = started(h);
         expect(start?.grind).toBe(kind);
-        expect(start?.obstacleId).toBe("ledge");
+        expect(start?.obstacleId).toBe("long-ledge");
         expect(start?.name).toMatch(new RegExp(`^(FS|BS) ${label}$`));
         expect(lockedSteps(h).length / 120).toBeGreaterThan(0.5);
         expectSane(h);
@@ -232,11 +257,11 @@ describe("grinds and slides (M4)", () => {
   }
 
   it(
-    `G4: the stairs line — kickflip onto the hubba, ↓ held (tailslide), hardflip out: "${G4_NAME}"`,
+    `G4: the stairs line — kickflip onto the 7-stair hubba, ↓ held (tailslide), hardflip out: "${G4_NAME}"`,
     async () => {
       const h = await playG4();
       expect(started(h).map((e) => e.name)).toEqual(["FS Tailslide"]);
-      expect(started(h)[0]?.obstacleId).toBe("stairs");
+      expect(started(h)[0]?.obstacleId).toBe("big-stairs");
       const [end] = ended(h);
       expect(end?.exit).toBe("popOut");
       expect(end?.durationS).toBeGreaterThan(0.1);
@@ -312,7 +337,7 @@ describe("grinds and slides (M4)", () => {
   it(
     "G5: no input on the rail: the balance is eventually lost, the board falls off — a bail, no explosion",
     async () => {
-      const h = await ollieOntoRail(false, 2.5, 16.3);
+      const h = await ollieOntoRail(false, 2.5, 0.7);
       h.run(4);
       expect(started(h)[0]?.grind).toBe("fiftyFifty");
       expect(ended(h)[0]?.exit).toBe("fellOff");
@@ -327,9 +352,9 @@ describe("grinds and slides (M4)", () => {
   it(
     "G5b: leaning against the balance (both feet the same way) keeps the grind on",
     async () => {
-      const h = await parkAt(12, 0, -1.65, 0.03);
+      const h = await streetAt(BAR_START_X - 4, 0, BAR.zM + 0.15, 0.03);
       h.launch(2.5);
-      runUntilX(h, 16.3, 0.34);
+      runUntilX(h, BAR_START_X - 0.7, 0.34);
       loadAndPop(h, 0.32);
       h.foot("front", awayFrom("tail"), 0.37, 0.15);
       for (let i = 0; i < 180 && h.rider.grind === null; i += 1) h.run(1 / 120);
@@ -353,11 +378,11 @@ describe("grinds and slides (M4)", () => {
   );
 
   it(
-    "G6: no thrust — along the edge the speed only drops on the flat rail; on the hubba only gravity adds",
+    "G6: no thrust — along the edge the speed only drops on the flat bar; on the hubba only gravity adds",
     async () => {
       const along = (r: StepRecord, u: Vec3): number => Vec3.dot(r.board.linearVelocityMps, u);
-      const rail = EDGES.find((e) => e.id === "flat-rail:bar");
-      const hubba = EDGES.find((e) => e.id === "stairs:hubba");
+      const rail = EDGES.find((e) => e.id === "flat-bar:bar");
+      const hubba = EDGES.find((e) => e.id === "big-stairs:hubba");
       if (rail === undefined || hubba === undefined) throw new Error("no edges");
       const flat = await ollieOntoRail(false);
       const u = Vec3.normalize(Vec3.sub(rail.endM, rail.startM));
@@ -373,7 +398,9 @@ describe("grinds and slides (M4)", () => {
       const g4 = await playG4(G4_KEYS.filter((k) => k.atS < G4_POP_OUT_LOAD_S));
       const d = Vec3.normalize(Vec3.sub(hubba.endM, hubba.startM));
       const gravityPerStep = 9.81 * -d.y * (1 / 120);
-      const onSlope = lockedSteps(g4).filter((r) => r.board.transform.positionM.x > 0.25);
+      const onSlope = lockedSteps(g4).filter(
+        (r) => r.board.transform.positionM.x > S.bigStairs.xM + 0.25,
+      );
       expect(onSlope.length).toBeGreaterThan(8);
       for (let i = 1; i < onSlope.length; i += 1) {
         const a = onSlope[i - 1];
@@ -391,7 +418,7 @@ describe("grinds and slides (M4)", () => {
       const coping = EDGES.find((e) => e.id === "qp-east:coping");
       if (coping === undefined) throw new Error("no coping");
       // Dropped onto the coping along it, trucks over it: it locks and stalls.
-      const h = await parkAt(coping.startM.x, coping.startM.y + 0.034, -12, Math.PI / 2);
+      const h = await streetAt(coping.startM.x, coping.startM.y + 0.034, 0, Math.PI / 2);
       h.run(1.2);
       expect(h.rider.grind?.kind).toBe("fiftyFifty");
       expect(h.rider.grind?.obstacleId).toBe("qp-east");

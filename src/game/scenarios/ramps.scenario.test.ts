@@ -10,7 +10,6 @@ import {
   stairsFootXM,
   stairsHeightM,
   stairsSlopeRad,
-  WORLD_CONFIG,
 } from "../../contexts/world";
 import type { DomainEvent } from "../../shared";
 import { degToRad, Quat, Transform, Vec3 } from "../../shared";
@@ -90,12 +89,13 @@ function lowestWheelY(h: BoardHarness): number {
   return min;
 }
 
+/** A 1.3 m quarter pipe on a 2.2 m radius (the kind's fixture: the old park's). */
 const QP = ObstacleShape.quarterPipe({
-  radiusM: WORLD_CONFIG.park.halfpipe.radiusM,
-  heightM: WORLD_CONFIG.park.halfpipe.heightM,
-  widthM: WORLD_CONFIG.park.halfpipe.widthM,
-  deckDepthM: WORLD_CONFIG.park.halfpipe.deckDepthM,
-  copingRadiusM: WORLD_CONFIG.park.halfpipe.copingRadiusM,
+  radiusM: 2.2,
+  heightM: 1.3,
+  widthM: 5,
+  deckDepthM: 1.2,
+  copingRadiusM: 0.03,
 });
 const QP_TOE_X = 2;
 
@@ -335,14 +335,15 @@ describe("rails, ledges, stairs (board only)", () => {
     expect(["noseTruck", "tailTruck"]).toContain(first.part);
   });
 
+  /** A 5-stair with a hubba and a handrail (the kind's fixture: the old park's). */
   const STAIRS = ObstacleShape.stairs({
-    stepCount: WORLD_CONFIG.park.stairs.stepCount,
-    riseM: WORLD_CONFIG.park.stairs.riseM,
-    runM: WORLD_CONFIG.park.stairs.runM,
-    widthM: WORLD_CONFIG.park.stairs.widthM,
-    topDepthM: WORLD_CONFIG.park.stairs.topDepthM,
-    hubba: WORLD_CONFIG.park.stairs.hubba,
-    handrail: WORLD_CONFIG.park.stairs.handrail,
+    stepCount: 5,
+    riseM: 0.16,
+    runM: 0.32,
+    widthM: 3.5,
+    topDepthM: 8,
+    hubba: { widthM: 0.45, heightM: 0.35, edgeRadiusM: 0.02, flatTopM: 0.9 },
+    handrail: { heightM: 0.8, barRadiusM: 0.024, offsetM: 0.3 },
   });
   const H = stairsHeightM(STAIRS);
 
