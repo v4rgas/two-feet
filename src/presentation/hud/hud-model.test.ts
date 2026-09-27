@@ -10,6 +10,7 @@ import {
   padLayout,
   popupForEvent,
   popupOpacity,
+  spinIndicator,
 } from "./hud-model";
 
 const HUD = PRESENTATION_CONFIG.hud;
@@ -113,5 +114,17 @@ describe("AirtimeModel", () => {
     expect(air.opacity).toBeCloseTo(0.5);
     air.update(null, HUD.airtimeHoldS);
     expect(air.opacity).toBe(0);
+  });
+});
+
+describe("spinIndicator", () => {
+  it("shows the wind-up, then the spin direction (Q ↺ / E ↻), and nothing when idle", () => {
+    expect(spinIndicator(0, 0, 0)).toBe("");
+    expect(spinIndicator(-1, 0.4, 0)).toBe("↺ wind-up");
+    expect(spinIndicator(1, -0.4, 0)).toBe("↻ wind-up");
+    expect(spinIndicator(-1, 0, 0)).toBe("↺ spin");
+    expect(spinIndicator(1, 0, 0)).toBe("↻ spin");
+    // Released but still easing out.
+    expect(spinIndicator(0, 0, -5)).toBe("↻ spin");
   });
 });

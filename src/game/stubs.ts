@@ -29,6 +29,7 @@ const NEUTRAL_INTENTS: IntentFrame = {
   back: neutralIntent("back"),
   feetDown: false,
   stance: INPUT_CONFIG.stance.defaultStance,
+  spin: 0,
 };
 
 export class StubInputSystem implements InputSystem {
@@ -115,6 +116,8 @@ export class StubRiderSystem implements RiderSystem {
       back: restingFoot("back", -0.2, board),
       torsoPositionWorldM: Vec3.add(board.transform.positionM, Vec3.create(0, 0.9, 0)),
       headingRad: 0,
+      windUpRad: 0,
+      bodySpinRateRadps: 0,
       bailed: false,
     };
   }

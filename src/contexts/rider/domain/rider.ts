@@ -65,6 +65,8 @@ export class Rider {
   private torsoPositionM: Vec3 = Vec3.ZERO;
   private torsoVelocityMps: Vec3 = Vec3.ZERO;
   private headingRad = 0;
+  private windUpRad = 0;
+  private bodySpinRateRadps = 0;
   private bailed = false;
   private bothFeetOffOnWheelsS = 0;
   private upsideDownRestingS = 0;
@@ -96,13 +98,22 @@ export class Rider {
       back: this.feet.back.toState(),
       torsoPositionWorldM: this.torsoPositionM,
       headingRad: this.headingRad,
+      windUpRad: this.windUpRad,
+      bodySpinRateRadps: this.bodySpinRateRadps,
       bailed: this.bailed,
     });
     return this.cachedState;
   }
 
-  /** The pop: the rider jumps and both feet leave the deck. */
+  /**
+   * The pop: the rider jumps and both feet leave the deck. The stored wind-up becomes the
+   * initial body spin (`windUpSpinRadps` × the wind-up fraction).
+   */
   liftFeet(): readonly RiderChange[] {
+    const { windUpMaxRad, windUpSpinRadps } = this.config.tricks;
+    this.bodySpinRateRadps = (this.windUpRad / windUpMaxRad) * windUpSpinRadps;
+    this.windUpRad = 0;
+    this.cachedState = null;
     return this.detachAll("jumped");
   }
 
@@ -128,9 +139,15 @@ export class Rider {
   }
 
   /** Loop step 5: moves the torso and feet and checks for a bail. */
-  update(controls: RiderControls, board: BoardKinematics, dtS: number): readonly RiderChange[] {
+  update(
+    controls: RiderControls,
+    board: BoardKinematics,
+    dtS: number,
+    loading = false,
+  ): readonly RiderChange[] {
     this.cachedState = null;
-    this.updateHeading(board, dtS);
+    this.updateWindUp(controls, board, loading, dtS);
+    this.updateHeading(controls, board, dtS);
     this.updateTorso(board, dtS);
     for (const id of FOOT_IDS) {
       const foot = this.feet[id];
@@ -193,6 +210,8 @@ export class Rider {
     this.bothFeetOffOnWheelsS = 0;
     this.upsideDownRestingS = 0;
     this.headingRad = boardHeadingRad(board) ?? 0;
+    this.windUpRad = 0;
+    this.bodySpinRateRadps = 0;
     this.torsoPositionM = this.torsoTarget(board);
     this.torsoVelocityMps = board.linearVelocityMps;
     for (const id of FOOT_IDS) {
@@ -315,8 +334,12 @@ export class Rider {
    *   does not turn the rider), smoothed and rate limited — so carving turns the rider;
    * - only when slow does it follow the board's long axis (again either way round).
    */
-  private updateHeading(board: BoardKinematics, dtS: number): void {
-    if (!board.grounded) return;
+  private updateHeading(controls: RiderControls, board: BoardKinematics, dtS: number): void {
+    if (!board.grounded) {
+      this.spinBody(controls, dtS);
+      return;
+    }
+    this.bodySpinRateRadps = 0;
     const { headingFollowPerS, headingMaxRateRadps, headingTravelMinSpeedMps } = this.config.torso;
     const v = board.linearVelocityMps;
     const target =
@@ -330,6 +353,37 @@ export class Rider {
       Math.min(headingMaxRateRadps, error * headingFollowPerS),
     );
     this.headingRad = wrapPi(this.headingRad + rate * dtS);
+  }
+
+  /**
+   * BODY SPIN in the air (MECHANICS.md "Body spin"): Q / E ease the heading's spin rate
+   * toward ±`bodySpinRateRadps` (at most `bodySpinAccelRadps2`); released, it eases back to
+   * 0, so the rider can stop at any angle. The only way the heading changes in the air.
+   */
+  private spinBody(controls: RiderControls, dtS: number): void {
+    const { bodySpinRateRadps, bodySpinAccelRadps2 } = this.config.tricks;
+    // Q (spin −1) turns left: counter-clockwise seen from above = +heading.
+    const wanted = -(controls.spin ?? 0) * bodySpinRateRadps;
+    const step = bodySpinAccelRadps2 * dtS;
+    const change = Math.max(-step, Math.min(step, wanted - this.bodySpinRateRadps));
+    this.bodySpinRateRadps += change;
+    this.headingRad = wrapPi(this.headingRad + this.bodySpinRateRadps * dtS);
+  }
+
+  /**
+   * WIND-UP: while a pop is loaded on the ground, Q / E turn the shoulders toward
+   * ±`windUpMaxRad` at `windUpRateRadps`; otherwise they unwind.
+   */
+  private updateWindUp(
+    controls: RiderControls,
+    board: BoardKinematics,
+    loading: boolean,
+    dtS: number,
+  ): void {
+    const { windUpMaxRad, windUpRateRadps } = this.config.tricks;
+    const wanted = board.grounded && loading ? -(controls.spin ?? 0) * windUpMaxRad : 0;
+    const step = windUpRateRadps * dtS;
+    this.windUpRad += Math.max(-step, Math.min(step, wanted - this.windUpRad));
   }
 
   /**

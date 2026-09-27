@@ -35,6 +35,7 @@ describe("KeyboardInputSource", () => {
       left: { x: 1, y: 1 },
       right: { x: -1, y: -1 },
       feetDown: false,
+      spin: 0,
     });
   });
 
@@ -50,7 +51,21 @@ describe("KeyboardInputSource", () => {
       left: { x: 0, y: 0 },
       right: { x: 0, y: 0 },
       feetDown: false,
+      spin: 0,
     });
+  });
+
+  it("Q / E are the body spin axis (−1 / +1), the most recent press wins", () => {
+    const { source, press, release } = setup();
+    expect(source.sample().spin).toBe(0);
+    press("KeyQ");
+    expect(source.sample().spin).toBe(-1);
+    press("KeyE");
+    expect(source.sample().spin).toBe(1);
+    release("KeyE");
+    expect(source.sample().spin).toBe(-1);
+    release("KeyQ");
+    expect(source.sample().spin).toBe(0);
   });
 
   it("opposite keys: the most recent press wins", () => {
@@ -72,6 +87,7 @@ describe("KeyboardInputSource", () => {
       left: { x: 0, y: 0 },
       right: { x: 0, y: 0 },
       feetDown: false,
+      spin: 0,
     });
   });
 

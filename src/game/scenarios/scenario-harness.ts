@@ -129,6 +129,18 @@ export class ScenarioHarness {
     return this;
   }
 
+  /** Presses `code` now and keeps it held until `keyUp` (for inputs released on a condition). */
+  keyDown(code: string): this {
+    this.pending.unshift({ atS: this.timeS, type: "keydown", code });
+    return this;
+  }
+
+  /** Releases `code` now. */
+  keyUp(code: string): this {
+    this.pending.unshift({ atS: this.timeS, type: "keyup", code });
+    return this;
+  }
+
   /** Shorthand: press a foot direction (by role) at `atS` for `holdS`. */
   foot(foot: FootId, direction: FootDirection, atS: number, holdS: number): this {
     return this.press({ code: footKey(this.stance, foot, direction), atS, holdS });

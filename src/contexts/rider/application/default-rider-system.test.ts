@@ -43,7 +43,7 @@ function intents(
     stick: StickValue.create(s.x ?? 0, s.y ?? 0),
     stickVelocityPerS: Vec2.ZERO,
   });
-  return { front: foot("front", f), back: foot("back", b), feetDown, stance: "regular" };
+  return { front: foot("front", f), back: foot("back", b), feetDown, stance: "regular", spin: 0 };
 }
 
 function setup() {

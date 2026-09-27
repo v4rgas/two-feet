@@ -9,6 +9,7 @@ import {
   nextTrailIntensity,
   PopupModel,
   padLayout,
+  spinIndicator,
   stanceLabel,
 } from "./hud-model";
 
@@ -139,6 +140,8 @@ export class Hud {
   private readonly airtimeFill: HTMLDivElement;
   private readonly stance: HTMLDivElement;
   private lastStance = "";
+  private readonly spin: HTMLDivElement;
+  private lastSpin = "";
   private readonly popupModel: PopupModel;
   private readonly airtimeModel: AirtimeModel;
   private layout: PadLayout | null = null;
@@ -166,6 +169,7 @@ export class Hud {
     this.airtimeFill = el("div", "skate-airtime-fill", bar);
 
     this.stance = el("div", "skate-stance", this.root);
+    this.spin = el("div", "skate-spin", this.root);
 
     this.leftPad = new FootPad(this.root, "left", config);
     this.rightPad = new FootPad(this.root, "right", config);
@@ -179,6 +183,15 @@ export class Hud {
       this.lastStance = frame.stance;
       this.stance.textContent = stanceLabel(frame.stance);
       this.stance.dataset.stance = frame.stance;
+    }
+    const spin = spinIndicator(
+      frame.intents.spin,
+      frame.rider.windUpRad,
+      frame.rider.bodySpinRateRadps,
+    );
+    if (spin !== this.lastSpin) {
+      this.lastSpin = spin;
+      this.spin.textContent = spin;
     }
     this.leftPad.update(frame, this.layout.left, dtS);
     this.rightPad.update(frame, this.layout.right, dtS);

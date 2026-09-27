@@ -18,6 +18,8 @@ export type FootForceLabel =
   | "shove"
   /** Catch controller: kills spin, levels, snaps yaw. */
   | "catch"
+  /** Body follow: in the air the feet steer the board's yaw toward the rider heading. */
+  | "body"
   /** Landing assist: damps bounce and rocking. */
   | "land";
 

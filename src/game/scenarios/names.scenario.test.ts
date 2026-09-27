@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { RIDER_CONFIG } from "../../contexts/rider";
 import type { Kick } from "../../shared";
 import type { ScenarioHarness } from "./scenario-harness";
 import {
@@ -193,9 +194,74 @@ describe("trick names, end to end", () => {
 
   // 360 shove / 360 Flip / Laser Flip names are asserted per case in matrix.scenario.test.ts.
 
-  // Needs the Q / E body spin (MECHANICS "Body spin"); the base rider heading is frozen
-  // in the air, so the body channel always reads 0.
-  it.skip('body 180 → "BS 180" / "FS 180"; nollie + FS 180 + heelflip → "Nollie FS 180 Heelflip"', () => {});
+  /**
+   * Q / E held from the load (wind-up), released when the easing-out body spin will stop
+   * at π, with `extra` inputs 0.05 s after the pop; Space once turned and upright.
+   */
+  async function body180(
+    stance: (typeof STANCES)[number],
+    code: "KeyQ" | "KeyE",
+    kick: Kick,
+    extra: (h: ScenarioHarness) => void,
+  ): Promise<string[]> {
+    const h = await track(rolling(1.3, { stance }));
+    const t0 = h.timeS;
+    const accel = RIDER_CONFIG.tricks.bodySpinAccelRadps2;
+    h.keyDown(code);
+    loadAndPop(h, 0.25, kick);
+    h.foot(guideFoot(kick), awayFrom(kick), 0.3, 0.15);
+    extra(h);
+    let turned = 0;
+    let prev = h.rider.headingRad;
+    const turn = () => {
+      turned += Math.atan2(
+        Math.sin(h.rider.headingRad - prev),
+        Math.cos(h.rider.headingRad - prev),
+      );
+      prev = h.rider.headingRad;
+    };
+    for (let i = 0; i < 150; i += 1) {
+      h.run(1 / 120);
+      turn();
+      const rate = h.rider.bodySpinRateRadps;
+      if (!h.board.grounded && Math.abs(turned) + (rate * rate) / (2 * accel) >= Math.PI) break;
+    }
+    h.keyUp(code);
+    for (let i = 0; i < 100 && !h.board.grounded; i += 1) {
+      const rolled = Math.abs(airSummary(h, t0).rollRad);
+      const flipDone = rolled < 1 || rolled > TAU - 0.45;
+      if (Math.abs(turned) >= Math.PI - 0.25 && flipDone && h.tiltRad() <= 0.5) break;
+      h.run(1 / 120);
+      turn();
+    }
+    catchAt(h, 0);
+    h.run(1.5);
+    return names(h, t0);
+  }
+
+  // KNOWN (tricks context): in a body 180 the feet take the board along (MECHANICS "Body
+  // spin"), so the board also yaws π; the recognizer counts that as a shove and names it
+  // "BS 180 BS Pop Shove-it". The shove channel must be the board's yaw relative to the
+  // body (board yaw − rider heading change). Unskip once the recognizer does that.
+  it.skip(
+    'body 180 (E: clockwise) → "BS 180" in regular, "FS 180" in goofy',
+    async () => {
+      expect(await body180("regular", "KeyE", "tail", () => {})).toEqual(["BS 180"]);
+      expect(await body180("goofy", "KeyE", "tail", () => {})).toEqual(["FS 180"]);
+    },
+    T,
+  );
+
+  it(
+    'nollie + FS 180 (Q in regular) + heelflip (→) → "Nollie FS 180 Heelflip"',
+    async () => {
+      const heelflip = (h: ScenarioHarness) => h.foot("back", toe(h.stance), 0.3, 0.08);
+      expect(await body180("regular", "KeyQ", "nose", heelflip)).toEqual([
+        "Nollie FS 180 Heelflip",
+      ]);
+    },
+    T,
+  );
 
   it(
     'flick + heel-side sweep → "Varial Kickflip"',

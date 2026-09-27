@@ -12,6 +12,7 @@ class ScriptedSource implements InputSource {
     left: StickValue.NEUTRAL,
     right: StickValue.NEUTRAL,
     feetDown: false,
+    spin: 0,
   };
   sample(): RawInputSample {
     return this.current;
@@ -53,6 +54,7 @@ describe("DefaultInputSystem", () => {
       left: StickValue.create(0, 1),
       right: StickValue.create(0, -1),
       feetDown: true,
+      spin: 0,
     };
     settle(system);
     const frame = system.lastIntents;
@@ -74,6 +76,7 @@ describe("DefaultInputSystem", () => {
       left: StickValue.create(0, 1),
       right: StickValue.create(0, -1),
       feetDown: false,
+      spin: 0,
     };
     settle(system);
     expect(system.stance).toBe("goofy");
@@ -85,7 +88,12 @@ describe("DefaultInputSystem", () => {
     const source = new ScriptedSource();
     const repo = new MemoryStanceRepository();
     const system = new DefaultInputSystem(source, repo, INPUT_CONFIG);
-    source.current = { left: StickValue.create(1, 0), right: StickValue.NEUTRAL, feetDown: false };
+    source.current = {
+      left: StickValue.create(1, 0),
+      right: StickValue.NEUTRAL,
+      feetDown: false,
+      spin: 0,
+    };
     settle(system);
     expect(system.lastIntents.front.stick.x).toBeCloseTo(1, 2);
 
@@ -102,7 +110,12 @@ describe("DefaultInputSystem", () => {
   it("exposes stick velocity for flick detection", () => {
     const source = new ScriptedSource();
     const system = new DefaultInputSystem(source, new MemoryStanceRepository(), INPUT_CONFIG);
-    source.current = { left: StickValue.create(1, 0), right: StickValue.NEUTRAL, feetDown: false };
+    source.current = {
+      left: StickValue.create(1, 0),
+      right: StickValue.NEUTRAL,
+      feetDown: false,
+      spin: 0,
+    };
     const frame = system.step(DT);
     expect(frame.front.stickVelocityPerS.x).toBeGreaterThan(0);
     expect(frame.back.stickVelocityPerS).toEqual({ x: 0, y: 0 });
@@ -115,6 +128,7 @@ describe("DefaultInputSystem", () => {
       left: StickValue.create(1, 1),
       right: StickValue.create(-1, -1),
       feetDown: false,
+      spin: 0,
     };
     settle(system, 10);
     system.reset();

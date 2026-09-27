@@ -16,6 +16,13 @@ export interface RiderState {
    * upright, yaw only. Feet are held (and drawn) in it.
    */
   readonly headingRad: number;
+  /**
+   * Body wind-up (Q / E while loaded), rad: how far the shoulders are turned, + = counter-
+   * clockwise from above. Visual; the pop turns it into the initial body spin.
+   */
+  readonly windUpRad: number;
+  /** Body spin rate of the rider heading, rad/s (+ = counter-clockwise from above). */
+  readonly bodySpinRateRadps: number;
   /** True from `RiderBailed` until the game resets the run. */
   readonly bailed: boolean;
 }

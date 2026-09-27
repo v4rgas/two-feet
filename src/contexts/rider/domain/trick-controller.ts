@@ -9,6 +9,7 @@ import {
   deckPointWorld,
   restHeightM,
   tiltRad,
+  wrapPi,
 } from "./board-geometry";
 import type { FootForce, FootForceLabel } from "./foot-force";
 import type {
@@ -155,6 +156,8 @@ export class TrickController implements FootForceModel {
    * together and can be caught.
    */
   private trickEndS = Number.POSITIVE_INFINITY;
+  /** The board's yaw offset under the rider (0 or π) the body follow keeps this air. */
+  private followOffsetRad: number | null = null;
   private readonly shoveChannel = newChannel();
   /** Scoop of the running shove: time since it started, its length and lean side. */
   private scoopS = Number.POSITIVE_INFINITY;
@@ -211,7 +214,7 @@ export class TrickController implements FootForceModel {
 
     if (rider.bailed) {
       this.clearLoad();
-      return { forces: [], popped: null, caught: false };
+      return { forces: [], popped: null, caught: false, loading: false };
     }
 
     const frame = new BoardFrame(board, rider.headingRad);
@@ -228,7 +231,7 @@ export class TrickController implements FootForceModel {
       if (caught) this.catchRise(input, out);
       if (this.caught) this.catchAssist(input.mass, rider, frame, out);
     }
-    return { forces: out, popped, caught };
+    return { forces: out, popped, caught, loading: this.loadKick !== null };
   }
 
   // ── keys ──────────────────────────────────────────────────────────────────
@@ -516,6 +519,9 @@ export class TrickController implements FootForceModel {
       this.trackChannels(guide.edge, pop.edge, frame, dtS);
       this.holdChannels(kick, mass, frame, out);
     }
+    if (!this.caught && !this.flipChannel.active && !this.shoveChannel.active) {
+      this.followBody(input.rider, mass, frame, out);
+    }
     // While flipping, the flip channel holds the pitch rate (levelling included).
     if (kick !== null && this.levelling && !this.caught && !this.flipChannel.active) {
       this.level(kick, mass, frame, out);
@@ -632,6 +638,31 @@ export class TrickController implements FootForceModel {
     );
     const delta = Vec3.scale(Vec3.sub(wanted, w), k);
     out.push(angularImpulseOf(guideFootOf(kick), "flick", mass.angularInertiaTimes(delta)));
+  }
+
+  /**
+   * BODY FOLLOW (MECHANICS.md "Body spin"): in the air, unless a flip or shove is running
+   * (the feet are busy), the feet steer the board's yaw toward the rider heading — the
+   * nearer of 0° / 180° — so a body 180 takes the board along. Yaw only (world up).
+   */
+  private followBody(
+    rider: RiderState,
+    mass: BoardMassProperties,
+    frame: BoardFrame,
+    out: FootForce[],
+  ): void {
+    const heading = boardHeadingRad(frame.board);
+    if (heading === null) return;
+    const { bodyFollowOmegaRadps: w } = this.config.tricks;
+    // Which way round the board sits under the rider (0 or π) is fixed once per air, so a
+    // spin past 90° keeps pulling the same way; the body's spin rate is fed forward.
+    this.followOffsetRad ??=
+      Math.abs(wrapPi(heading - rider.headingRad)) > Math.PI / 2 ? Math.PI : 0;
+    const error = wrapPi(rider.headingRad + this.followOffsetRad - heading);
+    const rateError = rider.bodySpinRateRadps - frame.board.angularVelocityRadps.y;
+    const accel = w * w * error + 2 * w * rateError;
+    const torque = mass.angularInertiaTimes(Vec3.create(0, accel, 0));
+    out.push(torqueOf("front", "body", torque));
   }
 
   /** LEVEL starts: from now the level PD runs; early in the window it adds height. */
@@ -876,6 +907,7 @@ export class TrickController implements FootForceModel {
     this.flipChannel.active = false;
     this.shoveChannel.active = false;
     this.trickEndS = Number.POSITIVE_INFINITY;
+    this.followOffsetRad = null;
     this.scoopS = Number.POSITIVE_INFINITY;
     this.caught = false;
     this.catchLockS = 0;

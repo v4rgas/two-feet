@@ -3,6 +3,7 @@ import type { FootIntent, IntentFrame } from "../domain/foot-intent";
 import type { ControlCluster, InputSource, StanceRepository } from "../domain/input-source";
 import { SpringVirtualStick } from "../domain/spring-virtual-stick";
 import { clusterForFoot } from "../domain/stance";
+import { StickValue } from "../domain/stick-value";
 import type { VirtualStick } from "../domain/virtual-stick";
 import type { InputConfig } from "../input.config";
 import type { InputSystem } from "./input-system";
@@ -17,6 +18,8 @@ export type VirtualStickFactory = () => VirtualStick;
  */
 export class DefaultInputSystem implements InputSystem {
   private readonly sticks: Record<ControlCluster, VirtualStick>;
+  /** The body spin keys, smoothed like a stick (x only). */
+  private readonly spinStick: VirtualStick;
   private currentStance: Stance;
   private last: IntentFrame;
 
@@ -27,6 +30,7 @@ export class DefaultInputSystem implements InputSystem {
     createStick: VirtualStickFactory = () => new SpringVirtualStick(config.stick),
   ) {
     this.sticks = { left: createStick(), right: createStick() };
+    this.spinStick = createStick();
     this.currentStance = stanceRepository.load() ?? config.stance.defaultStance;
     this.last = this.buildFrame(false);
   }
@@ -43,6 +47,7 @@ export class DefaultInputSystem implements InputSystem {
     const sample = this.source.sample();
     this.sticks.left.update(sample.left, dtS);
     this.sticks.right.update(sample.right, dtS);
+    this.spinStick.update(StickValue.create(sample.spin, 0), dtS);
     this.last = this.buildFrame(sample.feetDown);
     return this.last;
   }
@@ -57,6 +62,7 @@ export class DefaultInputSystem implements InputSystem {
   reset(): void {
     this.sticks.left.reset();
     this.sticks.right.reset();
+    this.spinStick.reset();
     this.last = this.buildFrame(false);
   }
 
@@ -66,6 +72,7 @@ export class DefaultInputSystem implements InputSystem {
       back: this.intentFor("back"),
       feetDown,
       stance: this.currentStance,
+      spin: this.spinStick.value.x,
     });
   }
 

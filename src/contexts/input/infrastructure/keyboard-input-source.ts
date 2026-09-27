@@ -13,7 +13,7 @@ type ClusterKeys = KeyBindings["left"];
 
 /**
  * Keyboard adapter of the `InputSource` port: WASD = left cluster, arrows = right
- * cluster, Space = feet down (codes from `INPUT_CONFIG.keys`, matched on `KeyboardEvent.code`
+ * cluster, Space = feet down, Q / E = body spin (codes from `INPUT_CONFIG.keys`, matched on `KeyboardEvent.code`
  * so layouts like AZERTY still use the physical WASD position).
  *
  * - Opposite keys on one axis: the most recently pressed wins (so a flick from one side
@@ -48,6 +48,7 @@ export class KeyboardInputSource implements InputSource {
       left: this.clusterValue(this.keys.left),
       right: this.clusterValue(this.keys.right),
       feetDown: this.held.has(this.keys.feetDown),
+      spin: this.axis(this.keys.spin.left, this.keys.spin.right) as -1 | 0 | 1,
     };
   }
 

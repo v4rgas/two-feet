@@ -18,4 +18,10 @@ export interface IntentFrame {
   readonly feetDown: boolean;
   /** Which foot is in front; decides which board edge is the toe edge (ADR 0002). */
   readonly stance: Stance;
+  /**
+   * Smoothed body spin in [−1, 1] (Q = −1: left, counter-clockwise seen from above; E = +1),
+   * the same spring as the sticks. The rider reads it as a wind-up on the ground and a body
+   * spin in the air.
+   */
+  readonly spin: number;
 }

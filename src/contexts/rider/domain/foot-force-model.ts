@@ -27,6 +27,8 @@ export interface RiderControls {
   readonly feetDown: boolean;
   /** Decides which rider side is the toe side (regular: +Z). */
   readonly stance: Stance;
+  /** Smoothed body spin in [−1, 1] (Q = −1: counter-clockwise from above). Absent = 0. */
+  readonly spin?: number;
 }
 
 /** Board motion the rider needs (satisfied by board's `BoardSnapshot`). */
@@ -86,6 +88,8 @@ export interface FootForceOutput {
   readonly popped: Kick | null;
   /** The board was caught this step: the feet snap back onto the deck. */
   readonly caught: boolean;
+  /** A pop is loaded (both feet crouched on a kick): Q / E wind up the body. */
+  readonly loading?: boolean;
 }
 
 /**

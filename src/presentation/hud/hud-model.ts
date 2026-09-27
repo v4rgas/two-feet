@@ -36,6 +36,17 @@ export function stanceLabel(stance: Stance): string {
   return stance === "regular" ? "regular · ollie ↓+S, let go ↓" : "goofy · ollie S+↓, let go S";
 }
 
+/**
+ * Body spin indicator (Q / E): "↺" turning left (counter-clockwise from above), "↻" right,
+ * "wind-up" while the shoulders are wound on a loaded pop. Empty when idle.
+ */
+export function spinIndicator(spin: number, windUpRad: number, bodySpinRateRadps: number): string {
+  if (Math.abs(windUpRad) > 0.05) return `${windUpRad > 0 ? "↺" : "↻"} wind-up`;
+  const turning = Math.abs(spin) > 0.1 ? -spin : bodySpinRateRadps;
+  if (Math.abs(turning) < 0.1) return "";
+  return `${turning > 0 ? "↺" : "↻"} spin`;
+}
+
 /** True when the pad should show the "holding the tail" ring. */
 export function isPressingTail(foot: FootId, stickY: number, config: HudConfig): boolean {
   return foot === "back" && stickY <= config.tailRingStickY;

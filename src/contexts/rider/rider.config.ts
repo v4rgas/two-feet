@@ -130,6 +130,23 @@ export const RIDER_CONFIG = deepFreeze({
     /** How firmly the flip / shove rates are held each step until the catch (0–1). */
     spinHoldAssist: 1,
 
+    /**
+     * Body spin (Q / E) in the air: the heading's spin rate eases toward ±this, rad/s, at
+     * most this acceleration, rad/s² (also on release, back to 0).
+     */
+    bodySpinRateRadps: 14,
+    bodySpinAccelRadps2: 90,
+    /** Wind-up (Q / E while loaded): the shoulders turn up to this, rad, at this rate, rad/s. */
+    windUpMaxRad: 0.6,
+    windUpRateRadps: 3,
+    /** A full wind-up starts the body spin at this rate at the pop, rad/s. */
+    windUpSpinRadps: 4,
+    /**
+     * In the air, the feet steer the board's yaw toward the rider heading (nearest 0/180°)
+     * unless a flip or shove is running: yaw PD natural frequency, rad/s.
+     */
+    bodyFollowOmegaRadps: 20,
+
     /** Catch cone: board tilt within this of upright… */
     catchRollRad: 0.7,
     /** …and yaw within this of 0° or 180° from the rider heading. */

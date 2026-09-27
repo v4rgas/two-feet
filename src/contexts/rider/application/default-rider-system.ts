@@ -44,6 +44,8 @@ export class DefaultRiderSystem implements RiderSystem {
   private controls: RiderControls = NEUTRAL_CONTROLS;
   private forces: readonly FootForce[] = [];
   private lastBoard: BoardSnapshot;
+  /** The trick model reported a loaded pop this step (Q / E wind up). */
+  private loading = false;
 
   constructor(deps: DefaultRiderSystemDeps) {
     this.body = deps.body;
@@ -84,6 +86,7 @@ export class DefaultRiderSystem implements RiderSystem {
       dtS,
     });
     this.forces = output.forces;
+    this.loading = output.loading === true;
     // These act during the step that produces snapshot `board.tick + 1`.
     const tick = board.tick + 1;
     const timeS = board.timeS + dtS;
@@ -106,7 +109,11 @@ export class DefaultRiderSystem implements RiderSystem {
 
   postPhysics(board: BoardSnapshot, dtS: number): void {
     this.lastBoard = board;
-    this.publish(this.rider.update(this.controls, board, dtS), board.tick, board.timeS);
+    this.publish(
+      this.rider.update(this.controls, board, dtS, this.loading),
+      board.tick,
+      board.timeS,
+    );
   }
 
   reset(board: BoardSnapshot): void {
@@ -115,6 +122,7 @@ export class DefaultRiderSystem implements RiderSystem {
     this.model.reset();
     this.controls = NEUTRAL_CONTROLS;
     this.forces = [];
+    this.loading = false;
   }
 
   private apply(f: FootForce): void {

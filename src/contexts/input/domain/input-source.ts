@@ -16,6 +16,8 @@ export interface RawInputSample {
   readonly left: StickValue;
   readonly right: StickValue;
   readonly feetDown: boolean;
+  /** Body spin keys: −1 left (Q), +1 right (E), 0 none (the most recent of both wins). */
+  readonly spin: -1 | 0 | 1;
 }
 
 /**

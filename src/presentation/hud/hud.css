@@ -93,6 +93,19 @@
   color: var(--concrete-600);
 }
 
+/* ── Body spin indicator (Q / E), above the airtime readout ─────────── */
+.skate-spin {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
 /* ── Foot pads, bottom-left / bottom-right ─────────────────────────── */
 .skate-pad {
   position: absolute;

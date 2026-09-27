@@ -244,6 +244,7 @@ class DemoGame {
       back: intent("back", back, this.prevBack),
       feetDown: false,
       stance: this.stance,
+      spin: 0,
     };
     this.prevFront = front;
     this.prevBack = back;
@@ -367,6 +368,8 @@ class DemoGame {
       back: this.foot("back", bailed, this.intents.back.stick, t, timeS),
       torsoPositionWorldM: Vec3.add(t.positionM, Vec3.create(0, RIDER_CONFIG.torso.heightM, 0)),
       headingRad: 0,
+      windUpRad: 0,
+      bodySpinRateRadps: 0,
       bailed,
     };
     const vectors: DebugVector[] = [];
