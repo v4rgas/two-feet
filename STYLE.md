@@ -50,7 +50,8 @@ front and back.
   truth: deck about 0.80 × 0.21 m, wheelbase about 0.36 m, wheels 54 mm.
   Rendering must match the collider shapes exactly, because the player reads
   the physics from the visuals.
-- Feet are rounded boxes (shoe shaped) in the foot colors. A detached foot
+- Feet are low-poly skate shoes (a procedural cupsole: cream sole, upper in the foot
+  color, ink laces), toes toward the toe edge.  A detached foot
   turns semi-transparent.
 
 ## Camera

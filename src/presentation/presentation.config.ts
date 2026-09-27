@@ -21,6 +21,8 @@ export const PRESENTATION_CONFIG = deepFreeze({
     frontFoot: "#3d7a3a",
     backFoot: "#3b6ea5",
     warn: "#b54836",
+    /** Shoe sole and side stripe: a cream cupsole, a touch warmer than `wheel`. */
+    shoeSole: "#efe6d2",
   },
   renderer: {
     /** devicePixelRatio is capped at this (fill-rate budget, REQUIREMENTS §1.9). */
@@ -78,13 +80,26 @@ export const PRESENTATION_CONFIG = deepFreeze({
     catchFlashIntensity: 0.6,
   },
   feet: {
-    /** Shoe size: across the deck (long axis), along the deck, height, m. */
-    shoeLengthM: 0.27,
-    shoeWidthM: 0.1,
-    shoeHeightM: 0.07,
-    shoeCornerRadiusM: 0.018,
-    /** Yaw of each shoe relative to the deck's cross axis, rad (duck stance). */
-    frontFootYawRad: degToRad(-12),
+    /**
+     * Procedural skate shoe (scene/shoe-geometry.ts), m. Origin at the centre of the sole's
+     * bottom face, +X toe, +Y up. Baked at construction (reload to apply).
+     */
+    shoe: {
+      lengthM: 0.28,
+      widthM: 0.1,
+      /** Top of the padded collar. */
+      heightM: 0.09,
+      soleThicknessM: 0.024,
+      /** Sole overhang past the upper, all around. */
+      soleFlareM: 0.004,
+      /** Lift of the sole's toe tip. */
+      toeSpringM: 0.008,
+    },
+    /**
+     * Each toe points at the rider's facing (the toe edge, across the deck), then turns
+     * this much toward the nose, rad. Front ~15–25°, back ~5–10° (roughly across the tail).
+     */
+    frontFootYawRad: degToRad(20),
     backFootYawRad: degToRad(8),
     /** Opacity of a detached (airborne) foot. */
     detachedOpacity: 0.4,
