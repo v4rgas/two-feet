@@ -4,6 +4,7 @@ import type { BoardConfig } from "../board.config";
 import type { BoardSnapshot } from "../domain/board-snapshot";
 import { contactStateFrom, countWheelsDown, NO_CONTACT } from "../domain/board-snapshot";
 import type { BoardSpec } from "../domain/board-spec";
+import { landingSettleImpulse } from "../domain/landing-settle";
 import type { BoardBody, BoardContact, RigidBodyHandle } from "../domain/physics-world";
 import type { BoardForce } from "../domain/tyre-model";
 import {
@@ -59,6 +60,8 @@ export class PhysicsBoardSystem implements BoardSystem {
   private grounded = false;
   private leftGroundAtS = 0;
   private lastDtS = 0;
+  /** Time left in the hard-landing settle window, s (ADR 0003). */
+  private settleLeftS = 0;
   private surfaces = new Map<string, SurfaceKeyInfo>();
 
   constructor(
@@ -115,6 +118,12 @@ export class PhysicsBoardSystem implements BoardSystem {
     }
     for (const force of forces) this.body.applyForceAtPoint(force.forceN, force.pointWorldM);
     this.lastForces = forces;
+
+    if (this.settleLeftS > 0) {
+      this.settleLeftS = Math.max(0, this.settleLeftS - dtS);
+      const settle = landingSettleImpulse(this.spec, this.body, contacts, dtS, this.config.landing);
+      if (settle !== null) this.body.applyImpulseAtPoint(settle.impulseNs, settle.pointWorldM);
+    }
   }
 
   postPhysics(tick: number, timeS: number): BoardSnapshot {
@@ -131,6 +140,12 @@ export class PhysicsBoardSystem implements BoardSystem {
         this.bus.publish({ type: "BoardLeftGround", tick, timeS, velocityMps: linearVelocityMps });
       } else if (!this.grounded && grounded) {
         const boardUp = Quat.rotate(transform.rotation, Vec3.UNIT_Y);
+        const surfaceNormal = PhysicsBoardSystem.wheelSurfaceNormal(contacts);
+        // The approach speed is the velocity before this step (the previous snapshot).
+        const impactMps = -Vec3.dot(this.snapshot.linearVelocityMps, surfaceNormal);
+        if (impactMps >= this.config.landing.minImpactMps) {
+          this.settleLeftS = this.config.landing.settleWindowS;
+        }
         this.bus.publish({
           type: "BoardLanded",
           tick,
@@ -138,7 +153,7 @@ export class PhysicsBoardSystem implements BoardSystem {
           airtimeS: timeS - this.leftGroundAtS,
           velocityMps: linearVelocityMps,
           upDot: boardUp.y,
-          surfaceUpDot: Vec3.dot(boardUp, PhysicsBoardSystem.wheelSurfaceNormal(contacts)),
+          surfaceUpDot: Vec3.dot(boardUp, surfaceNormal),
           wheelsDown,
         });
       }
@@ -171,6 +186,7 @@ export class PhysicsBoardSystem implements BoardSystem {
     this.grounded = false;
     this.leftGroundAtS = 0;
     this.lastDtS = 0;
+    this.settleLeftS = 0;
     this.leanRad = 0;
     this.steerRad = 0;
     this.lastForces = [];

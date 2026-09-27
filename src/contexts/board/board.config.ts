@@ -103,6 +103,25 @@ export const BOARD_CONFIG = deepFreeze({
     /** Rapier solver iterations per step. */
     solverIterations: 8,
   },
+  /**
+   * Hard-landing settle (ADR 0003, "Hard landings"): for a short window after a hard
+   * touchdown, wheels hanging just above the contact plane are not allowed to move away
+   * from it (the urethane and bushings soak up the axle rebound the rigid solver produces).
+   */
+  landing: {
+    /** A touchdown opens the window when it hits the surface at least this fast, m/s. */
+    minImpactMps: 1.5,
+    /** How long the window stays open after the touchdown, s. */
+    settleWindowS: 0.12,
+    /** Only wheels within this height above the contact plane are settled, m. */
+    gapM: 0.03,
+    /** Faster separations are the rider's (a pop, a manual): never settled, m/s. */
+    maxReboundMps: 2.5,
+    /** The settled wheels close this share of their gap per step… */
+    closeFractionPerStep: 0.5,
+    /** …at most this fast, m/s. */
+    maxCloseMps: 0.5,
+  },
   contact: {
     /** Minimum wheels touching for the board to count as grounded. */
     groundedMinWheels: 1,

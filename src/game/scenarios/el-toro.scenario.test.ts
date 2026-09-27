@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { BoardSnapshot } from "../../contexts/board";
+import type { BoardSnapshot, StaticColliderDesc } from "../../contexts/board";
 import { BOARD_CONFIG, BoardSpec } from "../../contexts/board";
 import { BoardHarness, STEP_S } from "../../contexts/board/infrastructure/board-harness";
 import { handrailZM, Level, obstacleCollider, obstacleGrindEdges } from "../../contexts/world";
@@ -44,15 +44,6 @@ const PLAZA_Y = elToroPlazaHeightM();
 const FOOT_X = S.xM + S.stepCount * S.runM;
 const SPEC = BoardSpec.create(BOARD_CONFIG.spec);
 const REST_M = BoardSpec.restHeightM(SPEC);
-/**
- * How long a flat four-wheel landing at 8.6 m/s may take to put the nose wheels down, s.
- * KNOWN (board context, hand-off): whether the four wheels settle at once or the nose
- * skips ≈ 5 cm for ≈ 0.3 s (tail wheels down, spin ≈ 3.4 rad/s) is decided by the contact
- * solver's order, which follows the number of static colliders in the world: adding an
- * unrelated collider far away flips it. The old "four wheels within 3 steps" held on the
- * old layout by that luck. Here the drop pins what does not depend on it.
- */
-const NOSE_SETTLE_S = 0.45;
 
 // ── board only ──────────────────────────────────────────────────────────────
 
@@ -68,16 +59,31 @@ interface Drop {
   readonly events: DomainEvent[];
 }
 
-/** A level board in the air at (x, y, z) with velocity `v`, on El Toro, for `durationS`. */
+/** `count` unrelated boxes far away (the contact solver's order follows the collider count). */
+function farColliders(count: number): StaticColliderDesc[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `far-${i}`,
+    surface: "ground" as const,
+    transform: Transform.create(Vec3.create(500 + 3 * i, 0.5, 500), Quat.IDENTITY),
+    shape: { kind: "box" as const, halfExtentsM: Vec3.create(1, 0.5, 1) },
+  }));
+}
+
+/**
+ * A level board in the air at (x, y, z) with velocity `v`, on El Toro, for `durationS`,
+ * with `far` unrelated colliders added far away.
+ */
 async function drop(
   positionM: Vec3,
   velocityMps: Vec3,
   durationS: number,
   headingRad = 0,
+  far = 0,
 ): Promise<Drop> {
-  const colliders = LEVEL.obstacles
-    .filter((o) => o.id !== "ground")
-    .map((o) => obstacleCollider(o));
+  const colliders = [
+    ...LEVEL.obstacles.filter((o) => o.id !== "ground").map((o) => obstacleCollider(o)),
+    ...farColliders(far),
+  ];
   const spawn = Transform.create(positionM, Quat.fromAxisAngle(Vec3.UNIT_Y, headingRad));
   const h = await BoardHarness.create({ obstacles: colliders, spawn });
   boards.push(h);
@@ -109,56 +115,53 @@ describe("El Toro, board only: a 3.8 m fall onto the flat", () => {
     [5, 2.6],
     [7, 0.5],
   ] as const) {
-    it(
-      `at ${speed} m/s: no tunneling, no bounce, four wheels within ${NOSE_SETTLE_S} s, rolls away straight`,
-      async () => {
-        const top = PLAZA_Y + REST_M + 0.45;
-        const d = await drop(Vec3.create(startX, top, 0), Vec3.create(speed, 0, 0), 2.5);
-        const [land, ...more] = landedEvents(d);
-        expect(more).toEqual([]); // one landing: no bounce
-        expect(d.events.filter((e) => e.type === "BoardLeftGround")).toEqual([]);
-        if (land === undefined) throw new Error("never landed");
-        expect(land.airtimeS).toBeGreaterThan(0.85);
-        expect(land.upDot).toBeGreaterThan(0.999);
-        const i = d.snaps.findIndex((s) => s.tick >= land.tick);
-        const at = d.snaps[i];
-        if (at === undefined) throw new Error("no landing step");
-        // On the flat, past the foot of the stairs, falling ≈ 8.6 m/s just before.
-        expect(at.transform.positionM.x).toBeGreaterThan(FOOT_X + 0.5);
-        expect(d.snaps[i - 1]?.linearVelocityMps.y ?? 0).toBeLessThan(-8);
-        // No tunneling: the board origin never sinks more than a centimetre below its rest
-        // height (the contact's softness), and it is back at rest height right after.
-        for (const s of d.snaps) expect(s.transform.positionM.y).toBeGreaterThan(REST_M - 0.01);
-        const after = d.snaps.slice(i);
-        // The tail wheels stay down from the touchdown on (no bounce: no `BoardLeftGround`
-        // above); four wheels down within NOSE_SETTLE_S, and it stays so.
-        const settle = Math.round(NOSE_SETTLE_S / STEP_S);
-        for (const s of after.slice(3)) expect(s.wheelsDown).toBeGreaterThanOrEqual(2);
-        for (const s of after.slice(settle)) expect(s.wheelsDown).toBe(4);
-        // No explosive bounce: at worst a small nose skip, never off the ground.
-        for (const s of after.slice(3)) {
-          expect(s.transform.positionM.y).toBeLessThan(REST_M + 0.06);
-          expect(s.linearVelocityMps.y).toBeLessThan(0.6);
-          expect(Vec3.length(s.angularVelocityRadps)).toBeLessThan(4);
-        }
-        for (const s of after.slice(settle)) {
-          expect(s.linearVelocityMps.y).toBeLessThan(0.1);
-          expect(Vec3.length(s.angularVelocityRadps)).toBeLessThan(0.5);
-        }
-        // Rolls away straight at its speed (rolling resistance only).
-        const end = after[after.length - 1];
-        if (end === undefined) throw new Error("no steps");
-        expect(Math.abs(headingOf(end))).toBeLessThan(0.01);
-        expect(Math.abs(end.transform.positionM.z)).toBeLessThan(0.05);
-        const v1 = Math.hypot(
-          after[12]?.linearVelocityMps.x ?? 0,
-          after[12]?.linearVelocityMps.z ?? 0,
-        );
-        expect(v1).toBeGreaterThan(0.97 * speed);
-        expect(end.transform.positionM.y).toBeCloseTo(REST_M, 3);
-      },
-      T,
-    );
+    // 0, 1 and 20 extra colliders far away: before the hard-landing settle (ADR 0003) the
+    // count decided between a clean landing and a 5 cm nose skip.
+    for (const far of [0, 1, 20]) {
+      it(
+        `at ${speed} m/s (+${far} far colliders): no tunneling, no bounce, four wheels within 3 steps, rolls away straight`,
+        async () => {
+          const top = PLAZA_Y + REST_M + 0.45;
+          const d = await drop(Vec3.create(startX, top, 0), Vec3.create(speed, 0, 0), 2.5, 0, far);
+          const [land, ...more] = landedEvents(d);
+          expect(more).toEqual([]); // one landing: no bounce
+          expect(d.events.filter((e) => e.type === "BoardLeftGround")).toEqual([]);
+          if (land === undefined) throw new Error("never landed");
+          expect(land.airtimeS).toBeGreaterThan(0.85);
+          expect(land.upDot).toBeGreaterThan(0.999);
+          const i = d.snaps.findIndex((s) => s.tick >= land.tick);
+          const at = d.snaps[i];
+          if (at === undefined) throw new Error("no landing step");
+          // On the flat, past the foot of the stairs, falling ≈ 8.6 m/s just before.
+          expect(at.transform.positionM.x).toBeGreaterThan(FOOT_X + 0.5);
+          expect(d.snaps[i - 1]?.linearVelocityMps.y ?? 0).toBeLessThan(-8);
+          // No tunneling: the board origin never sinks more than a centimetre below its rest
+          // height (the contact's softness), and it is back at rest height right after.
+          for (const s of d.snaps) expect(s.transform.positionM.y).toBeGreaterThan(REST_M - 0.01);
+          const after = d.snaps.slice(i);
+          // Settled: four wheels down from within 3 steps of the touchdown, and it stays so
+          // (the hard-landing settle, ADR 0003: no nose skip, whatever the collider count).
+          for (const s of after.slice(3)) expect(s.wheelsDown).toBe(4);
+          // No explosive bounce: it never rises off the ground again.
+          for (const s of after.slice(3)) {
+            expect(s.linearVelocityMps.y).toBeLessThan(0.1);
+            expect(Vec3.length(s.angularVelocityRadps)).toBeLessThan(0.5);
+          }
+          // Rolls away straight at its speed (rolling resistance only).
+          const end = after[after.length - 1];
+          if (end === undefined) throw new Error("no steps");
+          expect(Math.abs(headingOf(end))).toBeLessThan(0.01);
+          expect(Math.abs(end.transform.positionM.z)).toBeLessThan(0.05);
+          const v1 = Math.hypot(
+            after[12]?.linearVelocityMps.x ?? 0,
+            after[12]?.linearVelocityMps.z ?? 0,
+          );
+          expect(v1).toBeGreaterThan(0.97 * speed);
+          expect(end.transform.positionM.y).toBeCloseTo(REST_M, 3);
+        },
+        T,
+      );
+    }
   }
 
   it(

@@ -102,6 +102,56 @@ survive a physics engine swap. Two things are Rapier-specific and live in
 `RapierPhysicsWorld`: the frictionless wheel colliders with their combine rules, and the
 reset of accumulated forces after every step.
 
+### Hard landings: the landing settle
+
+A zero-restitution rigid landing is plastic only when the solver serves all the wheel
+contacts together. At 5–9 m/s (El Toro's 3.3 m drop lands at ≈ 8.6 m/s) the board moves
+7 cm a step, so the wheels arrive a few millimetres deep (CCD) with no contact from the
+step before, and the solver meets four fresh contacts with no warm start. Rapier's
+TGS-soft solver works through them in the order of the world's contact pairs and
+integrates positions between its substeps. The contact it serves first takes most of the
+impulse and kicks the other axle up: a ≈ 5 cm nose skip at ≈ 3.4 rad/s that lasts
+≈ 0.3 s. That order follows the number of static colliders, so adding one unrelated
+collider 700 m away flipped a clean landing into a skip (and back). A pitched landing
+(±0.1 rad) skipped every time: a rigid rod that slaps its second axle down rebounds the
+first one (the ideal rigid answer, about half the slap's spin).
+
+What we tried in the solver, on the flat with 0/1/2/3/5/20 extra colliders, 5–9 m/s,
+level and ±0.1 rad:
+
+| Knob | Result |
+|---|---|
+| `numInternalPgsIterations` 2 or 4 | fixes El Toro's order dependence, not the 9 m/s level case or any pitched case |
+| `numSolverIterations` 16 | no better |
+| prediction distance 8 cm, or soft CCD 0.1 m (no penetration any more) | skips move around, some become a real bounce |
+| `maxCcdSubsteps` 4 | fewer skips, still order-dependent |
+| wheel friction/restitution combine rules | already `Multiply` × 0 = 0: not the cause |
+
+None made the outcome independent of the order, and the pitched rebound is what a rigid
+solver should do. A real board does not do it: the urethane and the bushings soak up
+the rebound. So the board models that, not the solver.
+
+**Decision.** A touchdown that hits the surface at ≥ `landing.minImpactMps` (1.5 m/s,
+the velocity before the step along the wheel-contact normal) opens a settle window of
+`landing.settleWindowS` (0.12 s). In it, before each step, `PhysicsBoardSystem` asks
+`landingSettleImpulse` (`board/domain/landing-settle.ts`, pure) for one impulse. It looks
+at the wheels that are not down but hang within `landing.gapM` (3 cm) of the contact
+plane (through the down wheels' mean contact point, along their mean normal). If their
+mean bottom point moves away from the plane, the impulse along −n at that point turns
+the separation into a small closing speed (half the gap per step, at most
+`maxCloseMps`), with the body's effective mass there (`1/m + (r×n)·I⁻¹(r×n)`). It never
+acts along the ground (no thrust), never on wheels moving toward the plane (a tail-first
+landing still rotates down onto its nose freely), and never on a separation faster than
+`maxReboundMps` (2.5 m/s: a pop or a manual, not a rebound).
+
+**Result** (`infrastructure/hard-landing.test.ts`): 5, 7 and 9 m/s, level and ±0.1 rad,
+two drop heights, with 0, 1, 5 and 20 far colliders. Four wheels are down within 3 steps
+every time, they stay down, the board never rises 2 mm above rest height, and it rolls
+to the same spot (±1 cm) whatever the collider count. El Toro's board-only drop is back
+to the strict "four wheels within 3 steps" with 0, 1 and 20 extra colliders. The rider's
+landing assist (`tricks.landAssist`, MECHANICS "Land") still damps bounce and rocking on
+top of this; the settle is what makes the board alone deterministic.
+
 ### Contacts
 
 `contacts()` walks the narrow phase for every board collider against the static
@@ -127,5 +177,8 @@ at their current poses.
   visual effect.
 - The grip damper allows a small slip angle in hard carves (understeer). This is
   acceptable and tunable through `lateralGripDampingNsPerM`, up to the stability limit.
+- The hard-landing settle is a board rule, not a rider assist: it runs with or without
+  a rider, and also on a bailed (ragdoll, ADR 0013) board. There it only removes an
+  axle's rebound after a hard wheel touchdown, as the urethane would.
 - `BoardSystem.lastForces` exposes the tyre forces (`grip`, `rolling`) to the debug
   overlay. `GameLoop` adds them as `DebugVector`s with `foot: null`.

@@ -12,6 +12,7 @@ Owns the **physics port**. Wheel model: real wheel colliders plus a tyre model
 - **Contact state** (VO) — which parts touch the world. **Grounded** — at least `groundedMinWheels` wheels down. A board standing on its tail after a pop is *not* grounded.
 - **Board snapshot** (VO) — immutable state after a step: transform, velocities, contact state, wheels down, airtime, raw contacts.
 - **Tyre model** (domain service, `tyre-model.ts`) — turns wheel contacts into **board forces**: sideways **grip** (a damper capped by μ·N) and **rolling** resistance (Crr·N, normalised to the board's weight).
+- **Landing settle** (domain service, `landing-settle.ts`) — for `landing.settleWindowS` after a hard touchdown, a wheel hanging just above the contact plane is not allowed to move away from it: one impulse along the contact normal, no thrust. Makes big drops land the same whatever the world's collider count (ADR 0003, "Hard landings").
 - **Lean** — what the bushings feel: the roll moment of the wheel loads divided by `bushingStiffnessNmPerRad`, clamped to `maxLeanRad`, with a lag. Positive when the +Z wheels carry more load.
 - **Steer** — `steerPerLean · lean`, clamped to `maxSteerRad`. Positive steer turns toward +Z: rolling forward, the heading turns clockwise seen from above.
 - **Physics world / rigid body handle** — the port. Only `RapierPhysicsWorld` (board/infrastructure) touches Rapier.
@@ -40,6 +41,8 @@ Owns the **physics port**. Wheel model: real wheel colliders plus a tyre model
 
 Every constant is in `board.config.ts`. The headless Rapier scenarios in
 `infrastructure/rapier-physics-world.test.ts` are the regression net: rest, roll, grip,
-carve, pop (4 N·s on the tail tip), flip (0.13 N·m·s roll) and the 0.5 m landing. The
+carve, pop (4 N·s on the tail tip), flip (0.13 N·m·s roll) and the 0.5 m landing.
+`infrastructure/hard-landing.test.ts` pins hard landings (5–9 m/s, level and ±0.1 rad)
+against 0/1/5/20 unrelated colliders. The
 M3 ramp scenarios (quarter pipe, bank, kicker, stairs, rails) are in
 `src/game/scenarios/ramps.scenario.test.ts`. Run `pnpm test` after every change.

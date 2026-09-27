@@ -215,7 +215,9 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 - **No impact bail.** However hard the landing (El Toro: ≈ 8.5 m/s straight
   down), impact alone never bails. Only the tilt, yaw and upside-down rules
   decide. The wheels are plastic and the tyre model caps the wheel load, so a
-  big drop lands without a bounce and keeps its speed.
+  big drop lands without a bounce and keeps its speed. The board's own landing
+  settle (ADR 0003, "Hard landings") keeps an axle from skipping back up after a
+  hard touchdown, so the landing is the same whatever else is in the world.
 
 ### Bail: the board goes ragdoll
 The moment a bail is decided (whatever the reason: landing off-angle, upside
