@@ -49,6 +49,7 @@ done in the physics, not after a timer.
 - **Shipped maps:**
   - `street`: the Street Course, the default.
   - `flat`: flat ground, also used by the tutorial.
+  - `el-toro`: El Toro, the 20-stair with a handrail. A big-drop challenge map.
 - **The old park is removed.** That's `skatepark.ts`, `?level=park`, and its
   config. Its tests and montage clips are ported to the Street Course, which
   has a hubba stair set, rails, ledges, banks and quarter pipes. The
