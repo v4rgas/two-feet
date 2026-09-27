@@ -1,6 +1,7 @@
 # ADR 0004 — Foot force model (gesture → force mapping)
 
-- Status: accepted (magnitudes are first guesses, see "Tuning")
+- Status: superseded by [ADR 0005](0005-assisted-trick-controller.md) (assisted physics,
+  MECHANICS.md). Kept for history; the gesture → force model below is no longer in the code.
 - Date: 2026-09-26
 
 ## Context

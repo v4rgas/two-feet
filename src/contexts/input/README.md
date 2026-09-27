@@ -10,7 +10,8 @@ Turns raw device input into per-foot intent. Knows about stance.
 - **Stick value** — smoothed analog position in `[-1, 1]²`, in **board axes**: `y` +1 = toward the nose, `x` +1 = toward the board's +Z side (screen right with the follow camera). Toe/heel meaning is resolved by `rider`.
 - **Virtual stick** — spring-damper that turns digital keys into a stick value (tuning in `input.config.ts`). One per cluster (the smoothing belongs to the keys); changing stance resets both.
 - **Foot intent** — what one foot wants this step: stick value + stick velocity (for flicks).
-- **Intent frame** — both feet's intents + `feetDown` (Space: "both feet down" — the rider reads it as a push on the ground and a catch in the air).
+- **Intent frame** — both feet's intents + `feetDown` (Space: "both feet down" — the rider reads it as a push on the ground and a catch in the air) + `spin`.
+- **Spin** — the body spin keys, `Q` (−1, left: counter-clockwise from above) and `E` (+1, right), the same in both stances. Smoothed by its own virtual stick into `IntentFrame.spin` in [−1, 1]. The rider reads it as a wind-up while loaded and a body spin in the air (MECHANICS.md "Body spin").
 
 ## Smoothing (`SpringVirtualStick`)
 
@@ -23,14 +24,14 @@ velocity (the flick threshold in rider is 8 /s). `value` has a rescaled deadzone
 ## Public API (`index.ts`)
 
 - Types: `FootId`, `Stance`, `StickValue` (VO), `StickVelocity`, `FootIntent`, `IntentFrame`, `VirtualStick`, `ControlCluster`, `RawInputSample`, `InputConfig`, `StickTuning`, `VirtualStickFactory`.
-- Ports: `InputSource` (`sample(): RawInputSample`), `StanceRepository` (`load`/`save`).
+- Ports: `InputSource` (`sample(): RawInputSample` — both clusters, `feetDown`, `spin`), `StanceRepository` (`load`/`save`).
 - Domain: `SpringVirtualStick` (the `VirtualStick` implementation), `footForCluster`, `clusterForFoot`.
 - Application: `InputSystem` (interface: `step(dtS): IntentFrame`, `lastIntents`, `stance`, `setStance`, `reset`) and its implementation `DefaultInputSystem(source, stanceRepository, config, createStick?)`.
 - Config: `INPUT_CONFIG`.
 
 Infrastructure (imported only by `src/game`):
 
-- `KeyboardInputSource(target, INPUT_CONFIG.keys)` — listens for `keydown`/`keyup`/`blur` on `window`, matches `KeyboardEvent.code`. The most recent of two opposite keys wins. `blur` releases everything. `preventDefault` on arrows and Space. `dispose()` removes the listeners.
+- `KeyboardInputSource(target, INPUT_CONFIG.keys)` — listens for `keydown`/`keyup`/`blur` on `window`, matches `KeyboardEvent.code`. WASD / arrows are the clusters, Space is `feetDown`, Q / E are `spin`. The most recent of two opposite keys wins. `blur` releases everything. `preventDefault` on arrows and Space. `dispose()` removes the listeners.
 - `LocalStorageStanceRepository(storageKey)` — every storage access is in try/catch; bad values load as `null`.
 
 ## Events
