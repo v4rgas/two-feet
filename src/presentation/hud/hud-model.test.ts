@@ -12,7 +12,6 @@ import {
   padLayout,
   popupForEvent,
   popupOpacity,
-  spinIndicator,
 } from "./hud-model";
 
 const HUD = PRESENTATION_CONFIG.hud;
@@ -100,18 +99,6 @@ describe("flick trail", () => {
     expect(nextTrailIntensity(0, HUD.flickTrailMinSpeedPerS + 1, 1 / 60, HUD)).toBe(1);
     expect(nextTrailIntensity(1, 0, HUD.flickTrailHoldS / 2, HUD)).toBeCloseTo(0.5);
     expect(nextTrailIntensity(0.1, 0, 1, HUD)).toBe(0);
-  });
-});
-
-describe("spinIndicator", () => {
-  it("shows the wind-up, then the spin direction (Q ↺ / E ↻), and nothing when idle", () => {
-    expect(spinIndicator(0, 0, 0)).toBe("");
-    expect(spinIndicator(-1, 0.4, 0)).toBe("↺ wind-up");
-    expect(spinIndicator(1, -0.4, 0)).toBe("↻ wind-up");
-    expect(spinIndicator(-1, 0, 0)).toBe("↺ spin");
-    expect(spinIndicator(1, 0, 0)).toBe("↻ spin");
-    // Released but still easing out.
-    expect(spinIndicator(0, 0, -5)).toBe("↻ spin");
   });
 });
 

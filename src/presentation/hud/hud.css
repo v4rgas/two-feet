@@ -33,33 +33,6 @@
   text-transform: lowercase;
 }
 
-/* ── Stance label, bottom centre ────────────────────────────────────── */
-.skate-stance {
-  position: absolute;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--concrete-600);
-}
-
-/* ── Body spin indicator (Q / E), above the stance label ─────────── */
-.skate-spin {
-  position: absolute;
-  left: 50%;
-  bottom: 84px;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--ink);
-}
-
 /* ── Foot pads, bottom-left / bottom-right ─────────────────────────── */
 .skate-pad {
   position: absolute;
@@ -194,7 +167,7 @@
   display: none;
 }
 
-/* ── Grind balance, above the stance label (M4) ──────────────────────────── */
+/* ── Grind balance, bottom centre (M4) ──────────────────────────── */
 .skate-balance {
   position: absolute;
   left: 50%;

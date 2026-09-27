@@ -11,8 +11,6 @@ import {
   nextTrailIntensity,
   PopupModel,
   padLayout,
-  spinIndicator,
-  stanceLabel,
 } from "./hud-model";
 
 /** Travel of the stick dot from the pad centre at full deflection, px. */
@@ -137,10 +135,6 @@ export class Hud {
   private readonly leftPad: FootPad;
   private readonly rightPad: FootPad;
   private readonly popup: HTMLDivElement;
-  private readonly stance: HTMLDivElement;
-  private lastStance = "";
-  private readonly spin: HTMLDivElement;
-  private lastSpin = "";
   private readonly balance: HTMLDivElement;
   private readonly balanceName: HTMLDivElement;
   private readonly balanceMark: HTMLDivElement;
@@ -170,9 +164,6 @@ export class Hud {
     this.balanceMark = el("div", "skate-balance-mark", track);
     this.config = config;
 
-    this.stance = el("div", "skate-stance", this.root);
-    this.spin = el("div", "skate-spin", this.root);
-
     this.leftPad = new FootPad(this.root, "left", config);
     this.rightPad = new FootPad(this.root, "right", config);
     this.popupModel = new PopupModel(config.hud);
@@ -180,20 +171,6 @@ export class Hud {
 
   update(frame: RenderFrame, dtS: number): void {
     this.layout = padLayout(frame.stance);
-    if (frame.stance !== this.lastStance) {
-      this.lastStance = frame.stance;
-      this.stance.textContent = stanceLabel(frame.stance);
-      this.stance.dataset.stance = frame.stance;
-    }
-    const spin = spinIndicator(
-      frame.intents.spin,
-      frame.rider.windUpRad,
-      frame.rider.bodySpinRateRadps,
-    );
-    if (spin !== this.lastSpin) {
-      this.lastSpin = spin;
-      this.spin.textContent = spin;
-    }
     this.leftPad.update(frame, this.layout.left, dtS);
     this.rightPad.update(frame, this.layout.right, dtS);
     this.updatePopup(frame, dtS);
