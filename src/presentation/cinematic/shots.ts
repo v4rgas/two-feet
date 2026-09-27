@@ -74,12 +74,38 @@ export interface SlowOrbitShot {
   readonly fovDeg?: number;
 }
 
+/**
+ * A close, low, long-lens orbit on the board itself (the deck showcase of a promo): the
+ * camera circles the board while it pushes in (radius, height and framed width ease from
+ * start to end over `pushS`). The FOV is set from the WIDTH framed at the board, so the
+ * board fills the same share of the frame in any aspect (portrait or landscape); a long
+ * lens from a couple of metres flattens the background, which reads as a shallow focus.
+ */
+export interface DeckShowcaseShot {
+  readonly kind: "deckShowcase";
+  /** Start angle relative to the travel heading, rad (0 = in front, −π/2 = the right side). */
+  readonly startAngleRad: number;
+  /** Orbit rate, rad/s of shot time (+ = counter-clockwise from above). */
+  readonly rateRadps?: number;
+  readonly radiusStartM?: number;
+  readonly radiusEndM?: number;
+  /** Eye height above the board origin, m. */
+  readonly heightStartM?: number;
+  readonly heightEndM?: number;
+  /** Width framed across the board, m (≈ 1.2 m shows the whole 0.8 m deck with air). */
+  readonly frameStartM?: number;
+  readonly frameEndM?: number;
+  /** Duration of the push-in, s of shot time. */
+  readonly pushS?: number;
+}
+
 export type ShotSpec =
   | FollowShot
   | LowSideShot
   | FixedTripodShot
   | FisheyeFollowShot
-  | SlowOrbitShot;
+  | SlowOrbitShot
+  | DeckShowcaseShot;
 export type ShotKind = ShotSpec["kind"];
 export type RiggedShotSpec = Exclude<ShotSpec, FollowShot>;
 
@@ -158,7 +184,11 @@ export function fisheyeFollowPose(
   return {
     eye: [px - fx * back + rx * side, py + (spec.heightM ?? d.heightM), pz - fz * back + rz * side],
     target: [px + fx * d.lookAheadM, py + d.lookHeightM, pz + fz * d.lookAheadM],
-    fovDeg: verticalFovDeg(spec.horizontalFovDeg ?? d.horizontalFovDeg, aspect),
+    // A portrait frame keeps the fisheye's width as its height (never a 110° tall frame).
+    fovDeg: verticalFovDeg(
+      spec.horizontalFovDeg ?? d.horizontalFovDeg,
+      Math.max(aspect, d.minAspect),
+    ),
   };
 }
 
@@ -181,6 +211,33 @@ export function slowOrbitPose(
   };
 }
 
+/** `deckShowcase`: a close orbit that pushes in, framing a set width at the board. */
+export function deckShowcasePose(
+  spec: DeckShowcaseShot,
+  subject: ShotSubject,
+  shotTimeS: number,
+  aspect: number,
+  config: CinematicConfig,
+): CameraPose {
+  const d = config.shots.deckShowcase;
+  const pushS = spec.pushS ?? d.pushS;
+  const t = pushS <= 0 ? 1 : smoothstep(shotTimeS / pushS);
+  const lerp = (a: number, b: number): number => a + (b - a) * t;
+  const r = lerp(spec.radiusStartM ?? d.radiusStartM, spec.radiusEndM ?? d.radiusEndM);
+  const height = lerp(spec.heightStartM ?? d.heightStartM, spec.heightEndM ?? d.heightEndM);
+  const frame = lerp(spec.frameStartM ?? d.frameStartM, spec.frameEndM ?? d.frameEndM);
+  const angle =
+    subject.headingRad + spec.startAngleRad + (spec.rateRadps ?? d.rateRadps) * shotTimeS;
+  const [px, py, pz] = subject.position;
+  const distance = Math.hypot(r, height - d.lookHeightM);
+  const horizontalDeg = (2 * Math.atan(frame / 2 / Math.max(1e-3, distance)) * 180) / Math.PI;
+  return {
+    eye: [px + Math.cos(angle) * r, py + height, pz - Math.sin(angle) * r],
+    target: [px, py + d.lookHeightM, pz],
+    fovDeg: verticalFovDeg(horizontalDeg, aspect),
+  };
+}
+
 /** Pose of any rigged (non-follow) shot. */
 export function riggedShotPose(
   spec: RiggedShotSpec,
@@ -198,6 +255,8 @@ export function riggedShotPose(
       return fisheyeFollowPose(spec, subject, aspect, config);
     case "slowOrbit":
       return slowOrbitPose(spec, subject, shotTimeS, config);
+    case "deckShowcase":
+      return deckShowcasePose(spec, subject, shotTimeS, aspect, config);
   }
 }
 

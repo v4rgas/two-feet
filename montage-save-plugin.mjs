@@ -3,8 +3,9 @@
 //   GET  /__montage/ping                         → { ok, ffmpeg }
 //   POST /__montage/save?name=<file>             body = file   → { path }
 //   POST /__montage/frame?session=<id>&index=<n> body = PNG    → { ok }
-//   POST /__montage/finish?session=<id>&name=<file.webm>&fps=<n>
-//        encodes the session's frames with ffmpeg (VP9 WebM), deletes them → { path }
+//   POST /__montage/finish?session=<id>&name=<file.webm|file.mp4>&fps=<n>
+//        encodes the session's frames with ffmpeg (VP9 WebM, or H.264 MP4 for a .mp4 name),
+//        deletes them → { path }
 // The frame endpoints are the deterministic recorder that does not depend on the browser's
 // encoders (which a minimized window throttles to about one frame per second).
 // Plain .mjs so it can use Node APIs without Node types in the TypeScript project.
@@ -39,15 +40,27 @@ function hasFfmpeg() {
   }
 }
 
-function encode(framesDir, out, fps) {
-  const args = [
-    "-y",
-    "-loglevel",
-    "error",
-    "-framerate",
-    String(fps),
-    "-i",
-    join(framesDir, "%06d.png"),
+/** Encoder arguments by output container: VP9 WebM, or H.264 MP4 for posting (promos). */
+function codecArgs(out) {
+  if (out.endsWith(".mp4")) {
+    // What social platforms want: H.264 High, yuv420p, the index up front (+faststart).
+    return [
+      "-c:v",
+      "libx264",
+      "-preset",
+      "slow",
+      "-crf",
+      "17",
+      "-profile:v",
+      "high",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      "-an",
+    ];
+  }
+  return [
     "-c:v",
     "libvpx-vp9",
     "-pix_fmt",
@@ -62,6 +75,19 @@ function encode(framesDir, out, fps) {
     "good",
     "-cpu-used",
     "3",
+  ];
+}
+
+function encode(framesDir, out, fps) {
+  const args = [
+    "-y",
+    "-loglevel",
+    "error",
+    "-framerate",
+    String(fps),
+    "-i",
+    join(framesDir, "%06d.png"),
+    ...codecArgs(out),
     out,
   ];
   return new Promise((resolveEncode, reject) => {

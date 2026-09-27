@@ -29,6 +29,12 @@ export function cardOpacity(
   return 1 - out / fadeOutS;
 }
 
+/** How a clip shows its landed tricks. */
+export interface TrickCards {
+  readonly show: boolean;
+  readonly caption: string;
+}
+
 export class LowerThirdsModel {
   current: LowerThird | null = null;
   ageS = Number.POSITIVE_INFINITY;
@@ -36,11 +42,25 @@ export class LowerThirdsModel {
   /** "01 / 06" style clip counter, or "". */
   counter = "";
   titleAgeS = Number.POSITIVE_INFINITY;
+  /** Landed tricks show as lower-thirds (off for a promo shot that carries its own text). */
+  private showTricks = true;
+  /** Caption under a landed trick's name, e.g. "El Toro · 20 stairs". */
+  private trickCaption = "";
 
   constructor(private readonly config: CinematicConfig["lowerThird"]) {}
 
-  /** A new clip: its title card starts, the previous lower-third is cleared. */
-  startClip(title: string, index: number, total: number): void {
+  /**
+   * A new clip: its title card starts, the previous lower-third is cleared. `tricks` says
+   * whether landed tricks get a lower-third, and with which caption.
+   */
+  startClip(
+    title: string,
+    index: number,
+    total: number,
+    tricks: TrickCards = { show: true, caption: "" },
+  ): void {
+    this.showTricks = tricks.show;
+    this.trickCaption = tricks.caption;
     this.title = title;
     this.counter = total > 1 ? `${pad2(index + 1)} / ${pad2(total)}` : "";
     this.titleAgeS = 0;
@@ -50,7 +70,9 @@ export class LowerThirdsModel {
 
   onEvent(event: DomainEvent): void {
     if (event.type === "TrickLanded") {
-      this.show({ text: event.name, caption: "", tone: "trick" });
+      if (this.showTricks) {
+        this.show({ text: event.name, caption: this.trickCaption, tone: "trick" });
+      }
     } else if (event.type === "RiderBailed") {
       this.show({ text: "bail", caption: "", tone: "bail" });
     }

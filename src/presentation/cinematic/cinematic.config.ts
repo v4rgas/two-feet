@@ -26,8 +26,22 @@ export const CINEMATIC_CONFIG = deepFreeze({
       lookHeightM: 0.12,
       /** HORIZONTAL field of view, deg (the classic skate-video fisheye). */
       horizontalFovDeg: 95,
+      /** Aspect floor of the fisheye's FOV: a portrait frame uses its width as its height. */
+      minAspect: 1,
     },
     slowOrbit: { radiusM: 2.6, heightM: 0.7, rateRadps: 0.35, lookHeightM: 0.15, fovDeg: 45 },
+    /** The promo's deck close-up: a long lens from ≈ 2 m, low, pushing in. */
+    deckShowcase: {
+      rateRadps: 0.22,
+      radiusStartM: 2.4,
+      radiusEndM: 1.6,
+      heightStartM: 0.16,
+      heightEndM: 0.4,
+      frameStartM: 1.5,
+      frameEndM: 1.05,
+      pushS: 4,
+      lookHeightM: 0.1,
+    },
   },
   /** Video HUD (lower-thirds, STYLE.md trick popup restyled for a video). */
   lowerThird: {

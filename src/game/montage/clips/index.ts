@@ -1,4 +1,5 @@
 import type { MontageClip } from "../clip";
+import { PROMO_CLIPS } from "../promo";
 import { elToroKickflip } from "./el-toro";
 import { bs180KickflipFlat, nollieHeelflipFlat } from "./flat";
 import { ledgeBoardslide, railFiftyFifty } from "./grinds";
@@ -25,7 +26,7 @@ export const MONTAGE_CLIPS: readonly MontageClip[] = [
   elToroKickflip,
 ];
 
-/** The clip with this id, or undefined. */
+/** The clip with this id (a montage clip or a promo's), or undefined. */
 export function clipById(id: string): MontageClip | undefined {
-  return MONTAGE_CLIPS.find((c) => c.id === id);
+  return MONTAGE_CLIPS.find((c) => c.id === id) ?? PROMO_CLIPS.find((c) => c.id === id);
 }
