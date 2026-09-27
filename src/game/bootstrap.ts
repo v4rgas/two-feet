@@ -11,6 +11,8 @@ import {
   createStreetCourseLevel,
   WORLD_CONFIG,
 } from "../contexts/world";
+// EL TORO (temporary registration until the map registry lands: GAME.md "Maps").
+import { createElToroLevel } from "../maps/el-toro/el-toro";
 import { PRESENTATION_CONFIG } from "../presentation/presentation.config";
 import { ThreeRenderer } from "../presentation/three-renderer";
 import type { Clock } from "../shared";
@@ -20,11 +22,16 @@ import { createTunableConfigs, installDevTuningPanel } from "./dev-tuning";
 import { GAME_CONFIG } from "./game.config";
 import type { GameLoop } from "./loop";
 
-/** The level named by the `?level=` URL parameter: `park`, `street`, or the flat ground (default). */
+/**
+ * The level named by the `?level=` URL parameter: `park`, `street`, `el-toro`, or the flat
+ * ground (default).
+ */
 function levelFromUrl(search: string): Level {
   const name = new URLSearchParams(search).get("level");
   if (name === "park") return createSkateparkLevel(WORLD_CONFIG);
   if (name === "street") return createStreetCourseLevel(WORLD_CONFIG);
+  // EL TORO: registered the current way until the map registry lands (GAME.md "Maps").
+  if (name === "el-toro") return createElToroLevel();
   return createFlatGroundLevel(WORLD_CONFIG.flatGround);
 }
 

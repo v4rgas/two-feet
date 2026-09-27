@@ -9,7 +9,7 @@ import type { ShotSegment } from "../../presentation/cinematic/cinematic-directo
  */
 
 /** Which level a clip is filmed on (`?level=` names). */
-export type ClipLevel = "park" | "street" | "flat";
+export type ClipLevel = "park" | "street" | "flat" | "el-toro";
 
 /** Where the clip starts: overrides the level's spawn. */
 export interface ClipSpawn {

@@ -129,6 +129,12 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
     (≈ 0.92, so the flip finishes before landing).
   - Cap it at `maxFlipRatePerTurnRadps` per turn (see *Swipe size*).
   - Direction: flicking toward the heel edge = kickflip.
+  - **Over a drop** (a stair set, El Toro's 3.3 m), `T` is the time to the ground
+    probed straight under the board at the flick (the landing it pops from), not to
+    the bottom of the drop. So a flip keeps its flat-ground rhythm on any drop:
+    `Space` goes in as it comes round, and the rider rides the rest of the air with
+    the feet on, like a real big set. Held back until the end of a long air, the
+    uncaught flip has kept turning, and that's a bail.
 - **Timing:** a late flick either makes the cap bind (under-rotation) or lands
   mid-flip, and that's a bail.
 - **Heelflip:** the same code with the opposite direction. Press `D` or `W`+`D`
@@ -206,6 +212,10 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
   `BoardLanded` and `TrickLanded`.
 - **Otherwise:** the bail rules in REQUIREMENTS §1.3.
 - **Landing assist:** it adds suspension damping and removes small bounce.
+- **No impact bail.** However hard the landing (El Toro: ≈ 8.5 m/s straight
+  down), impact alone never bails. Only the tilt, yaw and upside-down rules
+  decide. The wheels are plastic and the tyre model caps the wheel load, so a
+  big drop lands without a bounce and keeps its speed.
 
 ### Bail: the board goes ragdoll
 The moment a bail is decided (whatever the reason: landing off-angle, upside

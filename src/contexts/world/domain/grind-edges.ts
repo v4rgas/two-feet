@@ -14,6 +14,7 @@ import type {
 import {
   bankLedgeRunM,
   funboxRailLines,
+  handrailXRangeM,
   handrailZM,
   kinkedRailTopLine,
   quarterPipeCopingProfile,
@@ -138,15 +139,15 @@ function stairsEdges(shape: StairsShape, config: GeometryConfig): LocalEdge[] {
     }
   }
 
-  if (shape.handrail !== undefined) {
+  const railRange = handrailXRangeM(shape, config);
+  if (shape.handrail !== undefined && railRange !== null) {
     const { heightM: rh, barRadiusM: r } = shape.handrail;
     const z = handrailZM(shape);
-    const inset = config.railPostInsetM;
     out.push({
       name: "handrail",
       surface: "grindable",
-      startM: onSlope((-2 * inset) / cosA, rh, z),
-      endM: onSlope((footX + 2 * inset) / cosA, rh, z),
+      startM: onSlope(railRange.startXM / cosA, rh, z),
+      endM: onSlope(railRange.endXM / cosA, rh, z),
       outwardNormal: MINUS_Z,
       twoSided: true,
       halfWidthM: r,

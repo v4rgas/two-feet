@@ -11,6 +11,8 @@ import {
   Level,
   WORLD_CONFIG,
 } from "../../contexts/world";
+// EL TORO (temporary registration until the map registry lands: GAME.md "Maps").
+import { createElToroLevel } from "../../maps/el-toro/el-toro";
 import type { DomainEvent, Stance } from "../../shared";
 import { ManualClock, Transform, Vec3 } from "../../shared";
 import type { Simulation, SimulationConfigs } from "../compose";
@@ -36,6 +38,8 @@ export function baseClipLevel(name: ClipLevel): Level {
       return createStreetCourseLevel(WORLD_CONFIG);
     case "flat":
       return createFlatGroundLevel(WORLD_CONFIG.flatGround);
+    case "el-toro":
+      return createElToroLevel();
   }
 }
 

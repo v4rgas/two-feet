@@ -1113,6 +1113,24 @@ export function handrailZM(shape: StairsShape): number {
 }
 
 /**
+ * Horizontal extent of a stair set's handrail bar (local x of its top and bottom ends,
+ * m): `topOverhangM` back past the top nosing, `bottomOverhangM` on past the foot (each
+ * twice `railPostInsetM` by default). Null without a handrail.
+ */
+export function handrailXRangeM(
+  shape: StairsShape,
+  config: GeometryConfig = WORLD_CONFIG.geometry,
+): { readonly startXM: number; readonly endXM: number } | null {
+  const rail = shape.handrail;
+  if (rail === undefined) return null;
+  const inset = config.railPostInsetM;
+  return {
+    startXM: -(rail.topOverhangM ?? 2 * inset),
+    endXM: stairsFootXM(shape) + (rail.bottomOverhangM ?? 2 * inset),
+  };
+}
+
+/**
  * Frame running down the line of nosings on the plane z = `zM`: `d` points down the
  * stairs, `e2` is the upward normal of that line, `e1` = local −Z. Origin at the top
  * nosing's height.
@@ -1221,12 +1239,12 @@ function stairsGeometry(
     for (const piece of pieces.slice(n)) pieces.push(mirrorZ(piece));
   }
 
-  if (shape.handrail !== undefined) {
+  const railRange = handrailXRangeM(shape, config);
+  if (shape.handrail !== undefined && railRange !== null) {
     const { heightM: rh, barRadiusM: r } = shape.handrail;
     const z = handrailZM(shape);
     const inset = config.railPostInsetM;
-    const startX = -2 * inset;
-    const endX = footX + 2 * inset;
+    const { startXM: startX, endXM: endX } = railRange;
     const axisOffsetM = rh - r; // square to the line of nosings
     pieces.push(
       prism(
