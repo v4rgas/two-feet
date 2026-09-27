@@ -68,6 +68,26 @@ While locked, it suspends the channels, the body follow and the landing logic.
 - **Continuation.** Past the end of a segment, the lock moves on to the next segment of the
   same obstacle that runs the same way (the hubba's flat top into its slope). It bridges
   gaps of up to `continueGapM`.
+- **Joints of a bar (2026-09-27).** A rigid board cannot follow its midpoint around the
+  kinks of a kinked rail or a down rail. Over a convex kink the tail truck dragged on the
+  upper run and the board lost about a third of its speed. Into a concave kink the front
+  truck landed on the next run while the lock still held the old slope, so the board
+  wedged, stopped and fell off. Now, on a two-sided bar, while the board's two contacts
+  along it (a grind's trucks, a slide's deck edges) project onto two joined runs, the lock
+  holds the chord between those projections instead:
+  - the chord is taken from points `jointLeadS` of travel beyond the contacts, so the
+    velocity turns onto the next run before a truck gets there;
+  - square to it, the locked point goes where the board as it is now (its attitude lags
+    the chord) clears the path: each contact and, over a convex kink, the line between
+    them (it pivots on the kink) stay `hoverM` + `jointClearM` (2 cm) above it;
+  - the stance PD holds the chord's attitude, so the pitch (or a slide's roll) eases from
+    one run's slope to the next;
+  - along the chord only gravity and friction act, as on any edge.
+  The board's collisions with the rail are untouched (no filtering). The extra 2 cm is
+  what keeps the lagging trucks off the kink. The street scenarios check that across each
+  kink the speed stays ≥ 90 % of what gravity and friction leave (a 50-50 and a boardslide
+  along the whole kinked rail, a 50-50 over the funbox's down rail). One-sided edges (the
+  hubba's flat top into its slope) keep the plain continuation.
 - The rider's heading lines up with the board while locked, and the feet stay attached
   (a lock-on catches the board).
 

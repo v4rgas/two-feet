@@ -280,6 +280,18 @@ export const RIDER_CONFIG = deepFreeze({
     kickPartFromM: 0.24,
     /** At the end of an edge, a next edge of the same obstacle starting this close continues the lock, m. */
     continueGapM: 0.25,
+    /**
+     * Across a joint of a bar (a kink), the chord under the trucks is held this much higher
+     * than `hoverM`: the stance PD lags the chord's turn, and at 4 mm a truck would scrape
+     * the kink and lose its speed to the collider, m.
+     */
+    jointClearM: 0.02,
+    /**
+     * The chord's turn across a joint starts and ends this long (at the speed along the
+     * edge) beyond the trucks: the velocity is turned onto the next run before a truck gets
+     * there, instead of the truck dropping onto it, s.
+     */
+    jointLeadS: 0.06,
     /** After a lock ends, no new lock for this long, s. */
     relockCooldownS: 0.3,
     /** Pop out: extra speed along the edge's outward normal, m/s. */

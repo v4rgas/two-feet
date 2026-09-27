@@ -469,7 +469,9 @@ export class GrindController {
       p = Transform.toWorldPoint(board.transform, lock.pointLocal);
       s = Vec3.dot(Vec3.sub(p, lock.frame.edge.startM), lock.frame.u);
     }
-    const { u, m } = lock.frame;
+    // The line the lock holds: the edge, or across a joint the chord under the trucks.
+    const support = this.supportLine(lock, board, ctx.edges);
+    const { u, m } = support;
     const vAlong = Vec3.dot(board.linearVelocityMps, u);
 
     // BALANCE.
@@ -500,7 +502,8 @@ export class GrindController {
     }
 
     // LOCK PD: the point onto the target line, square to the edge only; carry gravity.
-    const target = Vec3.add(Vec3.add(lock.frame.edge.startM, Vec3.scale(u, s)), lock.offset);
+    const target =
+      support.target ?? Vec3.add(Vec3.add(lock.frame.edge.startM, Vec3.scale(u, s)), lock.offset);
     const error = across(Vec3.sub(target, p), u);
     let wanted = Vec3.scale(error, g.lockOmegaPerS);
     const wantedSpeed = Vec3.length(wanted);
@@ -521,7 +524,7 @@ export class GrindController {
     out.push(impulse("grind", Vec3.scale(dv, mass.massKg), mass.centerOfMassWorldM));
 
     // STANCE PD: pitch, yaw and roll toward the stance's attitude.
-    const q = this.stanceRotation(lock, board, ctx);
+    const q = this.stanceRotation(lock, board, ctx, u, m);
     const err = Quat.toRotationVector(Quat.multiply(q, Quat.conjugate(board.transform.rotation)));
     const w = g.stanceOmegaRadps;
     let accel = Vec3.sub(Vec3.scale(err, w * w), Vec3.scale(board.angularVelocityRadps, 2 * w));
@@ -544,9 +547,15 @@ export class GrindController {
   }
 
   /** The attitude the stance holds: along or across the edge, the stance's pitch, the lean. */
-  private stanceRotation(lock: Lock, board: BoardKinematics, ctx: HoldContext): Quat {
+  private stanceRotation(
+    lock: Lock,
+    board: BoardKinematics,
+    ctx: HoldContext,
+    u: Vec3,
+    m: Vec3,
+  ): Quat {
     const g = this.config.grind;
-    const { u, m, edge } = lock.frame;
+    const { edge } = lock.frame;
     const f = boardForward(board);
     const slide = isSlide(lock.kind);
     const axis = slide ? Vec3.normalize(Vec3.cross(u, m)) : u;
@@ -579,6 +588,109 @@ export class GrindController {
   }
 
   /**
+   * THE CHORD ACROSS A JOINT (a kinked rail, a down rail). A rigid board cannot follow its
+   * midpoint around a kink: over a convex one its tail truck drags on the upper run; into a
+   * concave one its front truck lands on the next run while the lock still holds the old
+   * slope, and the board wedges (a slide's deck edges do the same). So on a bar, while the
+   * board's two contacts along it (a grind's trucks, a slide's deck edges) project onto two
+   * joined runs (same obstacle, ends within `continueGapM`), the lock holds the line
+   * between those two projections instead: the board's pitch eases from one run's slope to
+   * the next over one wheelbase (plus `jointLeadS` of travel at each end, so the velocity
+   * turns before a truck reaches the next run). Square to that line the board rests on the path as it is
+   * (its attitude lags the chord's turn): the locked point is held where both contacts, and
+   * the line between them over a convex kink (the board pivots on it), clear the path by `hoverM` +
+   * `jointClearM`. Along the
+   * line only gravity and friction act, as on any edge. Elsewhere: the edge itself
+   * (`target` null: the caller uses the edge line and the lock's offset).
+   */
+  private supportLine(
+    lock: Lock,
+    board: BoardKinematics,
+    edges: readonly GrindEdgeView[],
+  ): { u: Vec3; m: Vec3; target: Vec3 | null } {
+    const { frame } = lock;
+    const plain = { u: frame.u, m: frame.m, target: null };
+    if (!frame.edge.twoSided) return plain;
+    const gap = this.config.grind.continueGapM;
+    const cur = frame.edge;
+    const joined = edges.filter(
+      (e) =>
+        e !== cur &&
+        e.obstacleId === cur.obstacleId &&
+        e.twoSided &&
+        (Vec3.distance(e.startM, cur.endM) <= gap || Vec3.distance(e.endM, cur.startM) <= gap),
+    );
+    if (joined.length === 0) return plain;
+    const onPath = (q: Vec3): { point: Vec3; edge: GrindEdgeView } => {
+      let best = { point: closestOnSegment(cur, q), edge: cur };
+      let bestD = Vec3.distance(best.point, q);
+      for (const e of joined) {
+        const point = closestOnSegment(e, q);
+        const d = Vec3.distance(point, q);
+        if (d < bestD) {
+          best = { point, edge: e };
+          bestD = d;
+        }
+      }
+      return best;
+    };
+    // Where the board meets the bar, at both ends along it: a grind's two trucks; a
+    // slide's deck edges either side of the locked point (the bar runs across the deck).
+    const [qa, qb] = isSlide(lock.kind)
+      ? [
+          Vec3.add(lock.pointLocal, Vec3.create(0, 0, -this.deck.deck.widthM / 2)),
+          Vec3.add(lock.pointLocal, Vec3.create(0, 0, this.deck.deck.widthM / 2)),
+        ]
+      : [
+          Vec3.create(-this.deck.trucks.wheelbaseM / 2, lock.pointLocal.y, 0),
+          Vec3.create(this.deck.trucks.wheelbaseM / 2, lock.pointLocal.y, 0),
+        ];
+    const wa = Transform.toWorldPoint(board.transform, qa);
+    const wb = Transform.toWorldPoint(board.transform, qb);
+    // "back" / "front" along the edge direction.
+    const [backQ, frontQ] = Vec3.dot(Vec3.sub(wb, wa), frame.u) >= 0 ? [wa, wb] : [wb, wa];
+    const back = onPath(backQ);
+    const front = onPath(frontQ);
+    // The chord's direction: from points `lead` beyond those two along the edge.
+    const lead =
+      Math.abs(Vec3.dot(board.linearVelocityMps, frame.u)) * this.config.grind.jointLeadS;
+    const ahead = Vec3.scale(frame.u, lead);
+    const leadBack = onPath(Vec3.sub(backQ, ahead));
+    const leadFront = onPath(Vec3.add(frontQ, ahead));
+    if (leadBack.edge === leadFront.edge) return plain;
+    const chord = Vec3.sub(leadFront.point, leadBack.point);
+    if (Vec3.length(chord) < 1e-3) return plain;
+    let u = Vec3.normalize(chord);
+    if (Vec3.dot(u, frame.u) < 0) u = Vec3.scale(u, -1);
+    if (Math.abs(u.y) > 0.9) return plain;
+    const m = Vec3.normalize(Vec3.sub(Vec3.UNIT_Y, Vec3.scale(u, u.y)));
+    // The board rests on the path as it is now (the stance PD turns it toward the chord):
+    // the locked point moves along m until the higher of these needs is met — each contact
+    // `clear` over the path under it, and the line between them `clear` over a convex kink.
+    const { hoverM, jointClearM } = this.config.grind;
+    const clear = hoverM + jointClearM;
+    let need = Math.max(
+      Vec3.dot(Vec3.sub(back.point, backQ), m),
+      Vec3.dot(Vec3.sub(front.point, frontQ), m),
+    );
+    const a = leadBack.edge;
+    const b = leadFront.edge;
+    const kink =
+      Vec3.distance(a.endM, b.startM) <= gap
+        ? Vec3.lerp(a.endM, b.startM, 0.5)
+        : Vec3.lerp(a.startM, b.endM, 0.5);
+    const span = Vec3.dot(Vec3.sub(frontQ, backQ), u);
+    const at = span > 1e-6 ? Vec3.dot(Vec3.sub(kink, backQ), u) / span : -1;
+    if (at > 0 && at < 1) {
+      const over = Vec3.add(backQ, Vec3.scale(Vec3.sub(frontQ, backQ), at));
+      need = Math.max(need, Vec3.dot(Vec3.sub(kink, over), m));
+    }
+    const p = Transform.toWorldPoint(board.transform, lock.pointLocal);
+    const target = Vec3.add(p, Vec3.scale(m, need + clear));
+    return { u, m, target };
+  }
+
+  /**
    * Past the end of the edge: carry on onto the next edge of the same obstacle that runs
    * the same way (the hubba's flat top into its slope). Once the point is over that edge
    * the lock moves to it; across a gap of up to `continueGapM` before it, the lock keeps
@@ -603,6 +715,15 @@ export class GrindController {
     }
     return bridging;
   }
+}
+
+/** The point of an edge segment closest to `q`. */
+function closestOnSegment(edge: GrindEdgeView, q: Vec3): Vec3 {
+  const d = Vec3.sub(edge.endM, edge.startM);
+  const len2 = Vec3.dot(d, d);
+  const t =
+    len2 < 1e-12 ? 0 : Math.max(0, Math.min(1, Vec3.dot(Vec3.sub(q, edge.startM), d) / len2));
+  return Vec3.add(edge.startM, Vec3.scale(d, t));
 }
 
 /** Velocity of a board point: the origin's velocity plus ω × r. */
