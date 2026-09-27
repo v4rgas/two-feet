@@ -29,4 +29,24 @@ describe("video lower-thirds", () => {
     m.onEvent({ type: "RiderBailed", reason: "upsideDown" } as DomainEvent);
     expect(m.current?.tone).toBe("bail");
   });
+
+  it("captions tricks when asked, and fades the title card in after its delay, then holds", () => {
+    const m = new LowerThirdsModel(CINEMATIC_CONFIG.lowerThird);
+    m.startClip("", 0, 1);
+    m.trickCaption = "0.61 m drop";
+    expect(m.titleOpacity).toBe(0);
+    expect(m.titleCardOpacity).toBe(0);
+    m.onEvent({ type: "TrickLanded", name: "Hardflip", airtimeS: 0.8 } as DomainEvent);
+    expect(m.current).toEqual({ text: "Hardflip", caption: "0.61 m drop", tone: "trick" });
+    m.cueTitleCard(0.5, 1);
+    m.advance(0.4);
+    expect(m.titleCardOpacity).toBe(0);
+    m.advance(0.6);
+    expect(m.titleCardOpacity).toBeCloseTo(0.5);
+    m.cueTitleCard(0.5, 1); // a second cue keeps the first
+    m.advance(10);
+    expect(m.titleCardOpacity).toBe(1);
+    m.startClip("next", 0, 1);
+    expect(m.titleCardOpacity).toBe(0);
+  });
 });

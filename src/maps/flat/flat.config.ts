@@ -1,4 +1,8 @@
-import type { PerimeterOpening, PerimeterSide } from "../../contexts/world";
+import type {
+  GraffitiOnGroundOptions,
+  PerimeterOpening,
+  PerimeterSide,
+} from "../../contexts/world";
 import { deepFreeze } from "../../shared";
 
 /** A banner on the flat map's ring (see `perimeter.banners`). */
@@ -38,6 +42,16 @@ export const FLAT_CONFIG = deepFreeze({
       { side: "north", atM: 10, sponsorId: "v4rgas" },
     ] satisfies FlatBanner[],
   },
+  /**
+   * A few floor pieces round the tutorial plaza (STYLE.md "Graffiti"), never in the push
+   * lane (z = 0, ahead of the spawn): each reads pushing away from the spawn (up = +X).
+   */
+  graffiti: [
+    { pieceId: "v4rgas-wildstyle", xM: 12, zM: -6, sizeM: 3.2, rotationRad: -Math.PI / 2 },
+    { pieceId: "sticker-bomb", xM: 5, zM: 6, sizeM: 1.3, rotationRad: -Math.PI / 2 },
+    { pieceId: "tag-scribbles", xM: 19, zM: 5.5, sizeM: 1.8, rotationRad: -Math.PI / 2 },
+    { pieceId: "pixel-penguin", xM: -4.5, zM: -5, sizeM: 1, rotationRad: -Math.PI / 2 },
+  ] satisfies GraffitiOnGroundOptions[],
 });
 
 /** Type of the flat map's parameters (deeply readonly). */

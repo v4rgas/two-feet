@@ -1,6 +1,6 @@
 import type { StanceRepository } from "../../contexts/input";
 import { KeyboardInputSource } from "../../contexts/input/infrastructure/keyboard-input-source";
-import type { MapDefinition } from "../../contexts/world";
+import type { Level, MapDefinition } from "../../contexts/world";
 import type { MenuIntent, MenuViewModel } from "../../presentation/menu/menu-view-model";
 import type { RenderFrame, SceneSetup } from "../../presentation/render-frame";
 import type { TutorialCardView } from "../../presentation/tutorial/tutorial-card-view-model";
@@ -37,6 +37,24 @@ export interface ShellView {
   renderTutorial(card: TutorialCardView | null): void;
 }
 
+/**
+ * The opening cinematic (GAME.md "Intro"), as the shell sees it: something that loads,
+ * plays frame by frame on the same canvas, and stops. The shell decides when it plays
+ * (first launch, or "Intro" in the menu), skips it on any key or click, and remembers
+ * that it was seen. The browser adapter is `CinematicIntro` (src/game/intro).
+ */
+export interface IntroPlayer {
+  /** Loads the intro (its own simulation and scene). */
+  start(): Promise<void>;
+  /** One animation frame of `elapsedS` real time. Returns true once it has finished. */
+  advance(elapsedS: number): boolean;
+  /** Stops it and frees what it built (safe to call at any time, more than once). */
+  stop(): void;
+}
+
+/** What the shell is doing (GAME.md): the intro, the tutorial, or free play on a map. */
+export type ShellPhase = "intro" | "tutorial" | "playing";
+
 /** The part of `window` (or a test's `EventTarget`) the shell listens on for keys. */
 export interface KeySource {
   addEventListener(type: string, listener: (event: Event) => void): void;
@@ -57,6 +75,8 @@ export interface ShellDeps {
   readonly checkpointToast: string;
   /** The tutorial's thresholds (GAME_CONFIG.tutorial). */
   readonly tutorial: { readonly pushDoneSpeedMps: number; readonly outroS: number };
+  /** The opening cinematic. Absent: no intro (tests, and no "Intro" in the menu). */
+  readonly intro?: IntroPlayer;
 }
 
 /** Where the shell opens (GAME.md "First launch"): a map id from the URL wins. */
@@ -90,6 +110,7 @@ export class GameShell {
   private readonly gameCodes: ReadonlySet<string>;
   private sim: Simulation | null = null;
   private map: MapDefinition | null = null;
+  private level: Level | null = null;
   private checkpoint_: Checkpoint | null = null;
   private menu: MenuState = CLOSED_MENU;
   private loadToken = 0;
@@ -97,6 +118,8 @@ export class GameShell {
   private unsubscribe: (() => void) | null = null;
   /** The tutorial's progress while it runs (GAME.md "Tutorial"), else null. */
   private tutorial_: TutorialState | null = null;
+  /** The intro while it loads or plays, else null. */
+  private intro_: "loading" | "playing" | null = null;
 
   private constructor(private readonly deps: ShellDeps) {
     this.input = new KeyboardInputSource(this.gameKeys, deps.configs.input.keys);
@@ -111,14 +134,21 @@ export class GameShell {
     deps.keys.addEventListener("keydown", this.onKeyDown);
     deps.keys.addEventListener("keyup", this.onKeyUp);
     deps.keys.addEventListener("blur", this.onBlur);
+    deps.keys.addEventListener("pointerdown", this.onPointerDown);
   }
 
   /** Builds the shell and loads its first map. */
   static async create(deps: ShellDeps, start: ShellStart = {}): Promise<GameShell> {
     const shell = new GameShell(deps);
     const fromUrl = start.mapId == null ? undefined : deps.maps.get(start.mapId);
-    if (fromUrl === undefined && !deps.storage.loadTutorialDone()) await shell.startTutorial();
-    else await shell.loadMap(shell.firstMap(start).id);
+    // A map in the URL (a dev link) goes straight there: no intro, no tutorial.
+    if (fromUrl === undefined && deps.intro !== undefined && !deps.storage.loadIntroSeen()) {
+      await shell.playIntro();
+    } else if (fromUrl === undefined && !deps.storage.loadTutorialDone()) {
+      await shell.startTutorial();
+    } else {
+      await shell.loadMap(shell.firstMap(start).id);
+    }
     return shell;
   }
 
@@ -149,6 +179,11 @@ export class GameShell {
     return this.tutorial_;
   }
 
+  get phase(): ShellPhase {
+    if (this.intro_ !== null) return "intro";
+    return this.tutorial_ !== null ? "tutorial" : "playing";
+  }
+
   // ── Frame ──────────────────────────────────────────────────────────────
 
   /**
@@ -156,6 +191,13 @@ export class GameShell {
    * then draws. Returns the fixed steps run.
    */
   advance(elapsedS: number): number {
+    if (this.intro_ !== null) {
+      // The intro draws itself; the game (if any, on a replay) stays frozen behind it.
+      if (this.intro_ === "playing" && this.deps.intro?.advance(elapsedS) === true) {
+        void this.endIntro();
+      }
+      return 0;
+    }
     const sim = this.sim;
     if (sim === null) return 0;
     const steps = this.paused ? 0 : sim.loop.advance(elapsedS);
@@ -199,6 +241,34 @@ export class GameShell {
     this.menuInput(intent);
   }
 
+  /**
+   * Plays the opening cinematic (first launch, or "Intro" in the menu). When it ends or is
+   * skipped: on a replay, back to the paused game as it was; on first launch, on to the
+   * tutorial (or the last map, once the tutorial is done).
+   */
+  async playIntro(): Promise<void> {
+    const intro = this.deps.intro;
+    if (intro === undefined || this.intro_ !== null) return;
+    this.menu = CLOSED_MENU;
+    this.pauseInput();
+    this.intro_ = "loading";
+    this.deps.view.renderTutorial(null);
+    this.renderMenu();
+    try {
+      await intro.start();
+    } catch {
+      // The intro could not load (no WebGL context, a missing asset): just play the game.
+      await this.endIntro();
+      return;
+    }
+    if (this.intro_ === "loading") this.intro_ = "playing";
+  }
+
+  /** Any key or click during the intro: it ends now. */
+  skipIntro(): void {
+    if (this.intro_ !== null) void this.endIntro();
+  }
+
   /** Starts (or replays) the tutorial on the tutorial map. */
   async startTutorial(): Promise<void> {
     await this.loadMap(this.deps.maps.tutorialMap.id, true);
@@ -234,6 +304,7 @@ export class GameShell {
     this.sim?.physics.dispose();
     this.sim = sim;
     this.map = map;
+    this.level = level;
     this.checkpoint_ = null;
     this.events = [];
     this.unsubscribe = sim.bus.subscribeAll((event) => this.events.push(event));
@@ -249,6 +320,9 @@ export class GameShell {
     this.deps.keys.removeEventListener("keydown", this.onKeyDown);
     this.deps.keys.removeEventListener("keyup", this.onKeyUp);
     this.deps.keys.removeEventListener("blur", this.onBlur);
+    this.deps.keys.removeEventListener("pointerdown", this.onPointerDown);
+    this.intro_ = null;
+    this.deps.intro?.stop();
     this.unsubscribe?.();
     this.input.dispose();
     this.sim?.physics.dispose();
@@ -256,6 +330,26 @@ export class GameShell {
   }
 
   // ── Internals ──────────────────────────────────────────────────────────
+
+  /** The intro is over (finished or skipped): remember it, then on to the game. */
+  private async endIntro(): Promise<void> {
+    if (this.intro_ === null) return;
+    this.intro_ = null;
+    this.deps.intro?.stop();
+    this.deps.storage.saveIntroSeen(true);
+    const sim = this.sim;
+    if (sim !== null && this.level !== null) {
+      // A replay from the menu: the paused game comes back exactly as it was.
+      this.deps.view.setup({ boardSpec: sim.spec, level: this.level });
+      sim.input.reset();
+      this.renderMenu();
+      this.renderTutorial();
+    } else if (!this.deps.storage.loadTutorialDone()) {
+      await this.startTutorial();
+    } else {
+      await this.loadMap(this.firstMap({}).id);
+    }
+  }
 
   private firstMap(start: ShellStart): MapDefinition {
     const maps = this.deps.maps;
@@ -298,6 +392,7 @@ export class GameShell {
       stance: this.sim?.input.stance ?? "regular",
       tutorialRunning: this.tutorial_ !== null,
       hasCheckpoint: this.checkpoint_ !== null,
+      hasIntro: this.deps.intro !== undefined,
     };
   }
 
@@ -333,6 +428,9 @@ export class GameShell {
       case "skipTutorial":
         void this.finishTutorial();
         break;
+      case "playIntro":
+        void this.playIntro();
+        break;
     }
   }
 
@@ -349,6 +447,12 @@ export class GameShell {
   private readonly onKeyDown = (event: Event): void => {
     const code = codeOf(event);
     const repeat = (event as Partial<KeyboardEvent>).repeat === true;
+    if (this.intro_ !== null) {
+      // Any key skips the intro; none reaches the game or opens the menu.
+      if (code === SHELL_CODES.menu || this.gameCodes.has(code)) event.preventDefault();
+      if (!repeat) this.skipIntro();
+      return;
+    }
     if (code === SHELL_CODES.menu) {
       event.preventDefault();
       if (!repeat) this.menuInput(this.menu.open ? { type: "back" } : { type: "toggle" });
@@ -382,8 +486,13 @@ export class GameShell {
 
   private readonly onKeyUp = (event: Event): void => {
     const code = codeOf(event);
+    if (this.intro_ !== null) return;
     if (this.gameCodes.has(code)) event.preventDefault();
     this.gameKeys.dispatchEvent(forwarded("keyup", code));
+  };
+
+  private readonly onPointerDown = (): void => {
+    this.skipIntro();
   };
 
   private readonly onBlur = (): void => {

@@ -101,10 +101,17 @@ in `el-toro.test.ts`).
      outside the handrail approaches (|z| ≤ 2.7) and below the lip.
   The fence's other segments are plain concrete (no house banners); every sponsor pair
   has plain wall either side.
-- **Graffiti** (two pieces, walls only, never the stairs or a riding surface):
+- **Graffiti** (seven pieces, `EL_TORO.graffiti`; never the stairs, a handrail or a
+  ledge's edge):
   - a `v4rgas-throwup` on the south wing's end wall (x = 0, z ≈ −8.4), the backdrop of
     the 4-stair's landing;
   - a `penguin-king` on the quad's north retaining wall above the walkway ramp (z = 6,
-    x ≈ −4, ≈ 2.5 m up, clear of the ramp's surface), seen pushing up the ramp.
+    x ≈ −4, ≈ 2.5 m up, clear of the ramp's surface), seen pushing up the ramp;
+  - the quad floor: a `penguin-stencil` west of the lunch tables (x ≈ −12) and a
+    `flow-arrow` on the run-up pointing at the drop (x ≈ −6, z ≈ −1.4, off the line);
+  - `tag-scribbles` on the walkway ramp (x ≈ −2), read pushing up it;
+  - the courtyard: a calm `landing-target` in the 20-stair's landing (x ≈ 8.8) and a big
+    `v4rgas-wildstyle` (3.6 m) in the open north-east (x ≈ 18.5, z ≈ 8), read from the
+    stairs.
   The retaining walls beside the stairs carry the banner boards instead of paint, and the
   terrace's west wall is taken up by the 4-stair itself.

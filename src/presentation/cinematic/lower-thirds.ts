@@ -44,8 +44,11 @@ export class LowerThirdsModel {
   titleAgeS = Number.POSITIVE_INFINITY;
   /** Landed tricks show as lower-thirds (off for a promo shot that carries its own text). */
   private showTricks = true;
-  /** Caption under a landed trick's name, e.g. "El Toro · 20 stairs". */
-  private trickCaption = "";
+  /** The small line under every trick's name (the intro's "0.61 m drop"), or "". */
+  trickCaption = "";
+  /** Video time since the title card was cued (it shows after its delay), s. */
+  cardAgeS = Number.NEGATIVE_INFINITY;
+  private cardFade = { delayS: 0, fadeInS: 0 };
 
   constructor(private readonly config: CinematicConfig["lowerThird"]) {}
 
@@ -64,6 +67,7 @@ export class LowerThirdsModel {
     this.title = title;
     this.counter = total > 1 ? `${pad2(index + 1)} / ${pad2(total)}` : "";
     this.titleAgeS = 0;
+    this.cardAgeS = Number.NEGATIVE_INFINITY;
     this.current = null;
     this.ageS = Number.POSITIVE_INFINITY;
   }
@@ -81,6 +85,25 @@ export class LowerThirdsModel {
   advance(dtS: number): void {
     this.ageS += dtS;
     this.titleAgeS += dtS;
+    this.cardAgeS += dtS;
+  }
+
+  /**
+   * Cues the title card (the intro's wordmark): it fades in after `delayS` of video time
+   * over `fadeInS` and stays until the clip ends. A second cue keeps the first.
+   */
+  cueTitleCard(delayS: number, fadeInS: number): void {
+    if (this.cardAgeS !== Number.NEGATIVE_INFINITY) return;
+    this.cardFade = { delayS, fadeInS };
+    this.cardAgeS = 0;
+  }
+
+  /** 0 before the card is cued and during its delay, then fades in to 1 and holds. */
+  get titleCardOpacity(): number {
+    const { delayS, fadeInS } = this.cardFade;
+    const t = this.cardAgeS - delayS;
+    if (!(t > 0)) return 0;
+    return fadeInS <= 0 ? 1 : Math.min(1, t / fadeInS);
   }
 
   get opacity(): number {

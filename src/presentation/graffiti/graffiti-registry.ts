@@ -19,6 +19,18 @@ export const GRAFFITI_PIECES: readonly GraffitiPiece[] = Object.freeze([
   { id: "v4rgas-throwup", name: "v4rgas bubble throw-up with a crown", aspect: 2, seed: 4 },
   { id: "pixel-penguin", name: "sprayed pixel penguin", aspect: 1, seed: 32 },
   { id: "penguin-king", name: "pixel penguin with crown and stars", aspect: 1.4, seed: 11 },
+  // Floor and ramp pieces (they read on any surface: see STYLE.md "Graffiti").
+  { id: "v4rgas-wildstyle", name: "v4rgas wild bubble letters with arrows", aspect: 2.6, seed: 21 },
+  { id: "penguin-stencil", name: "pixel penguin stencil with overspray", aspect: 1, seed: 5 },
+  { id: "tag-scribbles", name: "handstyle v4rgas tags and a crown doodle", aspect: 2.4, seed: 17 },
+  {
+    id: "sticker-bomb",
+    name: "stars, crowns and arrows round a pixel penguin",
+    aspect: 1.3,
+    seed: 29,
+  },
+  { id: "landing-target", name: "calm sprayed target with an X (landings)", aspect: 1, seed: 3 },
+  { id: "flow-arrow", name: "fat curved flow arrow with a dashed line", aspect: 2, seed: 13 },
 ]);
 
 /** The piece for an id, or undefined (the renderer skips unknown pieces). */

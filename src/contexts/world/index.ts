@@ -3,10 +3,17 @@ export type { ObstacleId, SurfaceType } from "../../shared";
 export { SURFACE_TYPES } from "../../shared";
 export type {
   GraffitiOnFaceOptions,
+  GraffitiOnGroundOptions,
+  GraffitiOnSurfaceOptions,
   GraffitiPlacement,
   ObstacleFaceSide,
 } from "./domain/graffiti";
-export { createGraffiti, graffitiOnFace } from "./domain/graffiti";
+export {
+  createGraffiti,
+  graffitiOnFace,
+  graffitiOnGround,
+  graffitiOnObstacleSurface,
+} from "./domain/graffiti";
 export type { GrindEdge, GrindEdgeHit } from "./domain/grind-edges";
 export {
   closestOnEdge,

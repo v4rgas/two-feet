@@ -32,7 +32,8 @@ Downloaded on 2026-09-27 from [google/fonts](https://github.com/google/fonts).
 | File | Font | Copyright | Used for |
 |---|---|---|---|
 | `SpaceMono-Bold.latin.woff2` | Space Mono Bold | 2016 The Space Mono Project Authors | "v4rgas.com" on the v4rgas banner (the v4rgas.com site font) |
-| `BagelFatOne-Regular.latin.woff2` | Bagel Fat One | 2022 The Bagel Fat Project Authors | the bubble letters of the generated graffiti tag |
+| `BagelFatOne-Regular.latin.woff2` | Bagel Fat One | 2022 The Bagel Fat Project Authors | the bubble letters of the generated graffiti (throw-up, wildstyle floor piece) |
+| `SedgwickAve-Regular.latin.woff2` | Sedgwick Ave | 2017 The Sedgwick Ave Project Authors | the handstyle tags of the generated graffiti (tags and scribbles) |
 
 ## Sponsor brand assets (`public/sponsors/`), not open licensed
 

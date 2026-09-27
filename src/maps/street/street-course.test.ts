@@ -386,14 +386,16 @@ describe("street course dressing (barriers, banners, graffiti)", () => {
     });
   });
 
-  it("carries a couple of graffiti pieces, on walls only (never a riding surface)", () => {
+  it("carries a healthy amount of graffiti (8–14 pieces) on walls, ramps and the ground", () => {
     const pieces = level.graffiti ?? [];
-    expect(pieces.length).toBeGreaterThanOrEqual(2);
-    expect(pieces.length).toBeLessThanOrEqual(4);
-    for (const g of pieces) {
-      expect(Math.abs(g.normal.y), g.pieceId).toBeLessThan(1e-9);
-      expect(g.positionM.y).toBeGreaterThan(g.sizeM * 0.2);
-    }
+    expect(pieces.length).toBeGreaterThanOrEqual(8);
+    expect(pieces.length).toBeLessThanOrEqual(14);
+    const walls = pieces.filter((g) => Math.abs(g.normal.y) < 1e-9);
+    const floors = pieces.filter((g) => g.normal.y > 0.999 && g.positionM.y === 0);
+    const ramps = pieces.filter((g) => g.normal.y > 0.3 && g.normal.y < 0.99);
+    expect(walls.length).toBeGreaterThanOrEqual(2);
+    expect(floors.length).toBeGreaterThanOrEqual(2);
+    expect(ramps.length).toBeGreaterThanOrEqual(4);
   });
 });
 

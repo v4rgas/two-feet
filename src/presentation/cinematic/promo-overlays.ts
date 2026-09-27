@@ -47,13 +47,15 @@ export type TextOverlay = WordmarkOverlay | KickerOverlay | LowerThirdOverlay;
 export interface EndCard {
   /** The game's wordmark, e.g. "TWO FEET". */
   readonly title: string;
-  /** Credit line, e.g. "a game by v4rgas" (Space Mono). */
+  /** The pun under the wordmark's bar, e.g. "two feet. one board." (Space Mono), or "". */
+  readonly tagline: string;
+  /** Credit line beside the penguin, e.g. "a game by v4rgas" (Space Mono). */
   readonly credit: string;
   /** Site, e.g. "v4rgas.com": the part after the last "." is drawn muted. */
   readonly url: string;
   /** Small line at the bottom, or "". */
   readonly line: string;
-  /** Draw the v4rgas 32 × 32 pixel penguin (nearest-neighbour) above the title. */
+  /** Draw the v4rgas 32 × 32 pixel penguin (nearest-neighbour) beside the credit. */
   readonly penguin: boolean;
 }
 

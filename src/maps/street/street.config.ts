@@ -1,7 +1,16 @@
-import type { GraffitiOnFaceOptions, PerimeterOpening, PerimeterSide } from "../../contexts/world";
+import type {
+  GraffitiOnFaceOptions,
+  GraffitiOnGroundOptions,
+  GraffitiOnSurfaceOptions,
+  PerimeterOpening,
+  PerimeterSide,
+} from "../../contexts/world";
 import { deepFreeze, degToRad } from "../../shared";
 
 /** A sponsor's spot on the perimeter (see `perimeter.spots`). */
+/** A graffiti piece on an obstacle's riding surface (`graffitiOnObstacleSurface`). */
+export type SurfaceGraffiti = GraffitiOnSurfaceOptions & { readonly obstacleId: string };
+
 export interface BannerSpot {
   readonly side: PerimeterSide;
   readonly atM: number;
@@ -84,7 +93,10 @@ export const STREET_CONFIG = deepFreeze({
       { zM: 3.5, lengthM: 3, sponsorId: null },
     ],
   },
-  /** A couple of graffiti pieces (STYLE.md): plaza walls, never a riding surface or an edge. */
+  /**
+   * Graffiti (STYLE.md "Graffiti", DESIGN.md): a healthy amount on walls, ramps and the
+   * ground, never over a grind edge or coping, calm in the landing zones. World X/Z.
+   */
   graffiti: {
     /** The 7-stair deck's south side wall, seen from the south lane and the euro gap. */
     stairDeck: {
@@ -100,6 +112,53 @@ export const STREET_CONFIG = deepFreeze({
       sizeM: 1,
       rotationRad: -0.04,
     } satisfies GraffitiOnFaceOptions,
+    /**
+     * On riding surfaces, projected so they follow the slope or the curve. Banks: mid-slope,
+     * clear of the rails (the funbox's bank rail runs at z = 0.6) and of the top edges.
+     */
+    surfaces: [
+      // Funbox −X bank (facing the 7-stair roll-out): the sticker-bomb cluster.
+      { obstacleId: "funbox", pieceId: "sticker-bomb", sizeM: 1, xM: 2.62, zM: -0.9 },
+      // Funbox +X bank (facing the quarter pipe): the penguin stencil.
+      { obstacleId: "funbox", pieceId: "penguin-stencil", sizeM: 0.9, xM: 10.38, zM: -0.9 },
+      // Funbox −Z bank (facing the long ledge): tags.
+      { obstacleId: "funbox", pieceId: "tag-scribbles", sizeM: 1.6, xM: 6.5, zM: -2.38 },
+      // Quarter pipe: the big wildstyle across the transition's lower half (the coping, at
+      // 1.2 m, stays clean: the piece tops out ≈ 0.6 m up), south of the main line.
+      { obstacleId: "qp-east", pieceId: "v4rgas-wildstyle", sizeM: 3, xM: 16.9, zM: -2.5 },
+      // Quarter pipe deck, north end, read from the course (its up toward +X), well
+      // behind the coping.
+      {
+        obstacleId: "qp-east",
+        pieceId: "tag-scribbles",
+        sizeM: 1.3,
+        xM: 18.3,
+        zM: 3,
+        rotationRad: -Math.PI / 2,
+      },
+      // Bank-to-ledge: the flow arrow along the bank, below the ledge.
+      { obstacleId: "bank-ledge", pieceId: "flow-arrow", sizeM: 1.6, xM: 13.5, zM: -9 },
+      // Hip: the pixel penguin on its −X bank.
+      { obstacleId: "hip", pieceId: "pixel-penguin", sizeM: 0.9, xM: 13.6, zM: 9.3 },
+      // Euro-gap platform top, read rolling toward the drop (+X).
+      {
+        obstacleId: "gap-platform",
+        pieceId: "v4rgas-throwup",
+        sizeM: 1.4,
+        xM: -11,
+        zM: -9,
+        rotationRad: -Math.PI / 2,
+      },
+    ] satisfies SurfaceGraffiti[],
+    /** On the ground (y = 0), in open flat between the features. */
+    ground: [
+      // A calm target in the 7-stair's landing, read from the top of the stairs.
+      { pieceId: "landing-target", xM: -2.2, zM: 0, sizeM: 1.3, rotationRad: -Math.PI / 2 },
+      // The big floor piece between the 7-stair deck and the gap platform.
+      { pieceId: "v4rgas-wildstyle", xM: -12, zM: -4.7, sizeM: 3.2 },
+      // Middle lane, between the stair sets: an arrow toward the flat bar.
+      { pieceId: "flow-arrow", xM: -5.8, zM: 4.6, sizeM: 2 },
+    ] satisfies GraffitiOnGroundOptions[],
   },
   /** One quarter pipe, across the east end (it rises toward +X). */
   quarterPipe: {

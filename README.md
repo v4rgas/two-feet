@@ -1,6 +1,6 @@
-# Skate
+# Two Feet
 
-A physics skateboard game for the browser, where each foot has its own keys. No trick
+A physics skateboard game for the browser, played with two feet: each foot has its own keys. No trick
 buttons: the feet push the board, the physics reacts, and the game names what the board
 did. A game by [v4rgas](https://v4rgas.com).
 
@@ -18,8 +18,10 @@ clips land) and `pnpm test:human` (lines played with sloppy human timing).
 
 ## Play
 
-The first launch opens a short tutorial on flat ground (push, ollie, kickflip). After
-that you're on the Street Course. Later launches open the last map you played.
+The first launch opens with a short intro (a hardflip down a two-foot drop, any key skips
+it), then a short tutorial on flat ground (push, ollie, kickflip). After that you're on the
+Street Course. Later launches open the last map you played; `Esc` → **Intro** replays the
+intro.
 
 | Keys (regular stance) | |
 |---|---|
@@ -32,7 +34,7 @@ that you're on the Street Course. Later launches open the last map you played.
 | `Q` / `E` | body spin, steer |
 | `R` | restart at your checkpoint, or at the start |
 | `C` | set a checkpoint (on four wheels) |
-| `Esc` | menu: maps, stance, tutorial, controls |
+| `Esc` | menu: maps, stance, tutorial, intro, controls |
 
 In goofy the two key clusters swap feet. Change stance in the menu. The menu's
 **Controls** page shows every move in your stance.
@@ -48,7 +50,7 @@ shows in the menu. See [`src/maps/README.md`](src/maps/README.md).
 
 ## More
 
-- [`GAME.md`](GAME.md): the game shell (tutorial, maps, menu, checkpoints)
+- [`GAME.md`](GAME.md): the game shell (intro, tutorial, maps, menu, checkpoints)
 - [`MECHANICS.md`](MECHANICS.md): the trick mechanics
 - [`REQUIREMENTS.md`](REQUIREMENTS.md): architecture (DDD contexts, layer rules)
 - [`STYLE.md`](STYLE.md): look and feel

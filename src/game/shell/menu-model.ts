@@ -27,6 +27,8 @@ export interface MenuContext {
   readonly stance: Stance;
   readonly tutorialRunning: boolean;
   readonly hasCheckpoint: boolean;
+  /** An opening cinematic exists (GAME.md "Intro"): the menu lists "Intro" to replay it. */
+  readonly hasIntro?: boolean;
 }
 
 /** What the game shell should do. */
@@ -37,7 +39,8 @@ export type MenuAction =
   | { readonly type: "clearCheckpoint" }
   | { readonly type: "setStance"; readonly stance: Stance }
   | { readonly type: "startTutorial" }
-  | { readonly type: "skipTutorial" };
+  | { readonly type: "skipTutorial" }
+  | { readonly type: "playIntro" };
 
 export type MenuInput =
   | { readonly type: "toggle" }
@@ -112,12 +115,28 @@ function rows(state: MenuState, ctx: MenuContext): Row[] {
               view: { label: "Tutorial", disabled: false },
               run: () => ({ state: CLOSED_MENU, action: { type: "startTutorial" } }),
             },
+        ...(ctx.hasIntro === true
+          ? [
+              {
+                view: { label: "Intro", disabled: false },
+                run: () => ({ state: CLOSED_MENU, action: { type: "playIntro" } as const }),
+              },
+            ]
+          : []),
         {
           view: { label: "Controls", disabled: false },
           run: () => ({ state: { open: true, screen: "controls", index: 0 } }),
         },
       ];
   }
+}
+
+/** Index of the main screen's row with this label (0 if absent). */
+function rowIndex(ctx: MenuContext, label: string): number {
+  return Math.max(
+    0,
+    rows(MAIN, ctx).findIndex((r) => r.view.label === label),
+  );
 }
 
 /** The next enabled row from `index` in direction `step` (wrapping), or `index`. */
@@ -162,14 +181,19 @@ export function menuReduce(
       return activate(input.index);
     case "back":
       if (state.screen !== "main") {
-        const from = state.screen === "maps" ? 1 : 6;
+        const from = state.screen === "maps" ? 1 : rowIndex(ctx, "Controls");
         return { state: { open: true, screen: "main", index: from }, action: null };
       }
       return { state: CLOSED_MENU, action: { type: "resume" } };
   }
 }
 
-const TITLES: Record<MenuScreen, string> = { main: "Paused", maps: "Maps", controls: "Controls" };
+/** The main screen carries the wordmark (STYLE.md "Wordmark"); "paused" is its subtitle. */
+const TITLES: Record<MenuScreen, string> = {
+  main: "TWO FEET",
+  maps: "Maps",
+  controls: "Controls",
+};
 
 /** The menu's read model for the view. */
 export function menuView(state: MenuState, ctx: MenuContext): MenuViewModel {
@@ -179,6 +203,7 @@ export function menuView(state: MenuState, ctx: MenuContext): MenuViewModel {
   return {
     open: true,
     title: TITLES[state.screen],
+    ...(state.screen === "main" ? { subtitle: "paused" } : {}),
     items: all.map((r, i) => ({ ...r.view, selected: i === index })),
     ...(state.screen === "controls" ? { controls: controlRows(ctx.stance) } : {}),
   };

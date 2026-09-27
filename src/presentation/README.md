@@ -41,8 +41,23 @@ it never mutates domain state. The look is in [`STYLE.md`](../../STYLE.md).
   `.dependency-cruiser.cjs`: only `scene/board-mesh.ts` may import it).
 - `graffiti-art.ts` sprays each piece on a canvas: overspray halo, rough outline, drips,
   speckle, all from the seed (deterministic).
-- `graffiti-decals.ts`: every placement of a piece becomes a quad just off its wall, merged
-  per piece, drawn unlit with multiply blending (the concrete and its shadows show
-  through), no depth write, polygon offset. No collider, no per-frame cost.
-- Maps place pieces through the world context (`Level.graffiti`, `graffitiOnFace`); see
-  the world README.
+- Pieces: `v4rgas-throwup`, `pixel-penguin`, `penguin-king` (walls), and for any
+  surface `v4rgas-wildstyle` (big floor/ramp letters), `penguin-stencil`, `tag-scribbles`
+  (Sedgwick Ave handstyle, OFL), `sticker-bomb`, `landing-target` (calm, for landings),
+  `flow-arrow`.
+- `graffiti-decals.ts`: every placement is a **projected decal**. `projectDecal` takes the
+  level's world triangles (body and edge faces of every obstacle, and the ground slabs;
+  never rails or banners), keeps those facing the decal (normal · decal normal ≥
+  `graffiti.minFacing`), clips them to the decal's box (the art's rectangle ×
+  ± `projectHalfDepthM` along the normal, Sutherland–Hodgman) and gives each vertex the
+  art's UV from its place in the box. So a piece follows the ground, a wall, a sloped
+  bank and the facets of a curved transition, and is cut where the surface ends. Vertices
+  are lifted `liftM` along the decal normal, and the material has a polygon offset (no
+  z-fighting). All placements of a piece are merged into one mesh (one draw call per
+  piece), drawn unlit with multiply blending, no depth write. Built once per level: no
+  collider, no per-frame cost.
+- Maps place pieces through the world context (`Level.graffiti`, `graffitiOnFace`,
+  `graffitiOnGround`, `graffitiOnObstacleSurface`); see the world README.
+  `src/game/maps/graffiti-placements.test.ts` checks every map: known pieces, ≥ 70 % of
+  each piece on a surface, clear of grind edges, and the same obstacles and Rapier
+  colliders with or without graffiti.

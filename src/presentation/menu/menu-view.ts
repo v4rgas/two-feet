@@ -19,6 +19,7 @@ export interface MenuCredit {
 export class MenuView {
   private readonly root: HTMLDivElement;
   private readonly title: HTMLHeadingElement;
+  private readonly subtitle: HTMLParagraphElement;
   private readonly controls: HTMLDListElement;
   private readonly list: HTMLUListElement;
   private lastKey = "";
@@ -37,12 +38,14 @@ export class MenuView {
     card.className = "skate-menu-card";
     this.title = document.createElement("h2");
     this.title.className = "skate-menu-title";
+    this.subtitle = document.createElement("p");
+    this.subtitle.className = "skate-menu-subtitle";
     this.controls = document.createElement("dl");
     this.controls.className = "skate-menu-controls";
     this.list = document.createElement("ul");
     this.list.className = "skate-menu-list";
     this.list.setAttribute("role", "menu");
-    card.append(this.title, this.controls, this.list);
+    card.append(this.title, this.subtitle, this.controls, this.list);
     if (credit !== undefined) card.append(footer(credit));
     this.root.append(card);
     parent.append(this.root);
@@ -57,6 +60,9 @@ export class MenuView {
     if (!view.open) return;
     this.root.dataset.screen = view.controls === undefined ? "list" : "controls";
     this.title.textContent = view.title;
+    this.title.dataset.wordmark = String(view.subtitle !== undefined);
+    this.subtitle.hidden = view.subtitle === undefined;
+    this.subtitle.textContent = view.subtitle ?? "";
     this.controls.hidden = view.controls === undefined;
     this.controls.replaceChildren(
       ...(view.controls ?? []).flatMap((row) => {

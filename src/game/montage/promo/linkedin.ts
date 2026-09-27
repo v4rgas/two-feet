@@ -184,6 +184,7 @@ export const promoLinkedIn: PromoSequence = {
       fadeOutS: 0,
       card: {
         title: "TWO FEET",
+        tagline: "two feet. one board.",
         credit: "a game by v4rgas",
         url: "v4rgas.com",
         line: "physics-based · every trick is real input",

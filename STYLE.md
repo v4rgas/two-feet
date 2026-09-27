@@ -1,4 +1,4 @@
-# Skate — Style Guide
+# Two Feet — Style Guide
 
 How the game looks, feels, and sounds. The code conventions are in
 [`REQUIREMENTS.md` §2](REQUIREMENTS.md#2-code-requirements).
@@ -17,6 +17,28 @@ What we want the game to feel like:
 - **Readable.** From the board alone you can always tell what your feet are
   doing.
 - **Calm.** No neon, no particle spam, no screen shake unless you bail.
+
+## Wordmark
+
+The game is **Two Feet**. One treatment per context, nothing else:
+
+| Where | Treatment |
+|---|---|
+| Title card (the intro), the Esc menu's main title | **TWO FEET**: caps, Inter 800, letter-spacing 0.04 em. On video it is `concrete-100` with a soft ink shadow, a short `deck` bar under it; in the menu it is `ink` |
+| Credit lines (boot screen, menu footer, tutorial outro, the intro's tagline) | **two feet** lowercase, in Space Mono: "two feet — a game by v4rgas" |
+| Prose, page titles and docs | "Two Feet" (`<title>Two Feet — by v4rgas</title>`) |
+
+- The pun is the point, stated once: "two feet. one board." (one key cluster
+  per foot) and "0.61 m" (two feet is the euro gap's drop). Never more
+  tagline than that.
+- The v4rgas pixel penguin sits beside the credit, always with crisp
+  nearest-neighbour pixels.
+- **The intro's title card** (`VideoHud`'s title card, drawn on the video
+  canvas): centred a little above the middle, fading and rising in ≈ 0.35 s
+  after the landing, over the roll-away until the fade to black, on a soft
+  horizontal `ink` band (≤ 42 %, fading out at its edges) so the light type
+  reads over the pale plaza. The quiet hint "any key to skip" sits in the
+  bottom-right corner (Space Mono, 55 % `ink`) for the whole intro.
 
 ## Palette
 
@@ -83,11 +105,20 @@ front and back.
   is plain concrete (an unknown sponsor id also renders plain). No neon, no motion.
 - **The deck's penguin art** (`deck-penguin.jpg`) is the deck decal ONLY: never a
   banner, a graffiti piece or any other surface (enforced by a dependency-cruiser rule).
-- **Graffiti:** a couple of pieces per map, never everywhere. Only our own marks
-  (the v4rgas pixel penguin and lettering, never the deck art), sprayed: soft overspray halo,
-  rough outline, a few drips, speckle. Multiplied into the wall so the concrete
-  shows through, a little faded. Palette colours only (moss, blue, deck red, a
-  muted gold, ink).
+- **Graffiti:** a healthy amount, on walls AND on the ground and ramp faces
+  (banks, quarter pipe transitions and decks, platform tops): about 8–14 pieces on
+  the street, 6–10 on El Toro, 3–5 on flat. Only our own marks (the v4rgas pixel
+  penguin, v4rgas lettering, generic doodles: stars, crowns, arrows, a target;
+  never the deck art, BipBop's marks or game taglines), sprayed: soft overspray
+  halo, rough outline, a few drips, speckle. Multiplied into the surface so the
+  concrete shows through, a little faded. Palette colours only (moss, blue, deck
+  red, a muted gold, ink). Keep it readable:
+  - never over a grind edge or coping: the edges must stay readable (a piece
+    stays ≥ 3 cm clear of every grind edge; tested);
+  - landing zones stay calm: at most a quiet mark (the thin `landing-target`),
+    never a busy piece where the rider lands;
+  - on a ramp the art's up points up the slope; floor pieces read from where
+    the rider usually comes from.
 - Proportions follow the real board, with the physics values as the source of
   truth: deck about 0.80 × 0.21 m, wheelbase about 0.36 m, wheels 54 mm.
   Rendering must match the collider shapes exactly, because the player reads

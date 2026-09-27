@@ -375,10 +375,14 @@ describe("El Toro dressing (fence, banners, graffiti)", () => {
     }
   });
 
-  it("carries a couple of graffiti pieces, on walls only", () => {
+  it("carries 6–10 graffiti pieces: walls, the quad floor, the walkway ramp, the courtyard", () => {
     const pieces = level.graffiti ?? [];
-    expect(pieces.length).toBeGreaterThanOrEqual(2);
-    expect(pieces.length).toBeLessThanOrEqual(4);
-    for (const g of pieces) expect(Math.abs(g.normal.y), g.pieceId).toBeLessThan(1e-9);
+    expect(pieces.length).toBeGreaterThanOrEqual(6);
+    expect(pieces.length).toBeLessThanOrEqual(10);
+    expect(pieces.filter((g) => Math.abs(g.normal.y) < 1e-9).length).toBeGreaterThanOrEqual(2);
+    // Courtyard ground, the quad (≈ 3.3 m up), and the sloped walkway ramp.
+    expect(pieces.some((g) => g.normal.y > 0.999 && g.positionM.y === 0)).toBe(true);
+    expect(pieces.some((g) => g.normal.y > 0.999 && g.positionM.y > QUAD_Y - 0.1)).toBe(true);
+    expect(pieces.some((g) => g.normal.y > 0.9 && g.normal.y < 0.999)).toBe(true);
   });
 });

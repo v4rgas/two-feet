@@ -17,6 +17,8 @@ const REF_SHORT_SIDE = 720;
 const MARGIN = 56;
 const PAD_SIZE = 58;
 const PAD_GAP = 14;
+/** STYLE.md "Wordmark": TWO FEET is tracked 0.04 em. */
+const WORDMARK_SPACING_EM = 0.04;
 
 /** v4rgas brand (STYLE.md "Banners"): a black field, white type, muted ".com". */
 const V4RGAS_BLACK = "#000000";
@@ -28,6 +30,20 @@ const INTER = "Inter, system-ui, sans-serif";
 export interface VideoHudOptions {
   /** Draw the foot pads (`&pads`). */
   readonly pads: boolean;
+  /** A quiet line in the bottom-right corner for the whole clip (the intro's skip hint). */
+  readonly hint?: string;
+  /** The wordmark card (the intro), shown once `LowerThirdsModel.cueTitleCard` is called. */
+  readonly titleCard?: TitleCardContent;
+}
+
+/** The intro's title card (STYLE.md "Wordmark"). */
+export interface TitleCardContent {
+  /** The wordmark, e.g. "TWO FEET". */
+  readonly title: string;
+  readonly tagline: string;
+  readonly credit: string;
+  /** The pixel penguin beside the credit, drawn with crisp pixels (null = none). */
+  readonly icon: CanvasImageSource | null;
 }
 
 /** What a clip shows besides the picture (a promo's text; the montage uses the defaults). */
@@ -38,10 +54,10 @@ export interface ClipHudOptions {
 
 /**
  * The montage's "video" HUD, drawn on a 2D canvas so the SAME pixels are shown over the
- * game and composited into the recording: a trick lower-third, a clip title card, a
- * promo's text overlays and end card, optional foot pads and the fade between clips.
- * While it exists, the DOM game HUD is hidden (the `skate-montage` body class) and the
- * debug overlay stays off.
+ * game and composited into the recording: a trick lower-third, a clip title card, the
+ * intro's wordmark card, a promo's text overlays and end card, optional foot pads and the
+ * fade between clips. While it exists, the DOM game HUD is hidden (the `skate-montage`
+ * body class) and the debug overlay stays off.
  */
 export class VideoHud {
   readonly overlay: HTMLCanvasElement;
@@ -74,7 +90,10 @@ export class VideoHud {
 
   /** Loads what the promo text and end card draw with (Space Mono, the pixel penguin). */
   async preload(): Promise<void> {
-    await loadFont("Space Mono", "700", publicUrl("fonts/SpaceMono-Bold.latin.woff2"));
+    await Promise.all([
+      loadFont("Space Mono", "700", publicUrl("fonts/SpaceMono-Bold.latin.woff2")),
+      loadFont("Space Mono", "400"),
+    ]);
     this.penguin = await loadImage(publicUrl("sponsors/v4rgas/penguin.png")).catch(() => null);
   }
 
@@ -140,9 +159,12 @@ export class VideoHud {
     if (this.endCard !== null) this.drawEndCard(ctx, this.endCard, u, w, h);
     this.drawTitle(ctx, u);
     const card = this.model.current;
-    if (card !== null)
+    if (card !== null) {
       this.drawLowerThird(ctx, u, h, card, this.model.opacity, this.model.entrance);
+    }
+    this.drawTitleCard(ctx, u, w, h);
     for (const v of this.promo.visible) this.drawPromoOverlay(ctx, v, u, w, h);
+    this.drawHint(ctx, u, w, h);
     if (this.options.pads) this.drawPads(ctx, u, w, h);
     if (this.fade > 0) {
       ctx.globalAlpha = this.fade;
@@ -178,6 +200,76 @@ export class VideoHud {
     ctx.restore();
   }
 
+  /** The wordmark card: centred a little above the middle, over the roll-away. */
+  private drawTitleCard(ctx: CanvasRenderingContext2D, u: number, w: number, h: number): void {
+    const card = this.options.titleCard;
+    const opacity = this.model.titleCardOpacity;
+    if (card === undefined || opacity <= 0) return;
+    const p = this.presentation.palette;
+    const cx = w / 2;
+    const rise = (1 - opacity) ** 2 * 14 * u;
+    const top = h * 0.24 + rise;
+    const titleSize = 96 * u;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    // A soft ink band behind the card, so light type reads over the pale plaza and sky.
+    const bandTop = top - 40 * u;
+    const bandH = titleSize + 190 * u;
+    const band = ctx.createLinearGradient(0, bandTop, 0, bandTop + bandH);
+    band.addColorStop(0, hexWithAlpha(p.ink, 0));
+    band.addColorStop(0.5, hexWithAlpha(p.ink, 0.42));
+    band.addColorStop(1, hexWithAlpha(p.ink, 0));
+    ctx.fillStyle = band;
+    ctx.fillRect(0, bandTop, w, bandH);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    // The wordmark: Inter 800, caps, a little tracking.
+    ctx.font = `800 ${titleSize}px ${INTER}`;
+    setSpacing(ctx, titleSize * WORDMARK_SPACING_EM);
+    ctx.fillStyle = p.concrete100;
+    shadowText(ctx, card.title, cx, top + titleSize * 0.8, u);
+    setSpacing(ctx, 0);
+    // The accent: a short bar in the deck colour, like the lower-thirds' edge.
+    const barY = top + titleSize * 0.8 + 20 * u;
+    ctx.fillStyle = p.deck;
+    ctx.fillRect(cx - 28 * u, barY, 56 * u, 5 * u);
+    // The pun, in the credit face.
+    const taglineY = barY + 39 * u;
+    ctx.font = `400 ${20 * u}px ${SPACE_MONO}`;
+    ctx.fillStyle = p.concrete100;
+    shadowText(ctx, card.tagline, cx, taglineY, u);
+    // The credit, with the pixel penguin (crisp nearest-neighbour pixels).
+    ctx.font = `400 ${14 * u}px ${SPACE_MONO}`;
+    const iconSize = card.icon === null ? 0 : 24 * u;
+    const spacing = card.icon === null ? 0 : 10 * u;
+    const rowW = iconSize + spacing + ctx.measureText(card.credit).width;
+    const rowY = taglineY + 40 * u;
+    const left = cx - rowW / 2;
+    if (card.icon !== null) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(card.icon, left, rowY - iconSize * 0.8, iconSize, iconSize);
+    }
+    ctx.textAlign = "left";
+    ctx.globalAlpha = opacity * 0.85;
+    shadowText(ctx, card.credit, left + iconSize + spacing, rowY, u);
+    ctx.restore();
+  }
+
+  /** The hint line, bottom-right, quiet. */
+  private drawHint(ctx: CanvasRenderingContext2D, u: number, w: number, h: number): void {
+    const hint = this.options.hint;
+    if (hint === undefined || hint === "") return;
+    ctx.save();
+    // Ink, quiet: the plaza and the sky are both pale, so dark type reads on either.
+    ctx.globalAlpha = 0.55;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = `400 ${13 * u}px ${SPACE_MONO}`;
+    ctx.fillStyle = this.presentation.palette.ink;
+    ctx.fillText(hint, w - MARGIN * 0.6 * u, h - MARGIN * 0.6 * u);
+    ctx.restore();
+  }
+
   private drawLowerThird(
     ctx: CanvasRenderingContext2D,
     u: number,
@@ -192,14 +284,8 @@ export class VideoHud {
     const text = card.tone === "bail" ? card.text.toLowerCase() : card.text;
     // A long line name shrinks to fit a narrow (portrait) frame.
     const maxNameW = ctx.canvas.width - 2 * MARGIN * u - 36 * u;
-    const nameSize = fitFontPx(
-      ctx,
-      text,
-      `800 %px ${INTER}`,
-      maxNameW,
-      (card.tone === "bail" ? 34 : 46) * u,
-      0,
-    );
+    const baseSize = (card.tone === "bail" ? 34 : 46) * u;
+    const nameSize = fitFontPx(ctx, text, `800 %px ${INTER}`, maxNameW, baseSize, 0);
     const captionSize = 17 * u;
     ctx.save();
     ctx.globalAlpha = opacity;
@@ -229,7 +315,7 @@ export class VideoHud {
     if (caption !== "") {
       ctx.fillStyle = p.concrete600;
       ctx.font = `600 ${captionSize}px ${INTER}`;
-      if ("letterSpacing" in ctx) ctx.letterSpacing = `${1.5 * u}px`;
+      setSpacing(ctx, 1.5 * u);
       ctx.fillText(caption, x + padX, top + 13 * u + nameSize + 8 * u);
     }
     ctx.restore();
@@ -264,16 +350,30 @@ export class VideoHud {
     ctx.fillStyle = p.concrete100;
     if (o.kind === "wordmark") {
       const y = (o.atY ?? 0.2) * h + rise;
-      const size = fitFontPx(ctx, o.text, `800 %px ${INTER}`, 0.86 * w, 128 * u, 0.03);
+      const size = fitFontPx(
+        ctx,
+        o.text,
+        `800 %px ${INTER}`,
+        0.86 * w,
+        128 * u,
+        WORDMARK_SPACING_EM,
+      );
       ctx.font = `800 ${size}px ${INTER}`;
-      setSpacing(ctx, 0.03 * size);
+      setSpacing(ctx, WORDMARK_SPACING_EM * size);
       softShadow(ctx, u);
       ctx.fillText(o.text, w / 2, y);
+      setSpacing(ctx, 0);
+      // The deck-red bar under the wordmark (the intro's title card).
+      const barY = y + size * 0.5;
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = p.deck;
+      ctx.fillRect(w / 2 - 0.29 * size, barY, 0.58 * size, 0.052 * size);
       if (o.sub !== undefined) {
-        const subSize = size * 0.3;
-        ctx.font = `600 ${subSize}px ${INTER}`;
-        setSpacing(ctx, 0.12 * subSize);
-        ctx.fillText(o.sub, w / 2, y + size * 0.62 + subSize * 0.3);
+        const subSize = size * 0.24;
+        ctx.fillStyle = p.concrete100;
+        ctx.font = `400 ${subSize}px ${SPACE_MONO}`;
+        softShadow(ctx, u);
+        ctx.fillText(o.sub, w / 2, barY + 0.052 * size + subSize * 1.1);
       }
     } else {
       const size = fitFontPx(ctx, o.text, `700 %px ${INTER}`, 0.86 * w, 40 * u, 0);
@@ -284,7 +384,11 @@ export class VideoHud {
     ctx.restore();
   }
 
-  /** The closing card (v4rgas brand: black, the pixel penguin, Space Mono). */
+  /**
+   * The closing card: the intro's title card on the v4rgas black (STYLE.md "Wordmark"):
+   * TWO FEET, a short deck-red bar, the tagline, the pixel penguin beside the credit, the
+   * site, and a small line at the bottom.
+   */
   private drawEndCard(
     ctx: CanvasRenderingContext2D,
     card: EndCard,
@@ -299,53 +403,75 @@ export class VideoHud {
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     const cx = w / 2;
-    // The stack: penguin, title, credit, url; centred a little above the middle.
-    const titleSize = fitFontPx(ctx, card.title, `800 %px ${INTER}`, 0.84 * w, 120 * u, 0.03);
-    const penguinPx =
-      card.penguin && this.penguin !== null ? 32 * Math.max(1, Math.floor((210 * u) / 32)) : 0;
-    const creditSize = 32 * u;
+    const titleSize = fitFontPx(
+      ctx,
+      card.title,
+      `800 %px ${INTER}`,
+      0.84 * w,
+      124 * u,
+      WORDMARK_SPACING_EM,
+    );
+    const taglineSize = 30 * u;
+    const creditSize = 28 * u;
     const urlSize = 40 * u;
-    const gap = 26 * u;
+    const penguinPx =
+      card.penguin && this.penguin !== null ? 32 * Math.max(1, Math.floor((64 * u) / 32)) : 0;
+    const barH = 7 * u;
+    const gap = 30 * u;
+    const rowH = Math.max(penguinPx, creditSize);
     const stackH =
-      penguinPx +
-      (penguinPx > 0 ? gap : 0) +
-      titleSize * 0.78 +
+      titleSize * 0.74 +
+      gap * 0.7 +
+      barH +
       gap +
-      creditSize +
-      gap * 2.2 +
+      taglineSize +
+      gap * 1.6 +
+      rowH +
+      gap * 1.4 +
       urlSize;
-    let y = (h - stackH) / 2 - 0.03 * h;
-    if (penguinPx > 0 && this.penguin !== null) {
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(
-        this.penguin,
-        Math.round(cx - penguinPx / 2),
-        Math.round(y),
-        penguinPx,
-        penguinPx,
-      );
-      ctx.imageSmoothingEnabled = true;
-      y += penguinPx + gap;
-    }
+    let y = (h - stackH) / 2;
+    // The wordmark.
+    y += titleSize * 0.74;
     ctx.fillStyle = p.concrete100;
     ctx.font = `800 ${titleSize}px ${INTER}`;
-    setSpacing(ctx, 0.03 * titleSize);
-    y += titleSize * 0.78;
+    setSpacing(ctx, WORDMARK_SPACING_EM * titleSize);
     ctx.fillText(card.title, cx, y);
     setSpacing(ctx, 0);
+    // The deck-red bar.
+    y += gap * 0.7;
+    ctx.fillStyle = p.deck;
+    ctx.fillRect(cx - 40 * u, y, 80 * u, barH);
+    y += barH + gap + taglineSize * 0.8;
+    // The pun, in the credit face.
+    if (card.tagline !== "") {
+      ctx.fillStyle = p.concrete100;
+      ctx.font = `400 ${taglineSize}px ${SPACE_MONO}`;
+      ctx.fillText(card.tagline, cx, y);
+    }
+    y += taglineSize * 0.2 + gap * 1.6;
+    // The pixel penguin beside the credit (crisp nearest-neighbour pixels).
     ctx.font = `700 ${creditSize}px ${SPACE_MONO}`;
+    const creditW = ctx.measureText(card.credit).width;
+    const spacing = penguinPx > 0 ? 16 * u : 0;
+    const left = cx - (penguinPx + spacing + creditW) / 2;
+    if (penguinPx > 0 && this.penguin !== null) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(this.penguin, Math.round(left), Math.round(y), penguinPx, penguinPx);
+      ctx.imageSmoothingEnabled = true;
+    }
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = V4RGAS_MUTED;
-    y += gap + creditSize;
-    ctx.fillText(card.credit, cx, y);
+    ctx.fillText(card.credit, left + penguinPx + spacing, y + rowH / 2);
+    y += rowH + gap * 1.4 + urlSize * 0.8;
     // "v4rgas" in white, ".com" muted (the banner's lockup), centred as one line.
-    y += gap * 2.2 + urlSize;
+    ctx.textBaseline = "alphabetic";
     ctx.font = `700 ${urlSize}px ${SPACE_MONO}`;
     const dot = card.url.lastIndexOf(".");
     const name = dot > 0 ? card.url.slice(0, dot) : card.url;
     const tld = dot > 0 ? card.url.slice(dot) : "";
     const nameW = ctx.measureText(name).width;
     const tldW = ctx.measureText(tld).width;
-    ctx.textAlign = "left";
     const x0 = cx - (nameW + tldW) / 2;
     ctx.fillStyle = V4RGAS_WHITE;
     ctx.fillText(name, x0, y);
@@ -355,7 +481,7 @@ export class VideoHud {
       ctx.textAlign = "center";
       const lineSize = fitFontPx(ctx, card.line, `600 %px ${INTER}`, 0.84 * w, 21 * u, 0.06);
       ctx.font = `600 ${lineSize}px ${INTER}`;
-      setSpacing(ctx, 0.08 * lineSize);
+      setSpacing(ctx, 0.06 * lineSize);
       ctx.fillStyle = p.concrete600;
       ctx.fillText(card.line, cx, h - MARGIN * 1.4 * u);
     }

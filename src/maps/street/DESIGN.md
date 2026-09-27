@@ -125,11 +125,19 @@ Built in `street-dressing.ts` from `STREET_CONFIG.perimeter`, `deckFence` and `g
     of the funbox and flat-bar shots, and on the west run behind the 7-stair deck
     (z −0.8…3), seen when you carve back toward the spawn.
   - Every other segment is plain concrete (no house banners).
-- **Graffiti** (two pieces, walls only, clear of riding surfaces and grind edges):
-  - a `v4rgas-throwup` on the 7-stair deck's south side wall (under the hubba, x ≈ −9),
-    seen from the south lane and the euro gap;
-  - a `penguin-king` on the plain barrier in the south-west corner, behind the gap
-    platform.
-  The other planned spots (the up-ledge's front face, the hip's back walls, the quarter
-  pipe's deck face) stay clean: STYLE.md asks for a couple of pieces per map, and the
-  hip's walls and the deck face look at the fence, where hardly anyone would see them.
+- **Graffiti** (13 pieces, `STREET_CONFIG.graffiti`; every one clear of the grind edges
+  and coping, the landing zones calm):
+  - walls: a `v4rgas-throwup` on the 7-stair deck's south side wall (x ≈ −9), seen from
+    the south lane and the euro gap; a `penguin-king` on the plain barrier in the
+    south-west corner, behind the gap platform;
+  - the funbox's banks: a `sticker-bomb` on the −X bank, a `penguin-stencil` on the +X
+    bank (both at z = −0.9, away from the bank rail), `tag-scribbles` on the −Z bank;
+  - the quarter pipe: a big `v4rgas-wildstyle` (3 m) over the lower half of the
+    transition south of the main line (z ≈ −2.5; it tops out ≈ 0.6 m up, the coping at
+    1.2 m stays clean), and `tag-scribbles` on the deck's north end, read from the course;
+  - a `flow-arrow` along the bank of the bank-to-ledge, below the ledge; a
+    `pixel-penguin` on the hip's −X bank; a `v4rgas-throwup` on the euro-gap platform's
+    top, read rolling toward the drop;
+  - the ground: a calm `landing-target` in the 7-stair's landing (x ≈ −2.2), a big
+    `v4rgas-wildstyle` between the 7-stair deck and the gap platform (x ≈ −12, z ≈ −4.7),
+    and a `flow-arrow` in the middle lane pointing at the flat bar.
