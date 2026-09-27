@@ -58,6 +58,23 @@ export const WORLD_CONFIG = deepFreeze({
     railPostHalfSizeM: 0.025,
     /** Distance from each end of a rail to the centre of its post, m. */
     railPostInsetM: 0.35,
+    /** Perimeter barrier (`barrier` kind): top chamfer and the banner panel's inset, m. */
+    barrier: {
+      edgeChamferM: 0.025,
+      /** How far the banner plate stands proud of the barrier face. */
+      bannerPanelThicknessM: 0.012,
+      /** Gap between the panel and each end of the barrier. */
+      bannerInsetEndsM: 0.12,
+      bannerInsetBottomM: 0.1,
+      /** Gap between the panel top and the start of the top chamfer. */
+      bannerInsetTopM: 0.06,
+      /** `perimeterBarriers` defaults: height, thickness and target segment length, m. */
+      perimeterHeightM: 0.9,
+      perimeterThicknessM: 0.3,
+      perimeterSegmentLengthM: 4,
+      /** Leftover runs shorter than this (next to an opening or a corner) are dropped, m. */
+      perimeterMinSegmentM: 0.6,
+    },
   },
 });
 

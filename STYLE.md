@@ -7,7 +7,8 @@ How the game looks, feels, and sounds. The code conventions are in
 
 **Clean low-poly concrete.** The mood is an empty plaza on a late afternoon.
 Surfaces are flat-shaded, shadows are soft, and nothing distracts from the
-board. The board is the star. The rider is secondary; for now it is just two
+board. Real (CC0) textures add grain up close, never pattern: the silhouettes
+stay low-poly and the palette stays the palette. The board is the star. The rider is secondary; for now it is just two
 feet and a hint of legs.
 
 What we want the game to feel like:
@@ -25,8 +26,9 @@ What we want the game to feel like:
 | `concrete-300` | `#c9c4b8` | obstacles, ramps |
 | `concrete-600` | `#7d786e` | edges, coping, shadows tint |
 | `ink` | `#1c1b19` | griptape, HUD text |
-| `sky-top` | `#f3d9b1` | sky gradient top (warm) |
-| `sky-bottom` | `#cfe0e6` | sky gradient horizon (cool) |
+| `sky-zenith` | `#a9c6d8` | sky high up (soft blue) |
+| `sky-horizon` | `#ece3d3` | hazy warm horizon, and the fog colour |
+| `sun-glow` | `#ffd9a8` | glow around the low sun on the sky dome |
 | `deck` | `#c8553d` | deck underside / graphic |
 | `wheel` | `#f4efe3` | wheels |
 | `metal` | `#9aa0a6` | trucks, rails |
@@ -42,10 +44,47 @@ front and back.
 ## 3D
 
 - Materials are `MeshStandardMaterial` with `flatShading: true`. Keep geometry
-  low-poly. No textures in M1–M3, except a simple grip tape noise.
-- Lighting: 1 directional sun, warm, low angle, casting shadows, plus a
-  hemisphere fill. Use PCF soft shadows. Only the board and obstacles cast
-  shadows.
+  low-poly.
+- **Textures (CC0 only):** each level tone has a detail set (color + normal +
+  roughness, 1K WebP, `public/textures/`, licences in `LICENSES.md`): smooth
+  trowelled concrete on ramps, ledges, stairs and barriers; a rougher broom-finish
+  concrete on the ground (one tile per 3 m slab, so the joints hide the repeat);
+  brushed steel on rails and coping; a fine granular grip tape on the deck.
+  - The colour maps are neutral grey detail maps: the palette token tints them, so a
+    textured surface keeps its token (`concrete-300` obstacles still read as
+    `concrete-300`). Normal strength ≈ 0.35–0.55: grain you notice up close, not
+    from across the plaza.
+  - UVs are projected in world space (box/triplanar style), so every obstacle tiles
+    at the same real scale: ≈ 3 m per repeat for concrete, 0.6 m for steel.
+  - Until textures load (and in tests) surfaces show their flat palette colours.
+- **Contact shading:** vertical faces darken slightly (≤ 22 %) in the lowest
+  35 cm, a cheap stand-in for ambient occlusion where walls meet the ground.
+- Lighting: 1 directional sun, warm (`#ffead4`), low angle, casting shadows,
+  plus a hemisphere fill (cool sky `#dfe8ee` over a concrete bounce). PCF soft
+  shadows (radius 4 on a 4096 map over ±7 m around the board, so nearby obstacles
+  shadow too). Only the board and obstacles cast shadows.
+- Sky: a dome from the warm hazy horizon (the fog colour, so the far ground melts
+  into it) to a soft blue zenith, with a warm glow around the sun. Fog from 30 m
+  to 130 m. Tone mapping: Khronos PBR Neutral with sRGB output (it keeps base
+  colours true, which the foot colours and the sponsors' brand colours need;
+  ACES filmic is available in `presentation.config.ts` but shifts hues). No
+  post-processing.
+
+## Barriers, banners and graffiti
+
+- **Perimeter barriers:** low (0.9 m) chamfered concrete walls in the obstacle
+  tones, never grindable. A banner is a thin plate on the park-facing side.
+- **Banners** are calm, flat artwork at a 5:1 tile, each sponsor exactly by its
+  own brand rules. BipBop Labs: cream `#f7f5f0`, the penguin head mark (the only
+  logo; never the body mark), "BipBop Labs_" with "Bop" and the underscore in moss
+  `#3d7a3a`, "bipbop.cl". v4rgas: black, the 32 × 32 pixel penguin with crisp
+  nearest-neighbour pixels, "v4rgas.com" in Space Mono. House banners use the
+  deck's penguin art or the HUD's foot pads. Alternate them; no neon, no motion.
+- **Graffiti:** a couple of pieces per map, never everywhere. Only our penguins
+  (the deck art and the v4rgas pixel penguin), sprayed: soft overspray halo,
+  rough outline, a few drips, speckle. Multiplied into the wall so the concrete
+  shows through, a little faded. Palette colours only (moss, blue, deck red, a
+  muted gold, ink).
 - Proportions follow the real board, with the physics values as the source of
   truth: deck about 0.80 × 0.21 m, wheelbase about 0.36 m, wheels 54 mm.
   Rendering must match the collider shapes exactly, because the player reads

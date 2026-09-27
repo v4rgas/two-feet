@@ -5,6 +5,7 @@ import { WORLD_CONFIG } from "../world.config";
 import type {
   BankLedgeShape,
   BankShape,
+  BarrierShape,
   BoxShape,
   FunboxShape,
   FunboxSide,
@@ -27,8 +28,12 @@ import type {
  * wound counter-clockwise seen from outside (right-hand normal points outward).
  */
 
-/** Render tone of a face: STYLE.md concrete body, darker edges/coping, metal rails. */
-export type FaceTone = "body" | "edge" | "metal";
+/**
+ * Render tone of a face: STYLE.md concrete body, darker edges/coping, metal rails, and
+ * `banner`: the artwork face of a barrier's banner panel (the renderer maps the
+ * obstacle's sponsor artwork onto it).
+ */
+export type FaceTone = "body" | "edge" | "metal" | "banner";
 
 /** One planar face of a convex piece. */
 export interface GeometryFace {
@@ -1314,8 +1319,54 @@ export function shapeGeometry(
     case "bankLedge":
       pieces = bankLedgeGeometry(surface, shape, config);
       break;
+    case "barrier":
+      pieces = barrierGeometry(shape, config);
+      break;
   }
   return { pieces };
+}
+
+/**
+ * A barrier: one chamfered concrete block along X (the profile of a ledge), plus a thin
+ * banner plate proud of the front (+Z) face, and of the back face too with
+ * `banner.sides: "both"`. The plate's outer face has the `banner` tone, its rim `metal`.
+ * Every piece is `ground`: a barrier is solid but never grindable (it has no grind edges).
+ */
+function barrierGeometry(shape: BarrierShape, config: GeometryConfig): ConvexPiece[] {
+  const b = config.barrier;
+  const t = shape.thicknessM / 2;
+  const h = shape.heightM;
+  const c = Math.min(b.edgeChamferM, t / 2, h / 2);
+  const profile: P2[] = [
+    [-t, 0],
+    [t, 0],
+    [t, h - c],
+    [t - c, h],
+    [-t + c, h],
+    [-t, h - c],
+  ];
+  const sides: FaceTone[] = ["body", "body", "edge", "body", "edge", "body"];
+  const halfL = shape.lengthM / 2;
+  const pieces = [prism("ground", profile, -halfL, halfL, "body", sides, X_FRAME)];
+
+  const banner = shape.banner;
+  const x0 = -halfL + b.bannerInsetEndsM;
+  const x1 = halfL - b.bannerInsetEndsM;
+  const y0 = b.bannerInsetBottomM;
+  const y1 = h - c - b.bannerInsetTopM;
+  if (banner === undefined || x1 <= x0 || y1 <= y0) return pieces;
+  const p = b.bannerPanelThicknessM;
+  // boxPiece faces: [0] the +Z cap, [1] the −Z cap, then the rim.
+  const panel = (z0: number, z1: number, artFace: 0 | 1): ConvexPiece => {
+    const box = boxPiece("ground", Vec3.create(x0, y0, z0), Vec3.create(x1, y1, z1), "metal");
+    return {
+      ...box,
+      faces: box.faces.map((f, i) => (i === artFace ? { ...f, tone: "banner" } : f)),
+    };
+  };
+  pieces.push(panel(t, t + p, 0));
+  if (banner.sides === "both") pieces.push(panel(-t - p, -t, 1));
+  return pieces;
 }
 
 /** Convex pieces of an obstacle, in its local frame (`obstacle.transform` places them). */

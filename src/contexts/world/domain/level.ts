@@ -1,4 +1,6 @@
 import type { ObstacleId, Vec3 } from "../../../shared";
+import type { GraffitiPlacement } from "./graffiti";
+import { createGraffiti } from "./graffiti";
 import type { Obstacle } from "./obstacle";
 import { ObstacleShape } from "./obstacle";
 
@@ -16,6 +18,8 @@ export interface Level {
   readonly name: string;
   readonly obstacles: readonly Obstacle[];
   readonly spawn: Spawn;
+  /** Decorative graffiti decals (visual only, never colliders). `Level.create` defaults it to []. */
+  readonly graffiti?: readonly GraffitiPlacement[];
 }
 
 /**
@@ -38,11 +42,20 @@ function create(input: Level): Level {
   if (!Number.isFinite(input.spawn.headingRad)) {
     throw new RangeError(`Level "${input.id}": spawn heading must be finite`);
   }
+  const graffiti = (input.graffiti ?? []).map((g) => {
+    try {
+      return createGraffiti(g);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new RangeError(`Level "${input.id}": ${reason}`);
+    }
+  });
   return Object.freeze({
     id: input.id,
     name: input.name,
     obstacles: Object.freeze([...input.obstacles]),
     spawn: Object.freeze({ ...input.spawn }),
+    graffiti: Object.freeze(graffiti),
   });
 }
 

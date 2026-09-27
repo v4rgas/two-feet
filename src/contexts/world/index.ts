@@ -1,6 +1,12 @@
 /** Public API of the `world` context. */
 export type { ObstacleId, SurfaceType } from "../../shared";
 export { SURFACE_TYPES } from "../../shared";
+export type {
+  GraffitiOnFaceOptions,
+  GraffitiPlacement,
+  ObstacleFaceSide,
+} from "./domain/graffiti";
+export { createGraffiti, graffitiOnFace } from "./domain/graffiti";
 export type { GrindEdge, GrindEdgeHit } from "./domain/grind-edges";
 export {
   closestOnEdge,
@@ -18,6 +24,9 @@ export { isMapDefinition } from "./domain/map-definition";
 export type {
   BankLedgeShape,
   BankShape,
+  BarrierBanner,
+  BarrierBannerSides,
+  BarrierShape,
   BoxShape,
   FunboxBankRail,
   FunboxShape,
@@ -63,5 +72,12 @@ export {
   stairsHeightM,
   stairsSlopeRad,
 } from "./domain/obstacle-geometry";
+export type {
+  PerimeterBounds,
+  PerimeterOpening,
+  PerimeterOptions,
+  PerimeterSide,
+} from "./domain/perimeter";
+export { perimeterBarriers } from "./domain/perimeter";
 export type { WorldConfig } from "./world.config";
 export { WORLD_CONFIG } from "./world.config";

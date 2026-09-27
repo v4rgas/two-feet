@@ -17,11 +17,55 @@ Levels, obstacles, surface types.
   - `funbox`: a flat top (`topLengthM` × `topWidthM`, `heightM` up, centred on the origin); each side is a `bank` (at `bankAngleRad`), a `wall` or a `ledge` (a wall with a chamfered, grindable top edge). Two banks meeting at a corner make a hip. The top, banks, rounded crests and rounded hip ridges are ONE convex piece (the intersection of their half-spaces: no seam on the top or at the crests); each bank's concave toe is a rounded fillet of convex pieces with buried seams (ADR 0008). Optional `topRail` (a flat bar across the top along X) and `bankRail` (a down rail: flat on the top, then down a ±X bank).
   - `kinkedRail`: a round bar along X, flat → down → flat (`flatTopM`, `downRunM`, `dropM`, `flatBottomM`, `heightM` of the bottom flat), on posts. One convex piece per run: at the convex kink the upper run reaches over it (clipped to the next run's top) and the lower run starts `seamBuryM` below, at the concave kink both runs overlap under each other, so no seam edge sits on the bar's top.
   - `bankLedge`: a bank (rounded toe) rising toward +X to `bankHeightM`, into a chamfered concrete ledge block standing `ledgeHeightM` above the bank's top edge.
+  - `barrier`: a perimeter barrier segment: a low chamfered concrete wall along X (`lengthM`, `heightM`, `thicknessM`, standing on y = 0), its local +Z face the FRONT. Optional `banner: { sponsorId, sides?: "front" | "both" }` adds a thin banner plate (12 mm proud of the face, inset from the ends, below the chamfer) whose outer face has the `banner` tone; the renderer maps that sponsor's artwork onto it. Solid and `ground` in every piece; it has **no grind edges** (never grindable). Sizes in `WORLD_CONFIG.geometry.barrier`.
 - **Obstacle geometry** (`obstacle-geometry.ts`, pure). Besides extrusions, a piece can be built as the intersection of half-spaces (`halfSpacePiece`: vertices where three planes meet, faces sorted around each plane), which is how the funbox, the kinked rail's runs and the rounded toes are made: `obstacleGeometry(obstacle)` returns **convex pieces**. Each piece has vertices, outward-wound faces with a render tone (`body`, `edge` or `metal`), and its own surface type. Physics and rendering both use these same pieces (ADR 0008). The tessellation settings are in `WORLD_CONFIG.geometry`.
 - **Obstacle collider** (`obstacleCollider(obstacle)`): structurally a board `StaticColliderDesc`. It is a box for `box` shapes, and a `compound` of convex hulls (one per piece, each with its surface) for everything else.
 - **Grind edge** (VO, `grind-edges.ts`, pure, M4): `obstacleGrindEdges(obstacle)` gives every edge a board can grind or slide on as a straight segment on top of the edge's profile, in the world frame: `startM`, `endM`, `outwardNormal` (horizontal, away from the obstacle), `surface`, `obstacleId`, `twoSided` (a bar: rail, handrail) and `halfWidthM`. Rail bar, coping (out over the transition), hubba steel edge (a flat segment on the platform and a sloped one), ledge top edges (where the top face meets the chamfers) and handrail. Queries: `grindEdgesNear(edges, point, radius)` (nearest first), `nearestGrindEdge`, `closestOnEdge`. See [ADR 0009](../../../docs/adr/0009-grinds.md).
 - **Surface type** (VO): `ground | ramp | grindable | ledge`. Contacts and `SurfaceContact*` events carry it per piece, for example `grindable` for a truck on the coping or a rail.
 - **Spawn** (VO): a ground point plus a heading. The board adds its own rest height.
+- **Graffiti placement** (VO, `graffiti.ts`, pure): `{ pieceId, positionM, normal, sizeM, rotationRad? }` in the world frame, listed in `Level.graffiti` (optional input, defaults to `[]`, validated by `Level.create`). Pure decoration: the renderer paints the piece as a decal; it is never a collider and never touches physics.
+
+## Barriers, sponsors and graffiti: how a map places them
+
+Everything below is data in the map's `createLevel()`; the renderer does the rest.
+
+```ts
+import { graffitiOnFace, Level, perimeterBarriers } from "../../contexts/world";
+
+const ring = perimeterBarriers(
+  { minXM: -27, maxXM: 27, minZM: -15, maxZM: 15 }, // outer faces of the ring, world m
+  {
+    idPrefix: "barrier",                              // ids: barrier-<side>-<n>
+    openings: [{ side: "west", centerM: 0, widthM: 4 }], // centre = world X (north/south) or Z (east/west)
+    banners: ["bipbop", "v4rgas", "house-deck", null], // cycled along the ring; null = plain wall
+    // heightM (0.9), thicknessM (0.3), segmentLengthM (4), bannerSides, sides: optional
+  },
+);
+const graffiti = [
+  graffitiOnFace(someLedge, { pieceId: "v4rgas-throwup", face: "-z", sizeM: 0.7, alongM: -1 }),
+  graffitiOnFace(ring[3], { pieceId: "penguin-king", face: "+z", sizeM: 1 }), // a plain segment
+];
+return Level.create({ id, name, obstacles: [...ground, ...course, ...ring], spawn, graffiti });
+```
+
+- `perimeterBarriers(bounds, options)` rings the rectangle just inside `bounds` (north = +Z,
+  south = −Z, east = +X, west = −X; north/south run the full width, east/west fit between
+  them), splits each straight run evenly near `segmentLengthM`, leaves the `openings`,
+  drops slivers shorter than `perimeterMinSegmentM`, and turns every segment's front
+  (banner side) inward. Banners go out in ring order: south (west → east), east, north
+  (east → west), west.
+- A single barrier: `{ id, name, surface: "ground", transform, shape: ObstacleShape.barrier({ lengthM, heightM, thicknessM, banner: { sponsorId: "bipbop" } }) }`; its +Z face is the front.
+- **Sponsor ids** live in `src/presentation/sponsors/sponsor-registry.ts`: `bipbop` (BipBop
+  Labs, bipbop.cl), `v4rgas` (v4rgas.com), and the house banners `house-deck`,
+  `house-feet`. An unknown id shows a house banner. Never invent a real brand.
+- **Graffiti pieces** live in `src/presentation/graffiti/graffiti-registry.ts`:
+  `v4rgas-throwup`, `pixel-penguin`, `deck-penguin-roundel`, `penguin-king`.
+  `graffitiOnFace(obstacle, { pieceId, face: "+x" | "-x" | "+z" | "-z", sizeM, alongM?, heightM?, rotationRad? })`
+  puts one on the outermost face looking that way (a ledge side, a funbox wall, a stair
+  set's side wall, a quarter pipe's back, a plain barrier); `createGraffiti` takes a raw
+  world position + normal. Keep it to a couple of pieces per map (STYLE.md). On a
+  bannered barrier the `+z` face is the banner plate: paint the back or a plain segment.
+- Dev demo of all of it: `?level=barrier-demo` (`src/game/dev/barrier-demo.ts`).
 
 ## Levels and maps
 
@@ -43,7 +87,8 @@ built from these kinds.
 
 ## Public API (`index.ts`)
 
-- Types: `Level` (+ `Level.create`), `Obstacle`, `ObstacleShape` (+ factories), the shape interfaces, `Spawn`, `SurfaceType`, `ObstacleId`, `ConvexPiece`, `GeometryFace`, `FaceTone`, `ObstacleGeometry`, `ObstacleColliderDesc`.
+- Types: `Level` (+ `Level.create`), `Obstacle`, `ObstacleShape` (+ factories), the shape interfaces (incl. `BarrierShape`, `BarrierBanner`), `Spawn`, `SurfaceType`, `ObstacleId`, `ConvexPiece`, `GeometryFace`, `FaceTone` (`body | edge | metal | banner`), `ObstacleGeometry`, `ObstacleColliderDesc`, `GraffitiPlacement`, `PerimeterBounds`, `PerimeterOpening`, `PerimeterOptions`.
+- Perimeter and decoration: `perimeterBarriers`, `graffitiOnFace`, `createGraffiti`.
 - Grind edges: `GrindEdge`, `GrindEdgeHit`, `obstacleGrindEdges`, `levelGrindEdges`, `grindEdgesNear`, `nearestGrindEdge`, `closestOnEdge`.
 - Maps: `MapDefinition`, `isMapDefinition`, `groundObstacle`, `GroundParams`.
 - Functions: `obstacleGeometry`, `shapeGeometry`, `obstacleCollider`, and shape helpers (`quarterPipeLipXM`, `quarterPipeLipAngleRad`, `quarterPipeCopingProfile`, `kickerRadiusM`, `kickerLipAngleRad`, `stairsHeightM`, `stairsSlopeRad`, `stairsFootXM`, `handrailZM`, `handrailSpanXM`, `funboxBankRunM`, `kinkedRailTopLine`, `bankLedgeRunM`).
