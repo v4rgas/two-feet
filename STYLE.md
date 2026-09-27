@@ -57,7 +57,11 @@ front and back.
   about its width axis, the way an ankle does. The direction depends on the foot,
   not on which way the stick moves:
   - **Back foot:** always tilts **down**: the toe points down and the heel lifts.
-  - **Front foot:** always tilts **up**: the toes lift and the heel drops.
+  - **Front foot:** tilts **up**: the toes lift and the heel drops.
+  - **Exception: kickflips.** The foot doing a kickflip flick (the guide
+    foot swiping toward the heel edge; the back foot on a nollie kickflip)
+    points its toes **down** while it flicks, like flicking off the corner
+    of the nose, then eases back to its normal tilt. Heelflips keep toes up.
   - The amount follows |stick x|, up to `ankleTiltMaxRad` (≈ 0.45 rad), smoothed
     (`ankleTiltResponseS` ≈ 0.06 s), and goes back to flat as the stick returns.
   - This is visual only and never moves the physics. On the ground, feet
