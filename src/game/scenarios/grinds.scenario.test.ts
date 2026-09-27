@@ -3,6 +3,7 @@ import type { KeyPress } from "../../contexts/input";
 import { createSkateparkLevel, Level, levelGrindEdges } from "../../contexts/world";
 import type { GrindEnded, GrindStarted } from "../../shared";
 import { Vec3 } from "../../shared";
+import { stairsTailslideHardflip } from "../montage/clips/stairs";
 import type { ScenarioHarness, StepRecord } from "./scenario-harness";
 import { ScenarioHarness as Harness } from "./scenario-harness";
 import { airSummary, awayFrom, loadAndPop } from "./scenario-helpers";
@@ -141,7 +142,7 @@ async function slideOntoLedge(
 const G4_SPAWN = { xM: -5, yM: 0.8, zM: 1.42, headingRad: 0, speedMps: 3.5 } as const;
 const G4_KEYS: readonly KeyPress[] = [
   { code: "ArrowDown", atS: 0.56, holdS: 0.32 },
-  { code: "KeyS", atS: 0.58, holdS: 0.35 },
+  { code: "KeyS", atS: 0.58, holdS: 0.37 },
   { code: "KeyW", atS: 0.93, holdS: 0.1 },
   { code: "KeyA", atS: 0.93, holdS: 0.08 },
   { code: "ArrowDown", atS: 0.98, holdS: 0.72 },
@@ -242,6 +243,20 @@ describe("grinds and slides (M4)", () => {
     },
     T,
   );
+
+  it("G4 is the montage clip: same spawn, same key timeline", () => {
+    const byTime = (a: KeyPress, b: KeyPress) => a.atS - b.atS || a.code.localeCompare(b.code);
+    const round = (k: KeyPress) => ({
+      code: k.code,
+      atS: +k.atS.toFixed(4),
+      holdS: +k.holdS.toFixed(4),
+    });
+    expect(stairsTailslideHardflip.spawn).toEqual(G4_SPAWN);
+    expect([...stairsTailslideHardflip.keys].sort(byTime).map(round)).toEqual(
+      [...G4_KEYS].sort(byTime).map(round),
+    );
+    expect(stairsTailslideHardflip.expect.tricks).toEqual([G4_NAME]);
+  });
 
   it(
     "G4 timing: the line still lands with the last catch 0.03 s early or late",
