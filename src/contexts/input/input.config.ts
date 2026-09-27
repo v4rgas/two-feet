@@ -7,7 +7,8 @@ export const INPUT_CONFIG = deepFreeze({
   keys: {
     left: { up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD" },
     right: { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" },
-    push: "Space",
+    /** "Both feet down": push on the ground, catch in the air (the rider decides). */
+    feetDown: "Space",
   },
   /** Spring-damper that turns digital keys into an analog stick (per axis). */
   stick: {

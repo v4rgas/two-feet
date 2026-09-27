@@ -3,10 +3,15 @@ import { Vec3 } from "../../../shared";
 import type { BoardSnapshot, RigidBodyHandle } from "../../board";
 import type { IntentFrame } from "../../input";
 import type { FootForce } from "../domain/foot-force";
-import type { DeckGeometry, FootForceModel, RiderControls } from "../domain/foot-force-model";
-import { GestureFootForceModel } from "../domain/gesture-foot-force-model";
+import type {
+  BoardMassProperties,
+  DeckGeometry,
+  FootForceModel,
+  RiderControls,
+} from "../domain/foot-force-model";
 import { NEUTRAL_CONTROLS, Rider, type RiderChange } from "../domain/rider";
 import type { RiderState } from "../domain/rider-state";
+import { TrickController } from "../domain/trick-controller";
 import type { RiderConfig } from "../rider.config";
 import type { RiderSystem } from "./rider-system";
 
@@ -20,30 +25,44 @@ export interface DefaultRiderSystemDeps {
   readonly config: RiderConfig;
   /** Snapshot to start from (the spawn pose). */
   readonly board: BoardSnapshot;
-  /** Defaults to `GestureFootForceModel`. */
+  /** Defaults to the MECHANICS.md `TrickController`. */
   readonly model?: FootForceModel;
 }
 
 /**
  * `RiderSystem` implementation. Holds the `Rider` aggregate and the `FootForceModel`,
- * applies foot forces through the `RigidBodyHandle` port and publishes the rider's
- * domain events. Listens to `BoardLanded` for landing bails.
+ * applies its forces, impulses and torques through the `RigidBodyHandle` port, tells the
+ * aggregate about pops (feet lift) and catches (feet snap on), and publishes the rider's
+ * domain events plus `BoardPopped`. Listens to `BoardLanded` for landing outcomes.
  */
 export class DefaultRiderSystem implements RiderSystem {
   private readonly body: RigidBodyHandle;
   private readonly bus: EventBus;
   private readonly rider: Rider;
   private readonly model: FootForceModel;
+  private readonly mass: BoardMassProperties;
   private controls: RiderControls = NEUTRAL_CONTROLS;
   private forces: readonly FootForce[] = [];
+  private lastBoard: BoardSnapshot;
 
   constructor(deps: DefaultRiderSystemDeps) {
     this.body = deps.body;
     this.bus = deps.bus;
+    this.lastBoard = deps.board;
     this.rider = new Rider(deps.deck, deps.config, deps.board);
-    this.model = deps.model ?? new GestureFootForceModel(deps.deck, deps.config);
+    this.model = deps.model ?? new TrickController(deps.deck, deps.config);
+    const body = deps.body;
+    this.mass = {
+      get massKg() {
+        return body.getMassKg();
+      },
+      get centerOfMassWorldM() {
+        return body.getCenterOfMassWorld();
+      },
+      angularInertiaTimes: (vectorWorld) => body.angularInertiaTimes(vectorWorld),
+    };
     this.bus.subscribe("BoardLanded", (event) => {
-      this.publish(this.rider.land(event.upDot), event.tick, event.timeS);
+      this.publish(this.rider.land(event.upDot, this.lastBoard), event.tick, event.timeS);
     });
   }
 
@@ -57,43 +76,61 @@ export class DefaultRiderSystem implements RiderSystem {
 
   applyIntents(intents: IntentFrame, board: BoardSnapshot, dtS: number): void {
     this.controls = intents;
-    this.forces = this.model.computeForces({
+    const output = this.model.computeForces({
       controls: intents,
       rider: this.rider.state,
       board,
+      mass: this.mass,
       dtS,
     });
-    // These forces act during the step that produces snapshot `board.tick + 1`.
+    this.forces = output.forces;
+    // These act during the step that produces snapshot `board.tick + 1`.
     const tick = board.tick + 1;
     const timeS = board.timeS + dtS;
-    for (const f of this.forces) {
-      if (f.kind === "force") {
-        this.body.applyForceAtPoint(f.forceN, f.pointWorldM);
-        continue;
-      }
-      this.body.applyImpulseAtPoint(f.impulseNs, f.pointWorldM);
-      if (f.label === "pop") {
-        this.bus.publish({
-          type: "BoardPopped",
-          tick,
-          timeS,
-          foot: f.foot,
-          impulseNs: Vec3.length(f.impulseNs),
-          pointWorldM: f.pointWorldM,
-        });
-      }
+    for (const f of this.forces) this.apply(f);
+    if (output.popped) {
+      const pop = this.forces.find((f) => f.label === "pop" && f.kind === "impulse");
+      this.bus.publish({
+        type: "BoardPopped",
+        tick,
+        timeS,
+        foot: "back",
+        impulseNs: pop?.kind === "impulse" ? Vec3.length(pop.impulseNs) : 0,
+        pointWorldM: pop?.kind === "impulse" ? pop.pointWorldM : board.transform.positionM,
+      });
+      this.publish(this.rider.liftFeet(), tick, timeS);
     }
+    if (output.caught) this.publish(this.rider.catchFeet(board), tick, timeS);
   }
 
   postPhysics(board: BoardSnapshot, dtS: number): void {
+    this.lastBoard = board;
     this.publish(this.rider.update(this.controls, board, dtS), board.tick, board.timeS);
   }
 
   reset(board: BoardSnapshot): void {
+    this.lastBoard = board;
     this.rider.reset(board);
     this.model.reset();
     this.controls = NEUTRAL_CONTROLS;
     this.forces = [];
+  }
+
+  private apply(f: FootForce): void {
+    switch (f.kind) {
+      case "force":
+        this.body.applyForceAtPoint(f.forceN, f.pointWorldM);
+        break;
+      case "impulse":
+        this.body.applyImpulseAtPoint(f.impulseNs, f.pointWorldM);
+        break;
+      case "torque":
+        this.body.applyTorque(f.torqueNm);
+        break;
+      case "angularImpulse":
+        this.body.applyTorqueImpulse(f.impulseNms);
+        break;
+    }
   }
 
   private publish(changes: readonly RiderChange[], tick: number, timeS: number): void {

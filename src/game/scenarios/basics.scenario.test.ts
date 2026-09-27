@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { BoardSpec } from "../../contexts/board";
 import { INPUT_CONFIG } from "../../contexts/input";
+import { RIDER_CONFIG } from "../../contexts/rider";
 import { Transform } from "../../shared";
 import type { ScenarioHarness } from "./scenario-harness";
 import { feetOn, horizontalSpeed, rolling } from "./scenario-helpers";
@@ -59,8 +60,7 @@ describe("carve", () => {
   }
 });
 
-// Re-enabled with the MECHANICS.md trick controller (the old gesture model fails these).
-describe.skip("idle", () => {
+describe("10. idle", () => {
   it(
     "board and feet stay still for 10 s: no drift, no bail",
     async () => {
@@ -80,33 +80,31 @@ describe.skip("idle", () => {
   );
 });
 
-describe.skip("tail hold (↓ held = manual, never a pop)", () => {
+describe("7. tail press (↓ alone)", () => {
   for (const pushS of [0, 1.3]) {
-    it(
-      `${pushS > 0 ? "rolling" : "standing"}: 3 s of ↓ keeps the tail above the ground, no jitter, no pop`,
-      async () => {
-        const h = await track(rolling(pushS));
-        const t0 = h.timeS;
-        h.foot("back", "down", 0, 3).run(3.5);
-        const spec = h.sim.spec;
-        const records = h.since(t0);
-        const tailY = records.map(
-          (r) => Transform.toWorldPoint(r.board.transform, BoardSpec.tailTipLocal(spec)).y,
-        );
-        expect(Math.min(...tailY)).toBeGreaterThan(-0.002);
-        // No jitter: the pitch settles (small step-to-step change once held).
-        const pitches = records.slice(60, 300).map((r) => h.pitchRad(r.board));
-        const jumps = pitches.slice(1).map((p, i) => Math.abs(p - (pitches[i] ?? p)));
-        expect(Math.max(...jumps)).toBeLessThan(0.01);
-        expect(h.eventsOf("BoardPopped")).toHaveLength(0);
-        expect(h.eventsOf("RiderBailed")).toHaveLength(0);
-      },
-      T,
-    );
+    it(`${pushS > 0 ? "rolling" : "standing"}: 3 s of ↓ holds ≈ manualPitchRad, tail above −2 mm, no jitter, release does not pop`, async () => {
+      const h = await track(rolling(pushS));
+      const t0 = h.timeS;
+      h.foot("back", "down", 0, 3).run(3.6);
+      const spec = h.sim.spec;
+      const held = h.since(t0 + 0.6).filter((r) => r.timeS <= t0 + 3);
+      const tailY = h
+        .since(t0)
+        .map((r) => Transform.toWorldPoint(r.board.transform, BoardSpec.tailTipLocal(spec)).y);
+      expect(Math.min(...tailY)).toBeGreaterThan(-0.002);
+      const pitches = held.map((r) => h.pitchRad(r.board));
+      const mean = pitches.reduce((a, p) => a + p, 0) / pitches.length;
+      expect(Math.abs(mean - RIDER_CONFIG.tricks.manualPitchRad)).toBeLessThan(0.05);
+      const jumps = pitches.slice(1).map((p, i) => Math.abs(p - (pitches[i] ?? p)));
+      expect(Math.max(...jumps)).toBeLessThan(0.01);
+      expect(h.eventsOf("BoardPopped")).toHaveLength(0);
+      expect(h.eventsOf("RiderBailed")).toHaveLength(0);
+      expect(h.board.wheelsDown).toBe(4);
+    }, T);
   }
 });
 
-describe.skip("no free thrust: feet alone never speed the board up", () => {
+describe("8. no free thrust: feet alone never speed the board up", () => {
   const dirs = ["up", "down", "left", "right"] as const;
   const combos: [string, string][] = [];
   const left = INPUT_CONFIG.keys.left;
@@ -120,10 +118,11 @@ describe.skip("no free thrust: feet alone never speed the board up", () => {
     combos.push([a, b]);
   }
 
-  for (const pushS of [0, 0.7]) {
-    it(`${pushS > 0 ? "from ~2 m/s" : "from rest"}: every single key and pair held 5 s stays within +0.3 m/s`, async () => {
+  for (const pushS of [0, 1.1]) {
+    it(`${pushS > 0 ? "from ~3 m/s" : "from rest"}: every single key and pair held 5 s stays within +0.3 m/s`, async () => {
       for (const [a, b] of combos) {
         const h = await rolling(pushS);
+        open.push(h);
         const last = h.records.at(-1);
         const startSpeed = last === undefined ? 0 : horizontalSpeed(last);
         const t0 = h.timeS;
@@ -131,7 +130,6 @@ describe.skip("no free thrust: feet alone never speed the board up", () => {
         if (b !== "") h.press({ code: b, atS: 0, holdS: 5 });
         h.run(5);
         const maxSpeed = Math.max(...h.since(t0).map(horizontalSpeed));
-        h.dispose();
         expect(maxSpeed, `${a}+${b}`).toBeLessThan(startSpeed + 0.3);
       }
     }, 120_000);

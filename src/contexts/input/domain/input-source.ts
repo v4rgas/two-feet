@@ -15,7 +15,7 @@ export type ControlCluster = "left" | "right";
 export interface RawInputSample {
   readonly left: StickValue;
   readonly right: StickValue;
-  readonly push: boolean;
+  readonly feetDown: boolean;
 }
 
 /**

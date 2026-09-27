@@ -18,6 +18,8 @@ export const RIDER_CONFIG = deepFreeze({
     maxSlideSpeedMps: 2.5,
     /** Detached feet hover this far above the level deck under the torso, m. */
     airLiftM: 0.04,
+    /** A back foot this close to (or past) the start of the tail kick is "over the tail", m. */
+    tailZoneMarginM: 0.03,
   },
   /** Standing on the board: weight at the feet, carving lean, push (MECHANICS.md "Rolling"). */
   stance: {
@@ -46,8 +48,11 @@ export const RIDER_CONFIG = deepFreeze({
   tricks: {
     /** A stick past this (toward a key's direction) counts as that key held. */
     keyDownStick: 0.5,
-    /** …and back within this counts as released. */
-    keyUpStick: 0.3,
+    /**
+     * While loaded, the back stick rising above −this counts as ↓ released (the pop). High,
+     * so the pop fires ≈ 25 ms after the key-up instead of waiting for the stick to relax.
+     */
+    popReleaseStick: 0.85,
     /** Both sticks within this radius in the air = "all foot keys released" (catch). */
     releasedRadius: 0.35,
 
@@ -56,12 +61,19 @@ export const RIDER_CONFIG = deepFreeze({
     /** Loading longer than this adds nothing, s. */
     loadMaxS: 0.35,
     /** Pop height (board centre above its rest height) at no / full load, m. */
-    popMinHeightM: 0.18,
-    popMaxHeightM: 0.4,
+    popMinHeightM: 0.22,
+    popMaxHeightM: 0.45,
     /** The tail snap: nose-up pitch rate right after the pop, rad/s. */
-    popPitchRateRadps: 6,
+    popPitchRateRadps: 4.5,
     /** Gravity used to predict the airtime (same as the board's world), m/s². */
     gravityMps2: 9.81,
+    /**
+     * The airtime prediction ends when the board centre is this far above its rest height
+     * (a tilted or flipping board touches down with a wheel or an edge earlier), m.
+     */
+    landingMarginM: 0.06,
+    /** Floor of the predicted remaining airtime, so a very late flick is not infinitely fast, s. */
+    minAirtimeS: 0.05,
 
     /** Tail press (↓ alone): PD toward this nose-up pitch, rad. */
     manualPitchRad: 0.16,
@@ -93,9 +105,13 @@ export const RIDER_CONFIG = deepFreeze({
     catchRollRad: 0.7,
     /** …and yaw within this of 0° or 180° from the rider heading. */
     catchYawRad: 0.6,
+    /** After a catch attempt outside the cone, Space is locked out this long, s. */
+    catchRetryS: 0.15,
+    /** Easy mode: releasing every foot key in the air also catches. */
+    autoCatchOnRelease: false,
     /** Catch PD gain (0–1) and natural frequency, rad/s: kills spin, levels, snaps yaw. */
     catchAssist: 0.8,
-    catchOmegaRadps: 18,
+    catchOmegaRadps: 25,
 
     /** An uncaught board lands clean only within this tilt, rad. */
     landTiltRad: 0.5,

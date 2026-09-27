@@ -164,6 +164,39 @@ ROLLING ──(↓ held, no set)──────────▶ TAIL PRESS (ma
 - **Otherwise:** the bail rules in REQUIREMENTS §1.3.
 - **Landing assist:** it adds suspension damping and removes small bounce.
 
+## Nollie: the same mechanic, mirrored
+
+Everything above also works from the nose, with the two feet swapping jobs.
+The mechanic is written in terms of two roles:
+
+- **Pop foot:** the foot on the kick that pops. It loads, pops, and does the
+  shove-it.
+- **Guide foot:** the other foot. It sets, levels, and flicks.
+
+| | Ollie (from the tail) | Nollie (from the nose) |
+|---|---|---|
+| Pop foot | back foot on the tail | front foot on the nose |
+| Guide foot | front foot | back foot |
+| Load | `↓` + `D` | `W` + `→` (back foot set toward the toe edge) |
+| Pop | release `↓` | release `W` |
+| Level | `W` (guide foot → nose) | `↓` (guide foot → tail) |
+| Kickflip | `A` / `W`+`A` | `←` / `↓`+`←` (guide foot → heel edge) |
+| Shove-it (BS / FS) | `←` / `→` | `A` / `D` (pop foot sweeps) |
+| Press (manual) | hold `↓` alone: tail press | hold `W` alone: nose press |
+
+(Regular-stance keys; goofy mirrors them the same way as in the key table.)
+
+**Physics:** identical, with nose and tail swapped. The pitch impulse is
+nose-down (the tail rises), levelling drives the pitch to 0 from the other
+side, and the manual controller holds `−manualPitchRad`. The flip direction is
+defined by the edge the guide foot flicks off. The trick is recognised as
+"nollie kickflip" and similar (the M2 recognizer reads which kick popped from
+`BoardPopped`, which carries the `foot` and a new `kick: "tail" | "nose"`).
+
+**Conflicts:** only one foot can be the pop foot at a time. If both kicks are
+loaded, the one loaded first wins. The other foot's input is then read as the
+guide foot.
+
 ## Tunables (`rider.config.ts` → `tricks` block)
 
 These are all first guesses. The dev tuning panel must expose them live.
@@ -207,4 +240,6 @@ These are all first guesses. The dev tuning panel must expose them live.
    every pair of them, held for 5 s without `Space`. Horizontal speed never
    exceeds start + 0.3 m/s.
 9. **Catch cone:** `Space` pressed mid-flip (board upside down) does not catch. Pressing it again after `catchRetryS` near upright does catch.
-10. **Idle:** 10 s with no input. No drift and no bail.
+10. **Nollie:** scenarios 1, 3 and 5 mirrored from the nose (`W`+`→`, release `W`, `↓` / `←` / `A`, `Space`) give the same results, with pitch mirrored.
+11. **Nose press:** hold `W` alone for 3 s. Pitch ≈ −`manualPitchRad`, the nose stays above −2 mm, and releasing does not pop.
+12. **Idle:** 10 s with no input. No drift and no bail.

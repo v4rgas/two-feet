@@ -1,4 +1,4 @@
-import type { FootId } from "../../../shared";
+import type { FootId, Stance } from "../../../shared";
 import type { StickValue, StickVelocity } from "./stick-value";
 
 /** What one foot wants this step (value object). Output of the `input` context. */
@@ -14,6 +14,8 @@ export interface FootIntent {
 export interface IntentFrame {
   readonly front: FootIntent;
   readonly back: FootIntent;
-  /** Push button held this step (Space, for now). */
-  readonly push: boolean;
+  /** "Both feet down" (Space) held this step: push on the ground, catch in the air (rider). */
+  readonly feetDown: boolean;
+  /** Which foot is in front; decides which board edge is the toe edge (ADR 0002). */
+  readonly stance: Stance;
 }

@@ -242,7 +242,8 @@ class DemoGame {
     const frame = {
       front: intent("front", front, this.prevFront),
       back: intent("back", back, this.prevBack),
-      push: false,
+      feetDown: false,
+      stance: this.stance,
     };
     this.prevFront = front;
     this.prevBack = back;
@@ -345,6 +346,7 @@ class DemoGame {
     return {
       id,
       contact: detached ? "airborne" : "attached",
+      riderPosition: DeckPosition.create(along, across),
       deckPosition: DeckPosition.create(along, across),
       pressure: detached ? 0 : id === "back" && stick.y < -0.5 ? 1 : 0.5,
       positionWorldM: detached ? hover : onDeck,
@@ -361,6 +363,7 @@ class DemoGame {
       front: this.foot("front", s.frontDetached, this.intents.front.stick, t, timeS),
       back: this.foot("back", bailed, this.intents.back.stick, t, timeS),
       torsoPositionWorldM: Vec3.add(t.positionM, Vec3.create(0, RIDER_CONFIG.torso.heightM, 0)),
+      headingRad: 0,
       bailed,
     };
     const vectors: DebugVector[] = [];
@@ -368,7 +371,7 @@ class DemoGame {
       if (foot.contact !== "attached") continue;
       const down = Transform.toWorldDirection(
         t,
-        Vec3.create(0, -RIDER_CONFIG.forces.footPressN * foot.pressure, 0),
+        Vec3.create(0, -2 * RIDER_CONFIG.stance.standingPressN * foot.pressure, 0),
       );
       vectors.push({
         kind: "force",

@@ -8,7 +8,7 @@ import { DefaultInputSystem } from "./default-input-system";
 const DT = 1 / 120;
 
 class ScriptedSource implements InputSource {
-  current: RawInputSample = { left: StickValue.NEUTRAL, right: StickValue.NEUTRAL, push: false };
+  current: RawInputSample = { left: StickValue.NEUTRAL, right: StickValue.NEUTRAL, feetDown: false };
   sample(): RawInputSample {
     return this.current;
   }
@@ -39,7 +39,7 @@ describe("DefaultInputSystem", () => {
     );
     expect(system.lastIntents.front.stick).toEqual({ x: 0, y: 0 });
     expect(system.lastIntents.back.stick).toEqual({ x: 0, y: 0 });
-    expect(system.lastIntents.push).toBe(false);
+    expect(system.lastIntents.feetDown).toBe(false);
   });
 
   it("regular: WASD drives the front foot and arrows the back foot", () => {
@@ -48,7 +48,7 @@ describe("DefaultInputSystem", () => {
     source.current = {
       left: StickValue.create(0, 1),
       right: StickValue.create(0, -1),
-      push: true,
+      feetDown: true,
     };
     settle(system);
     const frame = system.lastIntents;
@@ -56,7 +56,7 @@ describe("DefaultInputSystem", () => {
     expect(frame.front.foot).toBe("front");
     expect(frame.front.stick.y).toBeCloseTo(1, 2);
     expect(frame.back.stick.y).toBeCloseTo(-1, 2);
-    expect(frame.push).toBe(true);
+    expect(frame.feetDown).toBe(true);
   });
 
   it("goofy swaps the clusters: arrows drive the front foot", () => {
@@ -69,7 +69,7 @@ describe("DefaultInputSystem", () => {
     source.current = {
       left: StickValue.create(0, 1),
       right: StickValue.create(0, -1),
-      push: false,
+      feetDown: false,
     };
     settle(system);
     expect(system.stance).toBe("goofy");
@@ -81,7 +81,7 @@ describe("DefaultInputSystem", () => {
     const source = new ScriptedSource();
     const repo = new MemoryStanceRepository();
     const system = new DefaultInputSystem(source, repo, INPUT_CONFIG);
-    source.current = { left: StickValue.create(1, 0), right: StickValue.NEUTRAL, push: false };
+    source.current = { left: StickValue.create(1, 0), right: StickValue.NEUTRAL, feetDown: false };
     settle(system);
     expect(system.lastIntents.front.stick.x).toBeCloseTo(1, 2);
 
@@ -98,7 +98,7 @@ describe("DefaultInputSystem", () => {
   it("exposes stick velocity for flick detection", () => {
     const source = new ScriptedSource();
     const system = new DefaultInputSystem(source, new MemoryStanceRepository(), INPUT_CONFIG);
-    source.current = { left: StickValue.create(1, 0), right: StickValue.NEUTRAL, push: false };
+    source.current = { left: StickValue.create(1, 0), right: StickValue.NEUTRAL, feetDown: false };
     const frame = system.step(DT);
     expect(frame.front.stickVelocityPerS.x).toBeGreaterThan(0);
     expect(frame.back.stickVelocityPerS).toEqual({ x: 0, y: 0 });
@@ -110,7 +110,7 @@ describe("DefaultInputSystem", () => {
     source.current = {
       left: StickValue.create(1, 1),
       right: StickValue.create(-1, -1),
-      push: false,
+      feetDown: false,
     };
     settle(system, 10);
     system.reset();

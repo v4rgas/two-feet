@@ -24,6 +24,8 @@ export type FootDetachReason =
   | "tooFast"
   /** The board moved away from the foot (e.g. it fell / flipped away). */
   | "separated"
+  /** The rider jumped (the pop): both feet leave the deck until the catch. */
+  | "jumped"
   /** Forced by a reset or bail. */
   | "reset";
 

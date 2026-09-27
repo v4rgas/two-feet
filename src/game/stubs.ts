@@ -27,7 +27,8 @@ function neutralIntent(foot: FootId): FootIntent {
 const NEUTRAL_INTENTS: IntentFrame = {
   front: neutralIntent("front"),
   back: neutralIntent("back"),
-  push: false,
+  feetDown: false,
+  stance: INPUT_CONFIG.stance.defaultStance,
 };
 
 export class StubInputSystem implements InputSystem {
@@ -93,6 +94,7 @@ function restingFoot(id: FootId, alongM: number, board: BoardSnapshot): FootStat
   return {
     id,
     contact: "attached",
+    riderPosition: DeckPosition.create(alongM, 0),
     deckPosition: DeckPosition.create(alongM, 0),
     pressure: 0,
     positionWorldM: Transform.toWorldPoint(board.transform, Vec3.create(alongM, 0, 0)),
@@ -111,6 +113,7 @@ export class StubRiderSystem implements RiderSystem {
       front: restingFoot("front", 0.12, board),
       back: restingFoot("back", -0.2, board),
       torsoPositionWorldM: Vec3.add(board.transform.positionM, Vec3.create(0, 0.9, 0)),
+      headingRad: 0,
       bailed: false,
     };
   }

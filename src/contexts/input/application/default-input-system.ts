@@ -43,7 +43,7 @@ export class DefaultInputSystem implements InputSystem {
     const sample = this.source.sample();
     this.sticks.left.update(sample.left, dtS);
     this.sticks.right.update(sample.right, dtS);
-    this.last = this.buildFrame(sample.push);
+    this.last = this.buildFrame(sample.feetDown);
     return this.last;
   }
 
@@ -60,11 +60,12 @@ export class DefaultInputSystem implements InputSystem {
     this.last = this.buildFrame(false);
   }
 
-  private buildFrame(push: boolean): IntentFrame {
+  private buildFrame(feetDown: boolean): IntentFrame {
     return Object.freeze({
       front: this.intentFor("front"),
       back: this.intentFor("back"),
-      push,
+      feetDown,
+      stance: this.currentStance,
     });
   }
 

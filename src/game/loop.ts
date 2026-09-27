@@ -149,16 +149,20 @@ export class GameLoop {
         },
       });
     }
+    const boardOriginM = this.current.transform.positionM;
     for (const f of this.systems.rider.lastForces) {
+      // Torques and angular impulses are drawn as axis arrows at the board centre.
+      const [kind, originWorldM, vectorWorld] =
+        f.kind === "force"
+          ? (["force", f.pointWorldM, f.forceN] as const)
+          : f.kind === "impulse"
+            ? (["impulse", f.pointWorldM, f.impulseNs] as const)
+            : f.kind === "torque"
+              ? (["force", boardOriginM, f.torqueNm] as const)
+              : (["impulse", boardOriginM, f.impulseNms] as const);
       this.debugVectors.push({
         timeS: this.timeS,
-        vector: {
-          kind: f.kind,
-          foot: f.foot,
-          label: f.label,
-          originWorldM: f.pointWorldM,
-          vectorWorld: f.kind === "force" ? f.forceN : f.impulseNs,
-        },
+        vector: { kind, foot: f.foot, label: f.label, originWorldM, vectorWorld },
       });
     }
   }

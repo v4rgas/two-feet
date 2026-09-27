@@ -13,13 +13,13 @@ type ClusterKeys = KeyBindings["left"];
 
 /**
  * Keyboard adapter of the `InputSource` port: WASD = left cluster, arrows = right
- * cluster, Space = push (codes from `INPUT_CONFIG.keys`, matched on `KeyboardEvent.code`
+ * cluster, Space = feet down (codes from `INPUT_CONFIG.keys`, matched on `KeyboardEvent.code`
  * so layouts like AZERTY still use the physical WASD position).
  *
  * - Opposite keys on one axis: the most recently pressed wins (so a flick from one side
  *   to the other does not stall at 0 while both are down).
  * - `blur` releases every key (a keyup that happens in another window is never seen).
- * - `preventDefault` on arrows and the push key, so the page does not scroll.
+ * - `preventDefault` on arrows and the feet-down key, so the page does not scroll.
  */
 export class KeyboardInputSource implements InputSource {
   /** Held key code → press order (higher = more recent). */
@@ -36,7 +36,7 @@ export class KeyboardInputSource implements InputSource {
       keys.right.down,
       keys.right.left,
       keys.right.right,
-      keys.push,
+      keys.feetDown,
     ]);
     target.addEventListener("keydown", this.onKeyDown);
     target.addEventListener("keyup", this.onKeyUp);
@@ -47,7 +47,7 @@ export class KeyboardInputSource implements InputSource {
     return {
       left: this.clusterValue(this.keys.left),
       right: this.clusterValue(this.keys.right),
-      push: this.held.has(this.keys.push),
+      feetDown: this.held.has(this.keys.feetDown),
     };
   }
 

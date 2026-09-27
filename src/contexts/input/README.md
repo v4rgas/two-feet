@@ -10,7 +10,7 @@ Turns raw device input into per-foot intent. Knows about stance.
 - **Stick value** — smoothed analog position in `[-1, 1]²`, in **board axes**: `y` +1 = toward the nose, `x` +1 = toward the board's +Z side (screen right with the follow camera). Toe/heel meaning is resolved by `rider`.
 - **Virtual stick** — spring-damper that turns digital keys into a stick value (tuning in `input.config.ts`). One per cluster (the smoothing belongs to the keys); changing stance resets both.
 - **Foot intent** — what one foot wants this step: stick value + stick velocity (for flicks).
-- **Intent frame** — both feet's intents + `push`.
+- **Intent frame** — both feet's intents + `feetDown` (Space: "both feet down" — the rider reads it as a push on the ground and a catch in the air).
 
 ## Smoothing (`SpringVirtualStick`)
 

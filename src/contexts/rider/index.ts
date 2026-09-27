@@ -13,17 +13,19 @@ export type { FootContact, FootState } from "./domain/foot";
 export type { FootForce, FootForceLabel } from "./domain/foot-force";
 export type {
   BoardKinematics,
+  BoardMassProperties,
   DeckGeometry,
   FootControl,
   FootForceInput,
   FootForceModel,
+  FootForceOutput,
   RiderControls,
 } from "./domain/foot-force-model";
 export type { FeetPressure } from "./domain/foot-placement";
 export { feetPressure, targetDeckPosition, toeSideSign } from "./domain/foot-placement";
-export { GestureFootForceModel } from "./domain/gesture-foot-force-model";
 export type { RiderChange } from "./domain/rider";
 export { NEUTRAL_CONTROLS, Rider } from "./domain/rider";
 export type { RiderState } from "./domain/rider-state";
+export { TrickController } from "./domain/trick-controller";
 export type { RiderConfig } from "./rider.config";
 export { RIDER_CONFIG } from "./rider.config";
