@@ -1,6 +1,6 @@
 import type { BoardSnapshot, BoardSpec } from "../contexts/board";
 import type { IntentFrame, Stance } from "../contexts/input";
-import type { AssistLevel, RiderState } from "../contexts/rider";
+import type { RiderState } from "../contexts/rider";
 import type { AirSession } from "../contexts/tricks";
 import type { Level } from "../contexts/world";
 import type { DomainEvent, FootId, RotationTotals, Vec3 } from "../shared";
@@ -51,8 +51,6 @@ export interface RenderFrame {
   readonly intents: IntentFrame;
   /** Decides which pad is which foot: the WASD pad is always on the left (STYLE.md). */
   readonly stance: Stance;
-  /** The assist level (ADR 0012), shown discreetly next to the stance. Absent: not shown. */
-  readonly assistLevel?: AssistLevel;
   readonly air: AirSession | null;
   /** Domain events delivered since the previous frame, oldest first (trick popup, bail). */
   readonly recentEvents: readonly DomainEvent[];

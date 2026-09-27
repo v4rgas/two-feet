@@ -8,7 +8,6 @@ import type {
   Transform,
   Vec3,
 } from "../../../shared";
-import type { AssistLevel } from "../rider.config";
 import type { FootForce } from "./foot-force";
 import type { RiderState } from "./rider-state";
 
@@ -134,8 +133,6 @@ export interface FootForceInput {
    * around the board). Absent: no edges (flat ground).
    */
   readonly edgesNear?: readonly GrindEdgeView[];
-  /** The active assist level (MECHANICS.md "Assists", ADR 0012). Absent: `pro` (none). */
-  readonly assistLevel?: AssistLevel;
 }
 
 /** What the rider sees of a grind lock this step (read model data). */

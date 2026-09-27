@@ -12,8 +12,8 @@ import { BOARD_CONFIG, BoardSpec, WHEEL_IDS } from "../../contexts/board";
 import type { InputConfig, KeyPress, StanceRepository } from "../../contexts/input";
 import { clusterForFoot, INPUT_CONFIG } from "../../contexts/input";
 import { KeyboardInputSource } from "../../contexts/input/infrastructure/keyboard-input-source";
-import type { AssistLevel, FootForce, RiderConfig, RiderState } from "../../contexts/rider";
-import { isAssistLevel, RIDER_CONFIG } from "../../contexts/rider";
+import type { FootForce, RiderConfig, RiderState } from "../../contexts/rider";
+import { RIDER_CONFIG } from "../../contexts/rider";
 import type { Level } from "../../contexts/world";
 import { createFlatGroundLevel, WORLD_CONFIG } from "../../contexts/world";
 import type { DomainEvent, FootId, Stance } from "../../shared";
@@ -54,21 +54,6 @@ export interface HarnessOptions {
   readonly game?: GameConfig;
   /** The level (default: flat ground). */
   readonly level?: Level;
-  /**
-   * The assist level (ADR 0012). Default: `SCENARIO_ASSIST_LEVEL` — `pro` unless the
-   * `SKATE_ASSIST` environment variable names another level (`SKATE_ASSIST=normal pnpm
-   * test` runs every scenario with the player's default assists).
-   */
-  readonly assistLevel?: AssistLevel;
-}
-
-/** The assist level scenarios run at unless they say otherwise (see `HarnessOptions`). */
-export const SCENARIO_ASSIST_LEVEL: AssistLevel = scenarioAssistLevel();
-
-function scenarioAssistLevel(): AssistLevel {
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-    ?.env?.SKATE_ASSIST;
-  return isAssistLevel(env) ? env : "pro";
 }
 
 class MemoryStanceRepository implements StanceRepository {
@@ -116,7 +101,6 @@ export class ScenarioHarness {
       inputSource: new KeyboardInputSource(keys, INPUT_CONFIG.keys),
       stanceRepository: new MemoryStanceRepository(stance),
       clock: new ManualClock(),
-      assistLevel: options.assistLevel ?? SCENARIO_ASSIST_LEVEL,
     });
     return new ScenarioHarness(sim, stance, keys, game);
   }

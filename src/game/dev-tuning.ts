@@ -7,8 +7,8 @@ import type { BoardConfig } from "../contexts/board";
 import { BOARD_CONFIG } from "../contexts/board";
 import type { InputConfig } from "../contexts/input";
 import { INPUT_CONFIG } from "../contexts/input";
-import type { AssistLevel, RiderConfig } from "../contexts/rider";
-import { ASSIST_LEVELS, RIDER_CONFIG } from "../contexts/rider";
+import type { RiderConfig } from "../contexts/rider";
+import { RIDER_CONFIG } from "../contexts/rider";
 import type { TricksConfig } from "../contexts/tricks";
 import { TRICKS_CONFIG } from "../contexts/tricks";
 import type { PresentationConfig } from "../presentation/presentation.config";
@@ -47,17 +47,11 @@ export function createTunableConfigs(): TunableConfigs {
  * (body + colliders), `board.colliders`, `board.physics.gravityMps2`, `solverIterations`,
  * the collider friction/restitution, `input.keys`, `game.loop.fixedStepS`.
  */
-export async function installDevTuningPanel(
-  configs: TunableConfigs,
-  assist?: { level: AssistLevel },
-): Promise<void> {
+export async function installDevTuningPanel(configs: TunableConfigs): Promise<void> {
   const { createTuningPanel } = await import("../presentation/tuning-panel");
   createTuningPanel(
     [
-      // The assist level (ADR 0012): a runtime setting, saved like the stance.
-      ...(assist === undefined
-        ? []
-        : [{ name: "assists", target: assist, choices: { level: ASSIST_LEVELS } }]),
+      // The assists (ADR 0012) are one mode, edited in rider.assist.
       { name: "presentation", target: configs.presentation },
       { name: "board", target: configs.board },
       { name: "rider", target: configs.rider },

@@ -1,6 +1,7 @@
 # ADR 0012: Assists (human timing without changing the feel)
 
-- Status: accepted (implements MECHANICS.md "Assists: human timing without changing the feel")
+- Status: accepted (implements MECHANICS.md "Assists: human timing without changing the feel").
+  Amended 2026-09-27: the levels were removed (see "Update: one mode").
 - Date: 2026-09-27
 
 ## Context
@@ -12,7 +13,7 @@ board moves while riding.
 
 ## Decision
 
-### One config block, a runtime level
+### One config block, a runtime level (superseded: see "Update: one mode")
 
 `RIDER_CONFIG.assist` holds each level's tunables (`pro`, `normal`, `easy`) plus shared
 constants. `pro` is all zero: the game without assists. The **active level** is runtime state,
@@ -122,7 +123,8 @@ share these timelines.
 ± 0.2 m sideways, ± 0.3 m/s. Presses of the same key keep their order at least 30 ms apart. It
 plays each run through the scenario harness. The rail run balances like a person watching the
 bar (A + ← / D + → past |0.25|, 0.15 s late). `human.scenario.test.ts` runs 50 seeds per
-line and level (`pnpm test:human`, ≈ 70 s), with floors just under the measured rates.
+line and level (`pnpm test:human`, ≈ 70 s), with floors just under the measured rates. The
+last rates measured per level, before the levels were removed:
 
 | Line | spec (normal) | pro | normal | easy |
 |---|---|---|---|---|
@@ -162,7 +164,27 @@ line and level (`pnpm test:human`, ≈ 70 s), with floors just under the measure
     (46 / 58 / 62 % once the feet kept their deck spots on tilted boards, the feet-lag fix);
     the remaining misses release ↓ well after the lip, or time the flick and sweep out of
     their windows.
-- Every existing scenario passes at `pro` and at `normal` (`pnpm test` runs the scenario suites
-  in both projects), and `montage:verify` is 9/9 at `pro`.
-- Pro is unchanged: every assist is gated on its tunable being non-zero, apart from the
-  scripted lines and the park geometry, which the pro tests also use.
+- (Until the levels were removed) every existing scenario passed at `pro` and at `normal`
+  (`pnpm test` ran the scenario suites in both projects), and `montage:verify` was 9/9 at `pro`.
+- Pro was unchanged: every assist is gated on its tunable being non-zero, apart from the
+  scripted lines and the park geometry, which the pro tests also used.
+
+## Update: one mode (the levels removed, user decision, 2026-09-27)
+
+The player asked to "remove the difficulty stuff, leave only easy mode as the default".
+MECHANICS.md "Assists" now says there is one mode.
+- `AssistLevel`, `ASSIST_LEVELS`, `nextAssistLevel`, `isAssistLevel`, the per-level
+  presets, `RiderSystem.assistLevel`, `FootForceInput.assistLevel`, the F2 key, the HUD
+  "· normal" label, the tuning panel's level dropdown and `LocalStorageAssistLevelRepository`
+  are gone. `RIDER_CONFIG.assist` holds the former `easy` values directly (still editable in
+  the dev tuning panel). The boot removes the old `skate.assistLevel` key from localStorage
+  (`game.obsoleteStorageKeys`, in a try/catch).
+- Tests run once, in the one mode (`vitest.config.ts` has one project; `SKATE_ASSIST` and
+  `assist-level.scenario.test.ts` are gone). The one test that pinned `pro` behaviour (the
+  catch lockout outside the cone) now checks the catch buffer instead: a press outside the
+  cone applies nothing, fires on entering the cone within `catchBufferS`, never later.
+  The montage clips run in the one mode and `montage:verify` is 9/9 with no re-timing.
+- `pnpm test:human` measures each line once (≈ 30 s). Measured: G4H 20 %, 5-stair
+  kickflip 100 %, rail 50-50 52 %, kicker 360 flip 62 % (the old `easy` column). The
+  floors sit just under: 0.18, 0.96, 0.48, 0.58.
+

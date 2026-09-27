@@ -22,7 +22,7 @@ import {
  * reset the rider applies zero forces and zero impulses, and the board's motion is the same,
  * bit for bit, as the same run with no input during the bail. The reset comes
  * `bailResetDelayS` after the bail or when the board rests, whichever is later, capped at
- * `bailResetMaxS`. Runs at every assist level the suite runs at (pro and normal).
+ * `bailResetMaxS`. (First run at the pro and normal assist levels; now the one mode.)
  */
 
 const open: ScenarioHarness[] = [];

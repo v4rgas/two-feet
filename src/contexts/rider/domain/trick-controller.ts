@@ -230,7 +230,7 @@ export class TrickController implements FootForceModel {
   private leftObstacleId: string | null = null;
 
   // ── assists (MECHANICS.md "Assists", ADR 0012) ──────────────────────────────
-  /** The active level's tunables, resolved each step (all 0 at `pro`). */
+  /** The assist tunables (read each step: the dev tuning panel edits them live). */
   private assist: AssistTuning;
   /**
    * CATCH BUFFER: time left for a held Space to see the board enter the cone, s; once it
@@ -274,7 +274,7 @@ export class TrickController implements FootForceModel {
     private readonly config: RiderConfig,
   ) {
     this.grind = new GrindController(deck, config);
-    this.assist = config.assist.pro;
+    this.assist = config.assist;
     this.swipes = { front: new SwipeTracker(config.tricks), back: new SwipeTracker(config.tricks) };
   }
 
@@ -328,7 +328,7 @@ export class TrickController implements FootForceModel {
       if (controls.feetDown) this.pushLocked = true;
       return { forces: [], popped: null, caught: false, loading: false, grind: null };
     }
-    this.assist = this.config.assist[input.assistLevel ?? "pro"];
+    this.assist = this.config.assist;
     this.groundYM = input.groundBelowYM ?? 0;
     this.edges = input.edgesNear ?? [];
     this.grind.tick(dtS);

@@ -31,5 +31,5 @@ export type { RiderChange } from "./domain/rider";
 export { NEUTRAL_CONTROLS, Rider } from "./domain/rider";
 export type { RiderGrind, RiderState } from "./domain/rider-state";
 export { TrickController } from "./domain/trick-controller";
-export type { AssistLevel, AssistTuning, RiderConfig } from "./rider.config";
-export { ASSIST_LEVELS, isAssistLevel, nextAssistLevel, RIDER_CONFIG } from "./rider.config";
+export type { AssistTuning, RiderConfig } from "./rider.config";
+export { RIDER_CONFIG } from "./rider.config";

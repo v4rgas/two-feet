@@ -1,10 +1,10 @@
 /*
  * HUMAN JITTER (MECHANICS.md "Assists" → Acceptance): a montage clip's key timeline played
  * the way a person would, with seeded random timing errors, to measure how often a line
- * lands at each assist level. Test support only; never imported by the game.
+ * lands. Test support only; never imported by the game.
  */
 import type { KeyPress } from "../../contexts/input";
-import type { AssistLevel, RiderConfig } from "../../contexts/rider";
+import type { RiderConfig } from "../../contexts/rider";
 import { createFlatGroundLevel, createSkateparkLevel, WORLD_CONFIG } from "../../contexts/world";
 import { GAME_CONFIG } from "../game.config";
 import type { MontageClip } from "../montage/clip";
@@ -139,14 +139,13 @@ export interface JitterOptions {
 export const BALANCE_REFLEX = { threshold: 0.25, delayS: 0.15 } as const;
 
 /**
- * Plays `clip` jittered by `seed` at `level` through the full loop (the scenario harness:
+ * Plays `clip` jittered by `seed` through the full loop (the scenario harness:
  * the real keyboard adapter, like a clip's scripted input). Landed = exactly the line's
  * names, and no bail.
  */
 export async function playJittered(
   clip: MontageClip,
   seed: number,
-  level: AssistLevel,
   options: JitterOptions = {},
 ): Promise<JitterRun> {
   const played = seed === 0 ? clip : jitterClip(clip, seed, options.jitter ?? HUMAN_JITTER);
@@ -155,7 +154,6 @@ export async function playJittered(
   const h = await ScenarioHarness.create({
     level: base,
     stance: clip.stance,
-    assistLevel: level,
     ...(options.rider === undefined ? {} : { rider: options.rider }),
   });
   try {
@@ -209,13 +207,11 @@ function balanceReflex(h: ScenarioHarness, held: readonly string[]): string[] {
 /** Runs seeds 1…`runs` and returns every result. */
 export async function jitterRuns(
   clip: MontageClip,
-  level: AssistLevel,
   runs: number,
   options: JitterOptions = {},
 ): Promise<JitterRun[]> {
   const out: JitterRun[] = [];
-  for (let seed = 1; seed <= runs; seed += 1)
-    out.push(await playJittered(clip, seed, level, options));
+  for (let seed = 1; seed <= runs; seed += 1) out.push(await playJittered(clip, seed, options));
   return out;
 }
 

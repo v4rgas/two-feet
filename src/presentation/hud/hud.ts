@@ -180,10 +180,9 @@ export class Hud {
 
   update(frame: RenderFrame, dtS: number): void {
     this.layout = padLayout(frame.stance);
-    const stanceKey = `${frame.stance}/${frame.assistLevel ?? ""}`;
-    if (stanceKey !== this.lastStance) {
-      this.lastStance = stanceKey;
-      this.stance.textContent = stanceLabel(frame.stance, frame.assistLevel);
+    if (frame.stance !== this.lastStance) {
+      this.lastStance = frame.stance;
+      this.stance.textContent = stanceLabel(frame.stance);
       this.stance.dataset.stance = frame.stance;
     }
     const spin = spinIndicator(

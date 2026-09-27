@@ -2,8 +2,7 @@ import { BOARD_CONFIG } from "../contexts/board";
 import { INPUT_CONFIG } from "../contexts/input";
 import { KeyboardInputSource } from "../contexts/input/infrastructure/keyboard-input-source";
 import { LocalStorageStanceRepository } from "../contexts/input/infrastructure/local-storage-stance-repository";
-import { nextAssistLevel, RIDER_CONFIG } from "../contexts/rider";
-import { LocalStorageAssistLevelRepository } from "../contexts/rider/infrastructure/local-storage-assist-level-repository";
+import { RIDER_CONFIG } from "../contexts/rider";
 import { TRICKS_CONFIG } from "../contexts/tricks";
 import type { Level } from "../contexts/world";
 import { createFlatGroundLevel, createSkateparkLevel, WORLD_CONFIG } from "../contexts/world";
@@ -22,6 +21,20 @@ function levelFromUrl(search: string): Level {
   return name === "park"
     ? createSkateparkLevel(WORLD_CONFIG)
     : createFlatGroundLevel(WORLD_CONFIG.flatGround);
+}
+
+/**
+ * Removes settings the game no longer has (the assist level, ADR 0012), so they do not
+ * linger in localStorage. Storage may be unavailable (private mode, blocked): ignored.
+ */
+function forgetObsoleteSettings(keys: readonly string[]): void {
+  for (const key of keys) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // No storage: nothing to tidy.
+    }
+  }
 }
 
 /** Browser wall clock (the `Clock` port's production adapter). */
@@ -45,39 +58,22 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<GameLoop> {
     tricks: TRICKS_CONFIG,
   };
   const level = levelFromUrl(window.location.search);
-  // The assist level (ADR 0012): saved like the stance; players start at `normal`.
-  const assists = new LocalStorageAssistLevelRepository(configs.rider.assist.storageKey);
+  forgetObsoleteSettings(configs.game.obsoleteStorageKeys);
   const sim = await composeSimulation({
     configs,
     level,
     inputSource: new KeyboardInputSource(window, configs.input.keys),
     stanceRepository: new LocalStorageStanceRepository(configs.input.stance.storageKey),
     clock: performanceClock,
-    assistLevel: assists.load() ?? configs.rider.assist.defaultLevel,
   });
   const { loop } = sim;
-  const assist = {
-    get level() {
-      return sim.rider.assistLevel;
-    },
-    set level(value) {
-      sim.rider.assistLevel = value;
-      assists.save(value);
-    },
-  };
-  // F2 cycles the assist level (pro → normal → easy); the HUD shows it by the stance.
-  window.addEventListener("keydown", (event) => {
-    if (event.code !== configs.rider.assist.cycleKey || event.repeat) return;
-    event.preventDefault();
-    assist.level = nextAssistLevel(assist.level);
-  });
 
   const renderer = new ThreeRenderer({
     canvas,
     config: tunables?.presentation ?? PRESENTATION_CONFIG,
   });
   renderer.setup({ boardSpec: sim.spec, level });
-  if (tunables !== null) void installDevTuningPanel(tunables, assist);
+  if (tunables !== null) void installDevTuningPanel(tunables);
 
   let last = performance.now();
   const frame = (now: number): void => {

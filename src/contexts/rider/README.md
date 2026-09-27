@@ -69,10 +69,10 @@ travel and the spin rates are in [ADR 0010](../../../docs/adr/0010-swipe-size.md
 - **Exits**: pop out (the ground's load and release; the pop also goes out along the edge's
   normal; the body turns on its own to the travel: `popOutTurnRad`), roll off the end
   (the feet stay on), fall off.
-- **Assist level** (`AssistLevel`: `pro` | `normal` | `easy`, [ADR 0012](../../../docs/adr/0012-assists.md)):
-  how much the assists widen when and where an input counts, never how the board moves while
-  riding. Runtime state (`RiderSystem.assistLevel`, saved like the stance, F2 cycles it);
-  each level's tunables are in `RIDER_CONFIG.assist` (`pro` = all zero). The assists:
+- **Assists** ([ADR 0012](../../../docs/adr/0012-assists.md)): one mode, always on (the
+  pro / normal / easy levels were removed; the values are the former `easy`). They widen
+  when and where an input counts, never how the board moves while riding. The tunables are
+  `RIDER_CONFIG.assist` (edited live in the dev tuning panel). The assists:
   **catch buffer** (a held Space fires in the cone at the end of the rotation), **late
   catch**, **stance-key grace** (↓ / W before or after the lock-in), **swipe grace** (a swipe
   just before the pop), **magnetism** (a sideways nudge ≤ 0.35 m/s onto an edge on the final
@@ -98,8 +98,7 @@ The rider domain cannot import other contexts, so `foot-force-model.ts` declares
 minimal shapes it consumes: `RiderControls` (satisfied by input's `IntentFrame`),
 `BoardKinematics` (by board's `BoardSnapshot`, including the wheel contact normals) and
 `DeckGeometry` (by board's `BoardSpec`). `src/game/contract-checks.ts` makes tsc fail if
-they drift. `FootForceInput.assistLevel` carries the assist level, and
-`FootForceOutput.spinSnapHeadingRad` asks the `Rider` to stop a released body spin there. The ground below the board comes in as `FootForceInput.groundBelowYM`, which
+they drift. `FootForceOutput.spinSnapHeadingRad` asks the `Rider` to stop a released body spin there. The ground below the board comes in as `FootForceInput.groundBelowYM`, which
 the application gets from the `probeGroundY` dependency (a physics raycast wired in
 `compose.ts`). The grind edges near the board come in as `FootForceInput.edgesNear`,
 from the `grindEdgesNear` dependency (world's `grindEdgesNear` over the level's edges,
@@ -120,11 +119,9 @@ wired in `compose.ts`); world's `GrindEdge` satisfies `GrindEdgeView`.
   surface, balance, or null), `lastGrindExit` and `popOutTurnRad`.
 - Helpers: `targetDeckPosition`, `feetPressure`, `toeSideSign`, `deckTopPointLocal`,
   `tailTipLocal`, `flatHalfLengthM`, `isOverTail`.
-- Application: `RiderSystem` (interface, with the read/write `assistLevel`) and
-  `DefaultRiderSystem({ body, bus, deck, config, board, model?, probeGroundY?,
-  grindEdgesNear?, assistLevel? })` (default level `pro`).
-- Assists: `AssistLevel`, `AssistTuning`, `ASSIST_LEVELS`, `nextAssistLevel`,
-  `isAssistLevel`. Infrastructure: `LocalStorageAssistLevelRepository` (the saved level).
+- Application: `RiderSystem` (interface) and `DefaultRiderSystem({ body, bus, deck,
+  config, board, model?, probeGroundY?, grindEdgesNear? })`.
+- Assists: `AssistTuning` (the `assist` block's type).
 - Config: `RIDER_CONFIG` (every tunable; the `tricks` block is MECHANICS.md's table, the
   `grind` block the M4 one).
 

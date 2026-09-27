@@ -54,7 +54,8 @@ was only decided at the wheel touchdown or after 0.25 s resting upside down.
 
 ## Consequences
 
-- Scenario 12h (`ragdoll.scenario.test.ts`, at pro and normal): an uncaught upside-down
+- Scenario 12h (`ragdoll.scenario.test.ts`, at pro and normal, then in the one mode once
+  the levels were removed): an uncaught upside-down
   landing, an off-angle caught landing (the late shove of 9a) and the G5 grind fall-off,
   each with every key mashed during the bail. Zero rider forces on every step from the
   bail to the reset, the feet off, the reset between 1.5 s and 3 s, and the board's

@@ -254,21 +254,27 @@ describe("TrickController — in the air", () => {
     expect(Math.sign(yaw(-1))).toBe(-Math.sign(yaw(1)));
   });
 
-  it("catch: feet down inside the cone catches; outside it misses and is locked out", () => {
+  it("catch: feet down inside the cone catches; outside, the press waits (catch buffer) and fires on entering the cone, never later", () => {
     const inside = setup();
     ollie(inside.step);
     inside.lift();
     expect(inside.step({ feetDown: true }, air).caught).toBe(true);
 
-    const outside = setup();
-    ollie(outside.step);
-    outside.lift();
     const upsideDown = inAir({ rollRad: 2.5 });
-    expect(outside.step({ feetDown: true }, upsideDown).caught).toBe(false);
-    outside.step({}, air);
-    expect(outside.step({ feetDown: true }, air).caught).toBe(false); // locked out
-    steps(outside.step, {}, Math.ceil(T.catchRetryS / DT), air);
-    expect(outside.step({ feetDown: true }, air).caught).toBe(true);
+    const buffered = setup();
+    ollie(buffered.step);
+    buffered.lift();
+    const miss = buffered.step({ feetDown: true }, upsideDown);
+    expect(miss.caught).toBe(false);
+    expect(miss.forces.some((f) => f.label === "catch")).toBe(false); // nothing half-caught
+    expect(buffered.step({}, air).caught).toBe(true);
+
+    const expired = setup();
+    ollie(expired.step);
+    expired.lift();
+    expect(expired.step({ feetDown: true }, upsideDown).caught).toBe(false);
+    steps(expired.step, {}, Math.ceil(RIDER_CONFIG.assist.catchBufferS / DT) + 1, upsideDown);
+    expect(expired.step({}, air).caught).toBe(false);
   });
 
   it("reports the guide foot as flicking a kickflip while it swipes toward the heel edge (visual)", () => {

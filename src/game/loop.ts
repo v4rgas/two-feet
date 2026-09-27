@@ -133,7 +133,6 @@ export class GameLoop {
       rider: this.systems.rider.state,
       intents: this.systems.input.lastIntents,
       stance: this.systems.input.stance,
-      assistLevel: this.systems.rider.assistLevel,
       air,
       recentEvents: events,
       debug: {
