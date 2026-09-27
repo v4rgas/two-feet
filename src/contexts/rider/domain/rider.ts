@@ -151,13 +151,17 @@ export class Rider {
   }
 
   /**
-   * Called when the board lands (`BoardLanded.upDot`). Upside down → bail. Caught: bail
+   * Called when the board lands (`BoardLanded.upDot`). Upside down or sideways to the
+   * travel → bail. Caught: bail
    * only if badly tilted. Uncaught: the feet come back if it is roughly level
    * (`landTiltRad`), otherwise bail.
    */
   land(upDot: number, board: BoardKinematics): readonly RiderChange[] {
     if (this.bailed) return [];
     if (upDot < 0) return [this.bail("upsideDown")];
+    // Too sideways to roll (neither forward nor fakie along the travel): bail, never a
+    // violent redirect by the wheel grip.
+    if (this.landsSideways(board)) return [this.bail("offAngle")];
     const tilt = Math.acos(Math.max(-1, Math.min(1, upDot)));
     const caught = this.feet.front.isAttached || this.feet.back.isAttached;
     if (caught) {
@@ -165,6 +169,21 @@ export class Rider {
     }
     if (tilt > this.config.tricks.landTiltRad) return [this.bail("offAngle")];
     return this.catchFeet(board);
+  }
+
+  /**
+   * MECHANICS.md "Landing": the board must line up with the direction of travel, forward or
+   * fakie, within `landYawToleranceRad`. Skipped when slow (no clear travel) and over a
+   * grindable obstacle (the M4 boardslide hook).
+   */
+  private landsSideways(board: BoardKinematics): boolean {
+    if (board.contactPoints?.some((c) => c.surface === "grindable") === true) return false;
+    const v = board.linearVelocityMps;
+    if (Math.hypot(v.x, v.z) < this.config.torso.headingTravelMinSpeedMps) return false;
+    const heading = boardHeadingRad(board);
+    if (heading === null) return false;
+    const off = axisErrorRad(heading - Math.atan2(-v.z, v.x));
+    return Math.abs(off) > this.config.tricks.landYawToleranceRad;
   }
 
   /** Both feet back on the deck at their rest positions, torso above the board, not bailed. */

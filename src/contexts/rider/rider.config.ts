@@ -139,6 +139,11 @@ export const RIDER_CONFIG = deepFreeze({
     catchRiseFraction: 0.6,
     catchMaxRiseMps: 0.8,
 
+    /**
+     * Landing: the board's yaw must be within this of the direction of travel (rolls
+     * forward) or of its reverse (rolls fakie); otherwise it is too sideways to roll: bail, rad.
+     */
+    landYawToleranceRad: 0.35,
     /** An uncaught board lands clean only within this tilt, rad. */
     landTiltRad: 0.5,
     /** After touchdown the landing assist damps bounce and rocking for this long, s. */

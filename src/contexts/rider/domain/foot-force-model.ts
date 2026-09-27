@@ -37,6 +37,8 @@ export interface BoardKinematics {
   readonly grounded: boolean;
   /** `deck`: flat-section contact (e.g. lying upside down) — used for bail detection. */
   readonly contacts: { readonly tail: boolean; readonly nose: boolean; readonly deck: boolean };
+  /** What the board touches (only the surface type is read: grindable skips the landing yaw check). */
+  readonly contactPoints?: readonly { readonly surface: string }[];
 }
 
 /** Deck dimensions the rider needs (satisfied by board's `BoardSpec`). */

@@ -54,6 +54,23 @@ describe("Rider aggregate", () => {
     expect(rider.state.headingRad).toBeCloseTo(0, 9);
   });
 
+  it("landing lined up with the travel (forward or fakie) is fine; sideways bails unless grinding", () => {
+    const landing = (v: Vec3, grindable = false) => {
+      const rider = new Rider(DECK, RIDER_CONFIG, board());
+      const b = board({
+        linearVelocityMps: v,
+        contactPoints: grindable ? [{ surface: "grindable" }] : [],
+      });
+      return rider.land(1, b).map((c) => c.type);
+    };
+    expect(landing(Vec3.create(3, 0, 0))).not.toContain("RiderBailed");
+    expect(landing(Vec3.create(-3, 0, 0))).not.toContain("RiderBailed");
+    expect(landing(Vec3.create(3, 0, 1.5))).toContain("RiderBailed");
+    expect(landing(Vec3.create(0, 0, 3), true)).not.toContain("RiderBailed");
+    // Too slow to have a direction of travel: no yaw check.
+    expect(landing(Vec3.create(0, 0, 0.2))).not.toContain("RiderBailed");
+  });
+
   it("uncaught landing: level → feet come back; tilted → bail; upside down → bail", () => {
     const level = new Rider(DECK, RIDER_CONFIG, board());
     level.liftFeet();

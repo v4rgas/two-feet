@@ -46,6 +46,15 @@ function spaceWhenUpright(h: ScenarioHarness, t0: number): void {
   catchAt(h, 0);
 }
 
+/** Runs until the shove has turned the board about 180°, then presses Space (catch). */
+function spaceWhenReversed(h: ScenarioHarness, t0: number): void {
+  for (let i = 0; i < 120; i += 1) {
+    if (Math.abs(Math.abs(airSummary(h, t0).yawRad) - Math.PI) <= 0.3) break;
+    h.run(1 / 120);
+  }
+  catchAt(h, 0);
+}
+
 describe("1. ollie", () => {
   for (const stance of STANCES) {
     for (const pushS of [1.3, 0]) {
@@ -500,6 +509,64 @@ describe("feet never teleport (catch, lift, slides)", () => {
       spaceWhenUpright(h, t0);
       h.run(1.5);
       expect(maxFootStepM(h, t0)).toBeLessThanOrEqual(0.015);
+    },
+    T,
+  );
+});
+
+describe("shove-its never move the rider", () => {
+  for (const [dir, label] of [
+    ["heel", "backside"],
+    ["toe", "frontside"],
+  ] as const) {
+    it(
+      `${label} at ~3 m/s: rider heading < 3°, torso off its path < 3 cm, board reversed under still feet`,
+      async () => {
+        const h = await track(rolling(1.1));
+        const t0 = h.timeS;
+        const heading0 = h.rider.headingRad;
+        const torso0 = h.rider.torsoPositionWorldM;
+        loadAndPop(h);
+        h.foot("back", dir === "heel" ? heel(h.stance) : toe(h.stance), 0.27, 0.1);
+        h.run(0.3);
+        spaceWhenReversed(h, t0);
+        h.run(1.5);
+        const deg = Math.PI / 180;
+        for (const r of h.since(t0)) {
+          expect(Math.abs(r.rider.headingRad - heading0)).toBeLessThan(3 * deg);
+          expect(Math.abs(r.rider.torsoPositionWorldM.z - torso0.z)).toBeLessThan(0.03);
+        }
+        const air = airSummary(h, t0);
+        expect(Math.abs(Math.abs(air.yawRad) - Math.PI)).toBeLessThan(0.3);
+        expect(air.bailed).toBe(false);
+        expect(h.board.wheelsDown).toBe(4);
+        expect(feetOn(h)).toBe(true);
+        // Still rolling the same way (no redirect by the wheel grip).
+        const v = h.board.linearVelocityMps;
+        expect(Math.abs(Math.atan2(-v.z, v.x) - heading0)).toBeLessThan(3 * deg);
+        // The board is reversed under the rider: the front foot now stands on the old tail.
+        expect(h.rider.front.deckPosition.alongM).toBeLessThan(0);
+      },
+      T,
+    );
+  }
+
+  it(
+    "an uncaught shove that lands sideways bails instead of turning the rider",
+    async () => {
+      const h = await track(rolling(1.1));
+      const t0 = h.timeS;
+      const heading0 = h.rider.headingRad;
+      loadAndPop(h);
+      h.foot("back", heel(h.stance), 0.27, 0.1);
+      h.run(2);
+      expect(airSummary(h, t0).bailed).toBe(true);
+      const bailAt = h.eventsOf("RiderBailed")[0]?.timeS ?? Number.POSITIVE_INFINITY;
+      for (const r of h.since(t0)) {
+        if (r.timeS <= bailAt) {
+          expect(Math.abs(r.rider.headingRad - heading0)).toBeLessThan(3 * (Math.PI / 180));
+        }
+      }
     },
     T,
   );
