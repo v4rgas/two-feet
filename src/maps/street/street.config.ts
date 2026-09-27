@@ -36,7 +36,14 @@ export const STREET_CONFIG = deepFreeze({
      * 0.38 m square to the nosings, from over the top nosing to over the foot (no
      * overhang): its top end is ≈ 0.35 m above the landing, within an ollie from it.
      */
-    handrail: { heightM: 0.38, barRadiusM: 0.024, offsetM: 0.3, centered: true, overhangM: 0 },
+    handrail: {
+      heightM: 0.38,
+      barRadiusM: 0.024,
+      offsetM: 0.3,
+      centered: true,
+      topOverhangM: 0,
+      bottomOverhangM: 0,
+    },
   },
   /** Funbox in the middle: banks on −X, +X and −Z, a ledge on +Z, a flat rail and a down rail. */
   funbox: {

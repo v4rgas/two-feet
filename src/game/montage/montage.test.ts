@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { INPUT_CONFIG } from "../../contexts/input";
+import { MAPS } from "../maps/maps";
 import { clipProblems, timeScaleAt } from "./clip";
 import { clipById, MONTAGE_CLIPS } from "./clips";
 import { fadeAt, grabTimesS, montageOptionsFromUrl } from "./montage-player";
@@ -92,5 +93,11 @@ describe("montage mode", () => {
       expect(t).toBeGreaterThanOrEqual(w?.fromS ?? 0);
       expect(t).toBeLessThanOrEqual(w?.toS ?? clip.durationS);
     }
+  });
+});
+
+describe("montage clips (maps)", () => {
+  it("every clip is filmed on a registered map", () => {
+    for (const clip of MONTAGE_CLIPS) expect(MAPS.get(clip.level), clip.id).toBeDefined();
   });
 });

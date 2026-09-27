@@ -212,6 +212,30 @@ describe("grind edges", () => {
     expect(y0 - h).toBeCloseTo(st.handrail.heightM / Math.cos(a), 6);
   });
 
+  it("stairs: the handrail edge spans the bar's overhangs (a short top, ending in the air)", () => {
+    const shape = ObstacleShape.stairs({
+      stepCount: 20,
+      riseM: 0.165,
+      runM: 0.3,
+      widthM: 4,
+      topDepthM: 0.3,
+      handrail: {
+        heightM: 0.33,
+        barRadiusM: 0.024,
+        offsetM: 0.3,
+        topOverhangM: 0.05,
+        bottomOverhangM: 0.15,
+      },
+    });
+    const [rail] = obstacleGrindEdges(obstacle(shape));
+    const a = stairsSlopeRad(shape);
+    const lift = 0.33 * Math.sin(a); // the top line sits `heightM` square to the nosings
+    expect(rail?.startM.x).toBeCloseTo(-0.05 + lift, 9);
+    expect(rail?.endM.x).toBeCloseTo(stairsFootXM(shape) + 0.15 + lift, 9);
+    // Its bottom end is in the air: well above the ground past the foot.
+    expect(rail?.endM.y).toBeGreaterThan(0.2);
+  });
+
   it("stairs without a hubba or handrail, banks, kickers and boxes have no edges", () => {
     expect(
       obstacleGrindEdges(

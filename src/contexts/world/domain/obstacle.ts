@@ -106,12 +106,18 @@ export interface HandrailParams {
   /** True: the rail runs down the middle of the stairs (axis on z = 0), not beside them. */
   readonly centered?: boolean;
   /**
-   * How far the bar reaches on past each end of the stairs, m, measured along x: back over
-   * the landing from the top nosing, and out past the foot (default: two post insets). A
-   * low rail wants 0: back over the landing it would stand taller above the platform than
-   * at the nosing, and past the foot it would sink toward the ground.
+   * How far the bar runs on back past the top nosing, horizontally, m (default: twice
+   * `railPostInsetM`). Its top post stands `railPostInsetM` in from that end. A low rail
+   * wants 0: back over the landing it would stand taller above the platform than at the
+   * nosing.
    */
-  readonly overhangM?: number;
+  readonly topOverhangM?: number;
+  /**
+   * How far the bar runs on past the foot of the stairs, horizontally, m (default: twice
+   * `railPostInsetM`, where a low rail would sink toward the ground; a short overhang
+   * ends it in the air at the bottom, like a real handrail).
+   */
+  readonly bottomOverhangM?: number;
 }
 
 /**
@@ -378,11 +384,14 @@ function validate(shape: ObstacleShape): void {
         requirePositive(kind, "handrail.heightM", shape.handrail.heightM);
         requirePositive(kind, "handrail.barRadiusM", shape.handrail.barRadiusM);
         requirePositive(kind, "handrail.offsetM", shape.handrail.offsetM);
-        if ((shape.handrail.overhangM ?? 0) < 0) {
-          throw new RangeError(`${kind}: handrail.overhangM must not be negative`);
-        }
         if (2 * shape.handrail.barRadiusM >= shape.handrail.heightM) {
           throw new RangeError(`${kind}: handrail.barRadiusM is too large for the handrail`);
+        }
+        for (const name of ["topOverhangM", "bottomOverhangM"] as const) {
+          const v = shape.handrail[name];
+          if (v !== undefined && !(Number.isFinite(v) && v >= 0)) {
+            throw new RangeError(`${kind}: handrail.${name} must be ≥ 0 (got ${v})`);
+          }
         }
       }
       return;

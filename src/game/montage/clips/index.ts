@@ -1,4 +1,5 @@
 import type { MontageClip } from "../clip";
+import { elToroKickflip } from "./el-toro";
 import { bs180KickflipFlat, nollieHeelflipFlat } from "./flat";
 import { ledgeBoardslide, railFiftyFifty } from "./grinds";
 import { quarterPipeFakie, treFlipEuroGap } from "./ramps";
@@ -21,6 +22,7 @@ export const MONTAGE_CLIPS: readonly MontageClip[] = [
   railFiftyFifty,
   ledgeBoardslide,
   ollieSevenStair,
+  elToroKickflip,
 ];
 
 /** The clip with this id, or undefined. */

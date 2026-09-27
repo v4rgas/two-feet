@@ -139,15 +139,15 @@ function stairsEdges(shape: StairsShape, config: GeometryConfig): LocalEdge[] {
     }
   }
 
-  if (shape.handrail !== undefined) {
+  const railRange = handrailSpanXM(shape, config);
+  if (shape.handrail !== undefined && railRange !== null) {
     const { heightM: rh, barRadiusM: r } = shape.handrail;
     const z = handrailZM(shape);
-    const { startXM, endXM } = handrailSpanXM(shape, config);
     out.push({
       name: "handrail",
       surface: "grindable",
-      startM: onSlope(startXM / cosA, rh, z),
-      endM: onSlope(endXM / cosA, rh, z),
+      startM: onSlope(railRange.startXM / cosA, rh, z),
+      endM: onSlope(railRange.endXM / cosA, rh, z),
       outwardNormal: MINUS_Z,
       twoSided: true,
       halfWidthM: r,

@@ -11,6 +11,7 @@ describe("map registry", () => {
     const ids = MAPS.all.map((m) => m.id);
     expect(ids[0]).toBe("street");
     expect(ids).toContain("flat");
+    expect(ids).toContain("el-toro");
     expect(ids).not.toContain("park");
     expect(MAPS.defaultMap.id).toBe(GAME_CONFIG.maps.defaultMapId);
     expect(MAPS.tutorialMap.id).toBe("flat");

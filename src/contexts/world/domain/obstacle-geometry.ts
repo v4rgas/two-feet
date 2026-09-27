@@ -1113,15 +1113,21 @@ export function handrailZM(shape: StairsShape): number {
 }
 
 /**
- * Horizontal span of a stair set's handrail bar (local x), measured on the line of nosings:
- * `overhangM` (default two post insets) back from the top nosing and on past the foot, m.
+ * Horizontal extent of a stair set's handrail bar (local x of its top and bottom ends,
+ * m): `topOverhangM` back past the top nosing, `bottomOverhangM` on past the foot (each
+ * twice `railPostInsetM` by default). Null without a handrail.
  */
 export function handrailSpanXM(
   shape: StairsShape,
   config: GeometryConfig = WORLD_CONFIG.geometry,
-): { startXM: number; endXM: number } {
-  const overhang = shape.handrail?.overhangM ?? 2 * config.railPostInsetM;
-  return { startXM: -overhang, endXM: stairsFootXM(shape) + overhang };
+): { readonly startXM: number; readonly endXM: number } | null {
+  const rail = shape.handrail;
+  if (rail === undefined) return null;
+  const inset = config.railPostInsetM;
+  return {
+    startXM: -(rail.topOverhangM ?? 2 * inset),
+    endXM: stairsFootXM(shape) + (rail.bottomOverhangM ?? 2 * inset),
+  };
 }
 
 /**
@@ -1233,11 +1239,12 @@ function stairsGeometry(
     for (const piece of pieces.slice(n)) pieces.push(mirrorZ(piece));
   }
 
-  if (shape.handrail !== undefined) {
+  const railRange = handrailSpanXM(shape, config);
+  if (shape.handrail !== undefined && railRange !== null) {
     const { heightM: rh, barRadiusM: r } = shape.handrail;
     const z = handrailZM(shape);
     const inset = config.railPostInsetM;
-    const { startXM: startX, endXM: endX } = handrailSpanXM(shape, config);
+    const { startXM: startX, endXM: endX } = railRange;
     const axisOffsetM = rh - r; // square to the line of nosings
     pieces.push(
       prism(

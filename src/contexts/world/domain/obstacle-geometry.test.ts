@@ -8,6 +8,7 @@ import type { ConvexPiece } from "./obstacle-geometry";
 import {
   bankLedgeRunM,
   funboxBankRunM,
+  handrailSpanXM,
   kickerLipAngleRad,
   kinkedRailTopLine,
   obstacleCollider,
@@ -161,7 +162,14 @@ const STAIRS_BOTH = ObstacleShape.stairs({
   topDepthM: 7,
   backSlopeRad: degToRad(14),
   hubba: { widthM: 0.45, heightM: 0.28, edgeRadiusM: 0.02, flatTopM: 0.9, bothSides: true },
-  handrail: { heightM: 0.38, barRadiusM: 0.024, offsetM: 0.3, centered: true, overhangM: 0 },
+  handrail: {
+    heightM: 0.38,
+    barRadiusM: 0.024,
+    offsetM: 0.3,
+    centered: true,
+    topOverhangM: 0,
+    bottomOverhangM: 0,
+  },
 });
 
 const ALL: readonly [string, Shape, SurfaceType][] = [
@@ -409,6 +417,49 @@ describe("stairs", () => {
     // The handrail's top follows the nosings: 0.8 m (square to the line) above them.
     const railTopAtTop = Math.max(...(rails[0]?.verticesM ?? []).map((v) => v.y));
     expect(railTopAtTop).toBeGreaterThan(h + 0.8);
+  });
+
+  it("the handrail bar runs twice the post inset past both ends by default, or the given overhangs", () => {
+    const inset = WORLD_CONFIG.geometry.railPostInsetM;
+    expect(handrailSpanXM(STAIRS)).toEqual({
+      startXM: -2 * inset,
+      endXM: stairsFootXM(STAIRS) + 2 * inset,
+    });
+    const short = ObstacleShape.stairs({
+      ...STAIRS,
+      handrail: {
+        heightM: 0.35,
+        barRadiusM: 0.024,
+        offsetM: 0.3,
+        topOverhangM: 0.05,
+        bottomOverhangM: 0.15,
+      },
+    });
+    expect(handrailSpanXM(short)).toEqual({ startXM: -0.05, endXM: stairsFootXM(short) + 0.15 });
+    // The bar is square to the nosings between those x (on its axis); both posts stand
+    // under it, `railPostInsetM` in from its ends.
+    const pieces = shapeGeometry("ground", short).pieces;
+    const bar = pieces.find((p) => p.surface === "grindable");
+    const a = Math.atan2(short.riseM, short.runM);
+    const axisUpM = 0.35 - 0.024; // axis offset square to the nosings
+    const bx = bounds(bar?.verticesM ?? []);
+    const shift = axisUpM * Math.sin(a); // the end faces are square to the slope
+    expect(bx.min.x).toBeGreaterThan(-0.05 + shift - 0.03);
+    expect(bx.max.x).toBeLessThan(stairsFootXM(short) + 0.15 + shift + 0.03);
+    const posts = pieces.filter(
+      (p) => p.surface === "ground" && bounds(p.verticesM).max.z < -STAIRS.widthM / 2,
+    );
+    const postXs = posts.map((p) => (bounds(p.verticesM).min.x + bounds(p.verticesM).max.x) / 2);
+    expect(postXs[0]).toBeCloseTo(-0.05 + inset, 9);
+    expect(postXs[1]).toBeCloseTo(stairsFootXM(short) + 0.15 - inset, 9);
+    const bare = ObstacleShape.stairs({
+      stepCount: 3,
+      riseM: 0.15,
+      runM: 0.3,
+      widthM: 2,
+      topDepthM: 1,
+    });
+    expect(handrailSpanXM(bare)).toBeNull();
   });
 });
 
@@ -669,6 +720,12 @@ describe("validation", () => {
     expect(() => ObstacleShape.ledge({ ...LEDGE, edgeChamferM: 0.3 })).toThrow(/edgeChamfer/);
     expect(() => ObstacleShape.rail({ ...RAIL, barRadiusM: 0.2 })).toThrow(/bar/);
     expect(() => ObstacleShape.stairs({ ...STAIRS, stepCount: 2.5 })).toThrow(/stepCount/);
+    expect(() =>
+      ObstacleShape.stairs({
+        ...STAIRS,
+        handrail: { heightM: 0.4, barRadiusM: 0.024, offsetM: 0.3, bottomOverhangM: -0.1 },
+      }),
+    ).toThrow(/bottomOverhangM/);
     expect(() => ObstacleShape.box({ halfExtentsM: Vec3.create(1, 0, 1) })).toThrow(/halfExtents/);
     expect(() => ObstacleShape.funbox({ ...FUNBOX, bankAngleRad: degToRad(90) })).toThrow(/bank/);
     expect(() =>

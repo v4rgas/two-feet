@@ -5,13 +5,12 @@ import { ScriptedInputSource } from "../../contexts/input/infrastructure/scripte
 import { RIDER_CONFIG } from "../../contexts/rider";
 import { TRICKS_CONFIG } from "../../contexts/tricks";
 import { Level } from "../../contexts/world";
-import { createFlatGroundLevel } from "../../maps/flat/flat-ground";
-import { createStreetCourseLevel } from "../../maps/street/street-course";
 import type { DomainEvent, Stance } from "../../shared";
 import { ManualClock, Transform, Vec3 } from "../../shared";
 import type { Simulation, SimulationConfigs } from "../compose";
 import { composeSimulation } from "../compose";
 import { GAME_CONFIG } from "../game.config";
+import { MAPS } from "../maps/maps";
 import type { ClipLevel, MontageClip } from "./clip";
 
 /** The stance is the clip's, never the player's saved one (nothing is persisted). */
@@ -23,14 +22,11 @@ class FixedStanceRepository implements StanceRepository {
   save(): void {}
 }
 
-/** A clip level by its map id, with its own spawn. */
-export function baseClipLevel(name: ClipLevel): Level {
-  switch (name) {
-    case "street":
-      return createStreetCourseLevel();
-    case "flat":
-      return createFlatGroundLevel();
-  }
+/** A clip's map by its id (from the map registry), with the map's own spawn. */
+export function baseClipLevel(id: ClipLevel): Level {
+  const map = MAPS.get(id);
+  if (map === undefined) throw new Error(`Montage clip on an unknown map "${id}"`);
+  return map.createLevel();
 }
 
 /** The level of a clip, with its spawn override applied. */
