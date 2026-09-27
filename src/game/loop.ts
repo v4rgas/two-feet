@@ -137,6 +137,18 @@ export class GameLoop {
     this.debugVectors = this.debugVectors.filter(
       ({ vector, timeS }) => vector.kind === "impulse" && this.timeS - timeS <= lifetimeS,
     );
+    for (const f of this.systems.board.lastForces) {
+      this.debugVectors.push({
+        timeS: this.timeS,
+        vector: {
+          kind: "force",
+          foot: null,
+          label: f.label,
+          originWorldM: f.pointWorldM,
+          vectorWorld: f.forceN,
+        },
+      });
+    }
     for (const f of this.systems.rider.lastForces) {
       this.debugVectors.push({
         timeS: this.timeS,

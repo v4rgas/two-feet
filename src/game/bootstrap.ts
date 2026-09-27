@@ -1,17 +1,11 @@
-import type { PhysicsWorld } from "../contexts/board";
-import { BOARD_CONFIG, BoardSpec } from "../contexts/board";
+import { BOARD_CONFIG, BoardSpec, PhysicsBoardSystem } from "../contexts/board";
+import { RapierPhysicsWorld } from "../contexts/board/infrastructure/rapier-physics-world";
 import { createFlatGroundLevel, WORLD_CONFIG } from "../contexts/world";
 import type { Clock } from "../shared";
 import { InMemoryEventBus, Quat, Transform, Vec3 } from "../shared";
 import { GAME_CONFIG } from "./game.config";
 import { GameLoop } from "./loop";
-import {
-  StubBoardSystem,
-  StubInputSystem,
-  StubPhysicsWorld,
-  StubRiderSystem,
-  StubTricksSystem,
-} from "./stubs";
+import { StubInputSystem, StubRiderSystem, StubTricksSystem } from "./stubs";
 
 /** Browser wall clock (the `Clock` port's production adapter). */
 const performanceClock: Clock = { nowS: () => performance.now() / 1000 };
@@ -20,7 +14,7 @@ const performanceClock: Clock = { nowS: () => performance.now() / 1000 };
  * Composition root: the only place that knows every concrete class (REQUIREMENTS §2.3
  * rule 6). Context agents swap their stub for the real implementation here.
  */
-export function bootstrap(canvas: HTMLCanvasElement): GameLoop {
+export async function bootstrap(canvas: HTMLCanvasElement): Promise<GameLoop> {
   const bus = new InMemoryEventBus();
   const spec = BoardSpec.create(BOARD_CONFIG.spec);
   const level = createFlatGroundLevel(WORLD_CONFIG.flatGround);
@@ -29,10 +23,9 @@ export function bootstrap(canvas: HTMLCanvasElement): GameLoop {
     Quat.fromAxisAngle(Vec3.UNIT_Y, level.spawn.headingRad),
   );
 
-  // TODO(board): RapierPhysicsWorld + real BoardSystem; add level.obstacles as static colliders.
-  const physics: PhysicsWorld = new StubPhysicsWorld();
+  const physics = await RapierPhysicsWorld.create(BOARD_CONFIG);
   for (const obstacle of level.obstacles) physics.addStaticCollider(obstacle);
-  const board = new StubBoardSystem(spawn);
+  const board = new PhysicsBoardSystem(physics.createBoard(spec, spawn), spec, BOARD_CONFIG, bus);
   // TODO(input): keyboard InputSource + VirtualSticks.
   const input = new StubInputSystem();
   // TODO(rider): Rider aggregate + FootForceModel, applying forces to `board.body`.

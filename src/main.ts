@@ -10,4 +10,6 @@ const resize = (): void => {
 window.addEventListener("resize", resize);
 resize();
 
-bootstrap(canvas);
+bootstrap(canvas).catch((error: unknown) => {
+  console.error("Failed to start the game", error);
+});
