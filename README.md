@@ -56,12 +56,12 @@ shows in the menu. See [`src/maps/README.md`](src/maps/README.md).
 - [`STYLE.md`](STYLE.md): look and feel
 - [`docs/adr/`](docs/adr): design decisions
 
-## Deploy (Cloudflare Pages)
+## Deploy (Cloudflare)
 
-The game is a static Vite build, hosted on Cloudflare Pages as the project `two-feet`.
+Live at **https://twofeet.v4rgas.com**. It's a static Vite build, served by a Cloudflare Worker with static assets (the successor of Cloudflare Pages), in the Worker project `two-feet`.
 
 1. One time: `pnpm exec wrangler login` (opens a browser to authorise Cloudflare).
 2. Deploy to production: `pnpm deploy` (runs the checks, builds `dist/`, uploads it).
-3. Deploy a preview URL instead: `pnpm deploy:preview`.
+3. Upload a preview version instead: `pnpm deploy:preview` (prints a preview URL; production doesn't change).
 
-`wrangler.toml` holds the project settings, and `public/_headers` sets the cache headers.
+`wrangler.toml` holds the Worker name, the custom domain and the assets folder. `public/_headers` sets the cache headers. The same build is also on `two-feet.juanvargasbes.workers.dev`.
