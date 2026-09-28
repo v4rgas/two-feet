@@ -1,6 +1,6 @@
 # TWO FEET — LinkedIn promo (script)
 
-A game by v4rgas (<https://v4rgas.com>). You steer **each foot** on its own keys (WASD for
+A game by v4rgas (<https://v4rgas.com>), played at **twofeet.v4rgas.com**. You steer **each foot** on its own keys (WASD for
 the front foot, the arrows for the back foot in regular stance).
 
 The video opens on a **real fingerboard clip**, dissolves into the game on the same trick,
@@ -113,7 +113,7 @@ basics don't get names: their captions already say what happens.
 | Input widget labels | front foot · back foot |
 | Lower-thirds, one per line | Manual → Nose Manual → Kickflip · BS 50-50 · FS 50-50 · Fakie 360 · Heelflip → BS 50-50 → BS Pop Shove-it out · Kickflip → FS Tailslide → Hardflip out · 360 Flip |
 | The bail | no text |
-| End card | **TWO FEET** · (pixel penguin) a game by v4rgas · v4rgas.com |
+| End card (the game's OG image look) | **TWO FEET** · deck-red bar · (pixel penguin) a game by v4rgas (Space Mono, cream) · **twofeet.v4rgas.com** (Space Mono, grey: where to play, on screen ≈ 3.2 s) |
 
 The lower-thirds are the recognizer's own names, except the manual line's: manuals carry no
 recognizer name (it names only the pops: Ollie, Ollie, Kickflip), so that one is written out
@@ -134,7 +134,7 @@ as what the widgets show (the stick held back, then forward).
 | 9 | 1:00.88–1:06.77 | **Line 6, all of it:** Kickflip → FS Tailslide → Hardflip out (the 7-stair hubba) | `promo-line-g4` |
 | 10 | 1:06.77–1:10.70 | **The gag, "try 1":** a double kickflip down El Toro, never caught: it lands upside down, the rider bails, the board slides off on its back. Hard cut while it slides. | `promo-bail-el-toro` |
 | 11 | 1:10.70–1:17.57 | **"Try 2":** the 360 Flip down El Toro (the only 360 flip) | `promo-tre-flip-el-toro` |
-| 12 | 1:17.57–1:21.07 | End card | — |
+| 12 | 1:17.57–1:21.07 | End card: TWO FEET, a game by v4rgas, twofeet.v4rgas.com (re-rendered alone with `?montage=promo-linkedin-end-card` and spliced onto the recording at 72.2 s of it) | `promo-linkedin-end-card` |
 
 ### 1–2 · The opening, beat by beat
 

@@ -325,11 +325,21 @@ export const promoLinkedIn: PromoSequence = {
         title: "TWO FEET",
         tagline: "",
         credit: "a game by v4rgas",
-        url: "v4rgas.com",
+        url: "twofeet.v4rgas.com",
         line: "",
         penguin: true,
       },
       stillsAtS: [2],
     },
   ],
+};
+
+/**
+ * The LinkedIn cut's end card alone (`?montage=promo-linkedin-end-card&record=frames`): to
+ * re-render just the card and splice it onto an existing recording of the game half.
+ */
+export const promoLinkedInEndCard: PromoSequence = {
+  id: "promo-linkedin-end-card",
+  format: "4x5",
+  items: promoLinkedIn.items.filter((i) => i.kind === "card"),
 };

@@ -1,11 +1,15 @@
 import type { MontageClip } from "../clip";
 import { promoDeskMatch } from "./fingerboard-match";
-import { promoLinkedIn } from "./linkedin";
+import { promoLinkedIn, promoLinkedInEndCard } from "./linkedin";
 import type { PromoSequence } from "./promo";
 import { promoClips } from "./promo";
 
 /** Every promo sequence (`?montage=<id>`). */
-export const PROMOS: readonly PromoSequence[] = [promoLinkedIn, promoDeskMatch];
+export const PROMOS: readonly PromoSequence[] = [
+  promoLinkedIn,
+  promoDeskMatch,
+  promoLinkedInEndCard,
+];
 
 /** The promo with this id, or undefined. */
 export function promoById(id: string): PromoSequence | undefined {

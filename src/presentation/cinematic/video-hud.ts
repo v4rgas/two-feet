@@ -23,10 +23,10 @@ const PAD_GAP = 14;
 /** STYLE.md "Wordmark": TWO FEET is tracked 0.04 em. */
 const WORDMARK_SPACING_EM = 0.04;
 
-/** v4rgas brand (STYLE.md "Banners"): a black field, white type, muted ".com". */
+/** v4rgas brand (STYLE.md "Banners"): a black field; the end card follows the game's OG image. */
 const V4RGAS_BLACK = "#000000";
-const V4RGAS_WHITE = "#ffffff";
-const V4RGAS_MUTED = "#d3d3d3";
+/** The play URL's grey (the OG image's, a touch lighter so it reads on a phone). */
+const V4RGAS_URL_GREY = "#aaaaaa";
 const SPACE_MONO = '"Space Mono", ui-monospace, monospace';
 const INTER = "Inter, system-ui, sans-serif";
 
@@ -465,8 +465,8 @@ export class VideoHud {
       WORDMARK_SPACING_EM,
     );
     const taglineSize = 30 * u;
-    const creditSize = 34 * u;
-    const urlSize = 40 * u;
+    const creditSize = 32 * u;
+    const urlSize = 44 * u;
     const penguinPx =
       card.penguin && this.penguin !== null ? 32 * Math.max(1, Math.floor((90 * u) / 32)) : 0;
     const barH = 7 * u;
@@ -503,7 +503,7 @@ export class VideoHud {
     }
     y += taglineSize * 0.2 + gap * 1.6;
     // The pixel penguin beside the credit (crisp nearest-neighbour pixels).
-    ctx.font = `700 ${creditSize}px ${SPACE_MONO}`;
+    ctx.font = `400 ${creditSize}px ${SPACE_MONO}`;
     const creditW = ctx.measureText(card.credit).width;
     const spacing = penguinPx > 0 ? 16 * u : 0;
     const left = cx - (penguinPx + spacing + creditW) / 2;
@@ -514,22 +514,16 @@ export class VideoHud {
     }
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = V4RGAS_MUTED;
+    ctx.fillStyle = p.concrete100;
     ctx.fillText(card.credit, left + penguinPx + spacing, y + rowH / 2);
-    y += rowH + gap * 1.4 + urlSize * 0.8;
-    // "v4rgas" in white, ".com" muted (the banner's lockup), centred as one line.
+    y += rowH + gap * 1.6 + urlSize * 0.8;
+    // The URL (where to play), in the site's grey, one line (the game's OG image).
     ctx.textBaseline = "alphabetic";
-    ctx.font = `700 ${urlSize}px ${SPACE_MONO}`;
-    const dot = card.url.lastIndexOf(".");
-    const name = dot > 0 ? card.url.slice(0, dot) : card.url;
-    const tld = dot > 0 ? card.url.slice(dot) : "";
-    const nameW = ctx.measureText(name).width;
-    const tldW = ctx.measureText(tld).width;
-    const x0 = cx - (nameW + tldW) / 2;
-    ctx.fillStyle = V4RGAS_WHITE;
-    ctx.fillText(name, x0, y);
-    ctx.fillStyle = V4RGAS_MUTED;
-    ctx.fillText(tld, x0 + nameW, y);
+    ctx.textAlign = "center";
+    const urlPx = fitFontPx(ctx, card.url, `400 %px ${SPACE_MONO}`, 0.84 * w, urlSize, 0);
+    ctx.font = `400 ${urlPx}px ${SPACE_MONO}`;
+    ctx.fillStyle = V4RGAS_URL_GREY;
+    ctx.fillText(card.url, cx, y);
     if (card.line !== "") {
       ctx.textAlign = "center";
       const lineSize = fitFontPx(ctx, card.line, `600 %px ${INTER}`, 0.84 * w, 21 * u, 0.06);

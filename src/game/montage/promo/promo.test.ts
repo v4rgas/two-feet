@@ -86,7 +86,7 @@ describe("promo sequences (data)", () => {
       title: "TWO FEET",
       tagline: "",
       credit: "a game by v4rgas",
-      url: "v4rgas.com",
+      url: "twofeet.v4rgas.com",
     });
     // Plain copy: no exclamation marks or em dashes anywhere on screen.
     const texts = promo.items.flatMap((i) => [

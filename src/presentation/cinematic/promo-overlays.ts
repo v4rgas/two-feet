@@ -53,7 +53,7 @@ export interface EndCard {
   readonly tagline: string;
   /** Credit line beside the penguin, e.g. "a game by v4rgas" (Space Mono). */
   readonly credit: string;
-  /** Site, e.g. "v4rgas.com": the part after the last "." is drawn muted. */
+  /** Where to play, e.g. "twofeet.v4rgas.com" (Space Mono, grey, the call to action). */
   readonly url: string;
   /** Small line at the bottom, or "". */
   readonly line: string;
