@@ -28,12 +28,12 @@ describe("promo sequences (data)", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("the LinkedIn cut (game half): the match cut first, an escalation with no repeats, one title, ≤ 80 s", () => {
+  it("the LinkedIn cut (game half): the match cut first, an escalation with no repeats, one title, ≤ 90 s", () => {
     const promo = promoById("promo-linkedin");
     if (promo === undefined) throw new Error("no promo-linkedin");
     expect(promo.format).toBe("4x5");
-    // With the ≈ 5.4 s of real footage the edit puts in front, the video stays ≤ 80 s.
-    expect(promoVideoS(promo, MONTAGE_CONFIG.record.fps)).toBeLessThanOrEqual(80 - 5.4);
+    // With the ≈ 5.4 s of real footage the edit puts in front, the video stays ≤ 90 s.
+    expect(promoVideoS(promo, MONTAGE_CONFIG.record.fps)).toBeLessThanOrEqual(90 - 5.4);
     const [first] = promo.items;
     expect(first?.kind === "clip" && first.clip.id).toBe("promo-desk-kickflip-fifty-fifty");
     expect(first?.fadeInS).toBe(0);
@@ -42,13 +42,22 @@ describe("promo sequences (data)", () => {
       "Kickflip → BS 50-50 → Kickflip out",
       "Ollie",
       "Kickflip",
-      "BS 50-50",
-      "Heelflip",
+      // The manual line: the pops the recognizer names (manuals have no name).
+      "Ollie",
+      "Ollie",
       "Kickflip",
-      "FS Tailslide",
+      "BS 50-50",
+      "FS 50-50",
+      "Fakie 360",
+      "Heelflip → BS 50-50 → BS Pop Shove-it out",
       "Kickflip → FS Tailslide → Hardflip out",
+      // (the bail gag lands nothing)
       "360 Flip",
     ]);
+    // One 360 flip in the whole video, and the gag is a real bail.
+    expect(tricks.filter((t) => t === "360 Flip")).toHaveLength(1);
+    const gag = promo.items.find((i) => i.kind === "clip" && i.clip.expect.bails === true);
+    expect(gag?.kind === "clip" && gag.tricks.show).toBe(false);
     // The names shown on screen (the climb after the basics) never repeat.
     const named = promo.items.flatMap((i) =>
       i.kind === "clip" && i.tricks.show ? i.clip.expect.tricks : [],
@@ -107,7 +116,7 @@ describe("promo playback options", () => {
     const o = montageOptionsFromUrl(new URLSearchParams("montage=promo-linkedin&record=frames"));
     expect(o.promo?.id).toBe("promo-linkedin");
     expect(o.format).toBe("4x5");
-    expect(o.items.map((i) => i.kind)).toEqual([...Array(8).fill("clip"), "card"]);
+    expect(o.items.map((i) => i.kind)).toEqual([...Array(10).fill("clip"), "card"]);
     expect(o.unknown).toEqual([]);
     expect(
       montageOptionsFromUrl(new URLSearchParams("montage=promo-linkedin&format=16x9")).format,

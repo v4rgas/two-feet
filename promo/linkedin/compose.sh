@@ -20,7 +20,7 @@ XF_DUR=0.65
 # slow motion). The track's beats: the first at 0.049 s, a bar every 4 × 60/122.25 s. The track
 # starts so that the downbeat of its bar 4 (7.902 s in) hits the landing (it comes in 3.4 s
 # before the dissolve, under the clacks, and covers the real clip's own quiet moments).
-DROP=9.853
+DROP=9.829
 LAND_IN_TRACK=$(python3 -c "print(round(0.049 + 4 * 4 * 60 / 122.25, 4))")
 MUSIC_AT=$(python3 -c "print(round(${DROP} - ${LAND_IN_TRACK}, 3))")
 RAMP_DB=24

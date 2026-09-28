@@ -119,8 +119,9 @@ describe("cinematic shots (pure rigs)", () => {
     const moved = { ...SUBJECT, position: [12, 0.1, 2] as const };
     expect(travelWithPose(spec, SUBJECT, SUBJECT, 0).eye).toEqual([1, 0.1, -0.2]);
     const later = travelWithPose(spec, moved, SUBJECT, 1);
-    expect(later.eye[0]).toBeCloseTo(3);
-    expect(later.target[0]).toBeCloseTo(0);
+    // After the ease the camera moves at the board's speed, trailing it by v × ease / 2.
+    expect(later.eye[0]).toBeCloseTo(1 + 2 * (1 - 0.3 / 2));
+    expect(later.target[0]).toBeCloseTo(-2 + 2 * (1 - 0.3 / 2));
     const early = travelWithPose(spec, moved, SUBJECT, 0.15);
     expect(early.eye[0]).toBeGreaterThan(1);
     expect(early.eye[0]).toBeLessThan(3);

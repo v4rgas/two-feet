@@ -4,8 +4,9 @@ A game by v4rgas (<https://v4rgas.com>). You steer **each foot** on its own keys
 the front foot, the arrows for the back foot in regular stance).
 
 The video opens on a **real fingerboard clip**, dissolves into the game on the same trick,
-and then climbs one new idea at a time: the basics in the player's own camera, a grind, a
-new flip, a flip down a drop, a slide, the line that combines them, and El Toro last. Everything in the game half is **real input** replayed through the
+and then climbs: the basics in the player's own camera, then six LINES (moves chained in
+one shot that show what the physics does: balance, a grind following a rail's shape, a
+bank, momentum, flips in and out of a grind, all of it together), a bail, and El Toro last. Everything in the game half is **real input** replayed through the
 game's own input → rider → Rapier physics. Nothing is animated. Every clip is checked by
 `pnpm montage:verify`: the recognizer must name the trick, and nothing may bail.
 
@@ -70,9 +71,9 @@ game's own input → rider → Rapier physics. Nothing is animated. Every clip i
    before the cut. Cut after the ride-away, never mid-trick.
 3. **Slow motion only on the key moment,** at 0.4–0.6× (never 0.2–0.3×), and never on the
    approach or the ride-away.
-4. **Escalate, one new idea per step, and never repeat a trick name on screen:** basics →
-   the first grind → a new flip → a flip down a drop → a slide → the line that combines
-   them → the biggest drop last.
+4. **Escalate, one new idea per line, and never repeat a trick name on screen:** basics →
+   lines of 2–4 moves in one shot, each showing one more thing the physics does → a bail
+   ("try 1") → the biggest drop landed ("try 2").
 5. **Text only where the picture can't explain it:** the controls, while the basics play.
    One idea per card, ≤ 6 words, lowercase, big (≈ 60 px on a 1080 frame), on screen for
    ≥ max(2 s, 1 s per 3 words + 1 s). A caption appears before its move. Trick names are
@@ -96,7 +97,7 @@ basics don't get names: their captions already say what happens.
 |---|---|
 | Deliverable | **1080 × 1350 (4:5 portrait)**, 60 fps, H.264 High, yuv420p, `+faststart` |
 | Preview | `two-feet-linkedin-4x5-preview.mp4`: 30 fps, crf 26, < 25 MB |
-| Length | 65.4 s |
+| Length | ≈ 81 s (the brief allows past a minute; no dead air) |
 | Sound | The fingerboard clacks, with "Rio Samba" coming in quietly under them and ramping up to full level at the trick-out landing; no gap. AAC 48 kHz 192 kbps, −14 LUFS, ≤ −1 dBTP. It works muted. |
 | 16:9 | Skipped: the real clip is portrait, and the match only lines up in 4:5. |
 
@@ -110,40 +111,45 @@ basics don't get names: their captions already say what happens.
 | Basics | hold ↓ and s, let go of ↓ |
 | Basics, line 1 then line 2 | tap a to flip it / space to catch |
 | Input widget labels | front foot · back foot |
-| Lower-thirds (trick names only) | BS 50-50 · Heelflip · Kickflip · FS Tailslide · Kickflip → FS Tailslide → Hardflip out · 360 Flip |
-| End card | **TWO FEET** · (pixel penguin) a game by v4rgas · v4rgas.com · small: music: Rio Samba by Liborio Conti |
+| Lower-thirds, one per line | Manual → Nose Manual → Kickflip · BS 50-50 · FS 50-50 · Fakie 360 · Heelflip → BS 50-50 → BS Pop Shove-it out · Kickflip → FS Tailslide → Hardflip out · 360 Flip |
+| The bail | no text |
+| End card | **TWO FEET** · (pixel penguin) a game by v4rgas · v4rgas.com |
+
+The lower-thirds are the recognizer's own names, except the manual line's: manuals carry no
+recognizer name (it names only the pops: Ollie, Ollie, Kickflip), so that one is written out
+as what the widgets show (the stick held back, then forward).
 
 ## Structure and timings (video seconds)
 
 | # | Time | Beat | Clip |
 |---|---|---|---|
 | 1 | 0:00–0:06.05 | Real fingerboard: trick 1, the reset, trick 2's approach and flick | source 0–6.05 s |
-| 2 | 0:05.40–0:11.82 | The dissolve into the game over the lock, the grind on the long rail as the camera travels and pulls back, the kickflip out, the landing at full music, TWO FEET | `promo-desk-kickflip-fifty-fifty` |
-| 3 | 0:11.82–0:28.50 | Basics in the player's camera, with the controls: push, ollie, kickflip | `promo-basics` |
-| 4 | 0:28.50–0:34.39 | BS 50-50 on the flat bar (the first grind) | `promo-rail-fifty-fifty` |
-| 5 | 0:34.39–0:39.31 | Heelflip off the euro gap (a new flip) | `promo-heelflip-gap` |
-| 6 | 0:39.31–0:44.22 | Kickflip down the 7-stair (a flip plus a drop) | `promo-kickflip-seven-stair` |
-| 7 | 0:44.22–0:49.13 | FS Tailslide on the hubba, ollie out (a slide on its own) | `promo-tailslide-hubba` |
-| 8 | 0:49.13–0:55.02 | Kickflip → FS Tailslide → Hardflip out (it all together) | `promo-line-g4` |
-| 9 | 0:55.02–1:01.89 | 360 Flip down El Toro (the 20-stair), the only 360 flip | `promo-tre-flip-el-toro` |
-| 10 | 1:01.89–1:05.39 | End card | — |
+| 2 | 0:05.40–0:11.80 | The dissolve into the game over the lock, the grind on the long rail as the camera travels and pulls back, the kickflip out, the landing at full music, TWO FEET | `promo-desk-kickflip-fifty-fifty` |
+| 3 | 0:11.80–0:28.48 | Basics in the player's camera, with the controls: push, ollie, kickflip | `promo-basics` |
+| 4 | 0:28.48–0:36.33 | **Line 1, balance:** ollie up, manual, ollie up, nose manual, kickflip out (the manual pads) | `promo-line-manual` |
+| 5 | 0:36.33–0:42.23 | **Line 2, the rail's shape:** BS 50-50 down the kinked rail, through both kinks | `promo-line-kinked-rail` |
+| 6 | 0:42.23–0:48.12 | **Line 3, a bank and a rail:** up the funbox bank, FS 50-50 over its down rail, off the end | `promo-line-funbox` |
+| 7 | 0:48.12–0:54.99 | **Line 4, momentum:** up the quarter pipe, back down fakie, a Fakie 360 on the flat | `promo-line-quarter-pipe` |
+| 8 | 0:54.99–1:00.88 | **Line 5, flips in and out:** Heelflip → BS 50-50 → BS Pop Shove-it out (flat bar) | `promo-line-flip-in-out` |
+| 9 | 1:00.88–1:06.77 | **Line 6, all of it:** Kickflip → FS Tailslide → Hardflip out (the 7-stair hubba) | `promo-line-g4` |
+| 10 | 1:06.77–1:10.70 | **The gag, "try 1":** a double kickflip down El Toro, never caught: it lands upside down, the rider bails, the board slides off on its back. Hard cut while it slides. | `promo-bail-el-toro` |
+| 11 | 1:10.70–1:17.57 | **"Try 2":** the 360 Flip down El Toro (the only 360 flip) | `promo-tre-flip-el-toro` |
+| 12 | 1:17.57–1:21.07 | End card | — |
 
 ### 1–2 · The opening, beat by beat
 
 | Video | What happens |
 |---|---|
-| 0:00 | The real clip, cropped to 4:5 (352 × 440 at y 92–532 of 624): the watermark (y ≥ ≈ 549) is fully out. A crop check over 0–6 s at 4 fps shows the rail, the board and the hands in frame at every key moment; the only exits are during the reset between tricks (the hand leaves the top at 2.2–2.6 s, the board touches the bottom edge at 2.8–3.0 s). Lanczos upscale, light unsharp, fine grain, a soft vignette. The clacks play. |
+| 0:00 | The real clip, cropped to 4:5 (352 × 440 at y 92–532 of 624): the watermark (y ≥ ≈ 549) is fully out. A crop check over 0–6 s at 4 fps shows the rail, the board and the hands in frame at every key moment; the only exits are during the reset between tricks. Lanczos upscale, light unsharp, fine grain, a soft vignette. The clacks play. |
 | ≈ 0:01.2–0:02.1 | Trick 1 on the rail. |
-| **0:01.95** | **The music comes in** at −24 dB under the clacks (the track from its 0:00). |
-| ≈ 0:04.4 | Trick 2's approach. |
+| **0:01.93** | **The music comes in** at −24 dB under the clacks (the track from its 0:00). |
 | 0:05.00–0:06.90 | The clacks fade out (qsin) while the music keeps rising: both audible together for ≈ 1.9 s. |
-| **0:05.40–0:06.05** | **The dissolve** (0.65 s): real and game both play, the game clip from 1.29 s (game = source − 4.11 s). The flick is at 5.60 on both; the real board lands on the rail at 5.77 s, the game board locks at 1.66 s (video 5.77 s). The game camera is the phone's fitted pose. |
-| 0:05.73 | The game camera starts travelling with the board (horizontally, eased over 0.2 s), so the board keeps the size it has at the lock (the real board's size) instead of growing as it comes at the lens. The game rail runs on past where the real one ends, off the left edge. |
-| 0:06.71–0:08.51 | **The camera move:** a 1.8 s eased blend back and round to a low angle beside the rail (`lowSide`, 2.6 m out, 0.35 m up), revealing the game (its plaza, the barrier ring with the BipBop Labs and v4rgas banners). The grind plays at 0.6×. |
-| 0:06.04–0:08.37 | **The desk look** (a dark "desk mat" ground `#4a423b`, warm dim light) eases back to the game's own look. |
-| **0:08.55** | **The trick out:** ↓ + S from 3.15 s, ↓ let go at 3.40 s (clip) pops out of the grind, W + A flips it, Space at 3.93 s; the air at 0.5×. |
-| **0:09.85** | **The landing:** the music reaches full level here, on the downbeat of its bar 4. |
-| 0:09.90–0:11.8 | TWO FEET over the ride-away (real time), then a hard cut on bar 1. |
+| **0:05.40–0:06.05** | **The dissolve** (0.65 s): real and game both play, the game clip from 1.29 s (game = source − 4.11 s). The flick at 5.60 on both; the lock at 5.77 on both. The game camera is the phone's fitted pose, static for the first ≈ 45 % of the dissolve. |
+| 0:05.69 → | **The camera move** (checked with a per-frame camera trace, `camera-speed-opening.png`, and a 20 fps strip, `camera-move-strip-20fps.png`): from rest, the camera starts to travel with the board, its velocity easing up on a quintic smootherstep (zero velocity and acceleration at the start, 0 → 3.3 m/s over ≈ 0.25 s, never overshooting the board's speed); from 5.9 s it blends (quintic again, C2 at both ends; eye, look-at and FOV together, 68° → 42°) back and round to a low angle beside the rail, and settles into tracking (≈ 1.4 m/s) by ≈ 7.6 s. The one slow-motion window here eases in and out over 0.3 s instead of stepping, so the camera's speed stays continuous through it. The board stays in frame all the way; the move reveals the plaza and the BipBop Labs and v4rgas banners. |
+| 0:06.0–0:08.4 | **The desk look** (a dark "desk mat" ground `#4a423b`, warm dim light) eases back to the game's own look. |
+| **≈ 0:08.6** | **The trick out:** ↓ + S, ↓ let go at 3.40 s (clip) pops out of the grind, W + A flips it, Space at 3.93 s (0.55×). |
+| **0:09.83** | **The landing:** the music reaches full level here, on the downbeat of its bar 4. |
+| 0:09.9–0:11.8 | TWO FEET over the ride-away, then a hard cut on bar 1. |
 
 **Camera match.** Measured on the real frame at 5.5 s (no hand), in the 4:5 crop (fractions
 of width, height):
@@ -161,19 +167,16 @@ below the rail top; the lens is wide (≈ 68° vertical over the 4:5 crop). The 
 then 4.6 m more rail toward and past the camera, and a barrier ring with the sponsors'
 banners. **DESK_CAMERA**: eye (0.48, 0.103, −0.18) m (the real rail's near end at x = 0, the
 rail along −X), looking back along the rail turned 3.4° toward +Z and pitched up 0.079 rad,
-vertical FOV 68.1°, roll 0. The first fit at a 1.0 m rail made the board read small; 0.8
-made it bigger than the real one right after the cut; **0.9** matches it (angles and FOV
-don't change with the scale). Checked with 50/50 overlays: `overlay-before.png` (the first
-estimate) and `overlay-after.png` (the fitted pose).
+vertical FOV 68.1°, roll 0. Scale 0.9 of the first fit matches the real board's size.
+`overlay-before.png` (the first estimate) and `overlay-after.png` (the fitted pose).
 
 ### 3 · Basics (the player's camera)
 
 The game's own follow camera (the same rig the player sees), framed a little wider and
 higher for the 4:5 frame (for the capture only: eye pulled back 1.4×, raised 0.18 m, FOV
-+4°), so the board sits mid-frame with space round it. The input widgets are big in the
-bottom corners, where the game's foot pads sit. Left is the WASD foot (front, green), right
-the arrows foot (back, blue): each shows the smoothed stick with a trail, plus its key caps
-lit from the clip's real key timeline, with a Space cap between them.
++4°). The input widgets are big in the bottom corners, where the game's foot pads sit: left
+the WASD foot (front, green), right the arrows foot (back, blue), each with the smoothed
+stick and a trail, plus key caps lit from the clip's real key timeline.
 
 | Clip time | Caption / move |
 |---|---|
@@ -186,54 +189,48 @@ lit from the clip's real key timeline, with a Space cap between them.
 | 11.40 → 11.76 | the load, the pop (0.5×): W + A flicks, Space at 12.30, landing 12.44 |
 | 14.70 | cut (≈ 2 s of ride-away), on a half bar |
 
-### 4–9 · The climb
+### 4–11 · The lines
 
-Hard cuts on bars or half bars. The widgets are small on 4–8, off for El Toro. Trick
-names only.
+Hard cuts on bars or half bars; the stick widgets small on every line (so the manual's stick
+held back and the nose manual's stick pushed forward show), off for the gag and the finale.
+Slow motion only on each line's peak.
 
-| Clip | Approach | Key moment (slow) | Landing | Ride-away |
-|---|---|---|---|---|
-| BS 50-50, flat bar | fisheye 1.05 s | low side, 0.5× over the pop and lock | 3.47 s | 1.7 s (follow cam) |
-| Heelflip, euro gap | low side, 0.9 s | 0.5× over the air | 1.77 s | 2.4 s |
-| Kickflip, 7-stair | fisheye from 1.3 s (1.3 s) | tripod, 0.5× over the air | ≈ 3.5 s | 1.8 s |
-| FS Tailslide, hubba (ollie out) | fisheye, then low side | 0.6× over the slide | 2.72 s | 1.7 s (tracking side angle) |
-| Kickflip → FS Tailslide → Hardflip out | fisheye, then low side | 0.6× slide, 0.5× hardflip | 2.67 s | 2.1 s (tracking side angle) |
-| 360 Flip, El Toro | the fisheye push across the quad (from 0 s) | courtyard tripod, 0.4× over the whole air | 2.70 s | 2.25 s, then the fade |
+| Line | What the physics shows | Camera | Slow motion (peak) | Landing | Ride-away |
+|---|---|---|---|---|---|
+| Manual → Nose Manual → Kickflip | balance: the tail pressed (nose up ≈ 0.08 rad) across the low pad, then the nose pressed across the high pad | low side, 3.4 m out, the whole line in frame | 0.5× over the kickflip out | 4.98 s | 2.1 s |
+| BS 50-50, kinked rail | the board follows the rail's shape: flat, down, flat, no speed lost at the kinks | low side, 3.2 m out | 0.6× over the kinks | 3.85 s | 1.5 s |
+| FS 50-50, funbox down rail | up a bank, a grind over the top and down the far side | low side (the open side), 3.2 m out | 0.6× over the rail's kink | 3.52 s | 1.8 s |
+| Fakie 360, quarter pipe | momentum: up the transition, back down fakie, a body 360 that lands still fakie | fixed tripod at the quarter pipe's side, zooming 52° → 40° | 0.5× over the air | 3.71 s | 2.4 s |
+| Heelflip → BS 50-50 → BS Pop Shove-it out | a flip into a grind and a shove-it out of it | fisheye, then low side | 0.5× over the flip-in and the lock | 3.37 s | 1.8 s |
+| Kickflip → FS Tailslide → Hardflip out | all of it together | fisheye, low side, tripod, tracking side angle | 0.6× slide, 0.5× hardflip | 2.67 s | 2.1 s |
+| The bail ("try 1") | the ragdoll: every controller lets go; the board lands upside down and slides off on its grip | fisheye push, then the courtyard tripod | 0.6× over the air and the impact | (bails at 2.99 s) | 0.8 s of sliding, hard cut on a downbeat |
+| 360 Flip, El Toro ("try 2") | the biggest drop, landed | the fisheye push, then the courtyard tripod | 0.4× over the whole air | 2.70 s | 2.25 s, then the fade |
+
+**Not built:** the brief's quarter pipe "BS 180 on the flat to ride forward again": a body
+180 out of fakie under-rotated in every scan (spin holds 0.75–0.88 s); a longer hold spins a
+full 360, and the Fakie 360 (hold 0.94 s) is what lands, so that is the line. The El Toro
+handrail 50-50 before the finale was left out: the bail gag now sits there, and the
+handrail would repeat the kinked-rail idea.
 
 ## Music
 
-**"Rio Samba" by Liborio Conti.** No-copyright, commercial use allowed; attribution
-appreciated but not required. We don't claim it and don't redistribute the file. Paste
-this line into the LinkedIn post:
+**"Rio Samba" by Liborio Conti.** No-copyright, commercial use allowed; attribution optional
+(the video carries no credit). Optional line for the LinkedIn post:
 
 > "Rio Samba" by Liborio Conti (Free No Copyright Royalty Free Music) https://www.youtube.com/LiborioConti
 
 - **Tempo:** 122.25 BPM (autocorrelation of an onset envelope): a beat is 0.491 s, a bar
   1.963 s, and the first beat is 0.049 s into the track.
-- **The ramp (no gap):** the track starts at video 1.951 s, from its 0:00, at −24 dB
-  relative to its final level. It rises on a dB-linear (logarithmic) curve through the
-  real clip, the dissolve and the grind, and reaches full level at the trick-out landing
-  (9.853 s), which is the downbeat of the track's bar 4 (7.902 s in). The clacks fade out
-  over 5.00–6.90 s with a qsin curve, under the rising music. `audio-envelope-0-14s.png`
-  plots the RMS (50 ms windows) over 0–14 s: no dip at the seam. The lowest point between
-  4 and 11 s is −25.4 dB (at 5.0 s, where the clacks start their fade), against about −20
-  to −15 dB around it.
-- **Cuts** (bars counted from the landing, at 9.853 + 1.963·n s):
-
-  | Cut | Video | Bar |
-  |---|---|---|
-  | basics | 11.82 | 1 |
-  | 50-50 | 28.50 | 9½ |
-  | heelflip | 34.39 | 12½ |
-  | kickflip 7-stair | 39.31 | 15 |
-  | tailslide | 44.22 | 17½ |
-  | the line | 49.13 | 20 |
-  | El Toro | 55.02 | 23 |
-  | end card | 61.89 | 26½ |
-
-  Only the clip heads and tails moved to hit these; the tricks didn't.
-- **End:** the music fades out over the last 1.5 s of the end card. Mixed, then normalised
-  with a linear two-pass `loudnorm` to −14 LUFS and ≤ −1 dBTP (−13.9 LUFS, −1.6 dBTP).
+- **The ramp (no gap):** the track starts at video 1.927 s, from its 0:00, at −24 dB
+  relative to its final level, and rises on a dB-linear (logarithmic) curve through the
+  real clip, the dissolve and the grind to full level at the trick-out landing (9.829 s),
+  the downbeat of the track's bar 4 (7.902 s in). The clacks fade out over 5.00–6.90 s
+  (qsin) under it. `audio-envelope-0-14s.png`: no dip at the seam.
+- **Cuts** (bars from the landing, 9.829 + 1.963·n s): basics 1 · manual line 9½ · kinked
+  rail 13½ · funbox 16½ · quarter pipe 19½ · flip in/out 23 · the hubba line 26 · the bail
+  29 (the hard cut to "try 2" at bar 31, a downbeat) · El Toro 31 · end card 34½. Only
+  clip heads and tails moved to hit these; the tricks didn't.
+- **End:** a 1.5 s fade-out over the end card. Two-pass `loudnorm` to −14 LUFS, ≤ −1 dBTP.
 
 ## Edit (`promo/linkedin/compose.sh`)
 
@@ -242,40 +239,41 @@ this line into the LinkedIn post:
 - `xfade=fade:duration=0.65:offset=5.40` into the game recording (which starts at desk clip
   1.29 s). The desk look is set in the engine.
 - Audio: the source's own sound to 6.90 s, limited, faded out 5.00–6.90 s (qsin); the samba
-  from 1.951 s with `volume='if(lt(t,R),pow(10,-24*(1-t/R)/20),1)':eval=frame` (R = 7.902
-  s, the ramp), a 1.5 s fade-out at the end; `amix`, two-pass `loudnorm`, a limiter, AAC 48
-  kHz 192 kbps.
+  from 1.927 s with `volume='if(lt(t,R),pow(10,-24*(1-t/R)/20),1)':eval=frame` (R = 7.902
+  s), a 1.5 s fade-out at the end; `amix`, two-pass `loudnorm`, a limiter, AAC 48 kHz 192 kbps.
 - libx264 High, crf 17, `+faststart`. Preview: 30 fps, crf 26. The seam's RMS table goes to
   `/tmp/tf-rms.txt`.
 
 ## Self-review (after the render, frames checked at 2 fps)
 
-v4 (65.4 s), against the rules above:
+v5 (81.1 s), against the rules above:
 
 1. **Open on the thing itself:** yes. No text until TWO FEET at 9.9 s.
-2. **Tricks breathe:** every climb step shows ≥ 1 s of approach and 1.7–2.4 s of
-   ride-away. After the lock the camera travels with the board, horizontally only, so
-   the board holds its lock-time size. A draft let it grow toward the lens and, with a
-   vertical follow, dip the camera under the ground; both are fixed.
-3. **Slow motion:** 0.4–0.6× on pops, locks, slides and airs only.
-4. **Escalation, no repeats on screen:** BS 50-50 → Heelflip → Kickflip (7-stair) → FS
-   Tailslide → the Kickflip → FS Tailslide → Hardflip out line → 360 Flip (El Toro only).
-   The kickflip in the basics is taught by its captions and not named, so the only named
-   Kickflip is the 7-stair one.
-5. **Text:** the captions live in the basics only; each is ≤ 6 words and on screen 2.7–3.7
-   s, and the 2 fps frames show each one fully readable for its whole hold. The first
-   pair sits over the standing start again, with room to read.
-6. **One title, one end card:** yes.
-7. **Cuts on bars:** all cuts land on bars or half bars; hard cuts; the one dissolve (0.65
-   s, both clips moving, over the lock) is the match; fades only into and out of the end
-   card.
-8. **No dead air:** the audio has no gap. The music rises continuously from −24 dB
-   (1.95 s) to full level at the landing, and the lowest seam point is −25.4 dB.
+2. **Lines breathe:** every line shows its full run, from approach to ride-away, in one
+   shot, and cuts after 1.5–2.4 s of ride-away. The 2 fps check shows every move of every
+   line in frame.
+3. **Slow motion:** one peak per line, 0.4–0.6×. The opening's window eases in and out.
+4. **Escalation, no repeats:** balance → the rail's shape → a bank → momentum → flips in
+   and out → all of it → the bail → El Toro. Each named line appears once, and there is
+   only one 360 Flip in the video.
+5. **Text:** the captions are in the basics only; the lines get one lower-third each,
+   readable ≥ 1.5 s; the bail and the end card have no extra text (the music credit is
+   gone from the card).
+6. **Camera move after the dissolve:** it starts from rest and eases up smoothly, blends
+   C2 into the side angle and settles, with eye, look-at and FOV moving together.
+   `camera-speed-opening.png` shows speed from a per-frame trace: 0 → 3.3 m/s, one smooth
+   rise and fall, no jumps. `camera-move-strip-20fps.png` shows the board in frame
+   throughout. An earlier spring-based version kept the speed smooth but left the board
+   out of frame for about 1 s; it was dropped.
+7. **Cuts on bars:** all cuts land on bars or half bars of the samba. The gag's hard cut to
+   "try 2" lands on a downbeat.
+8. **No dead air:** the music rises continuously from −24 dB at 1.9 s to full level at the
+   landing, and the lowest point at the seam is −25.7 dB.
 
 Still imperfect:
-- The continuing game rail crosses the upper-left corner near the lens during and after
-  the dissolve.
-- After the lock the real board slides out of the real frame while the game camera starts
-  to travel, so the last ~0.3 s of the dissolve is not a perfect geometric overlay (the
-  rail still is).
-- The game rail's far post sits a little inward of the real one (a fixed post inset).
+- The Fakie 360's tripod is far from where the spin happens, so the spin is small in frame.
+- The camera starts moving at 45 % of the dissolve, not after it. Starting later lets the
+  board run into the lens, so the last third of the dissolve has a slight drift; the rail
+  still lines up.
+- The Fakie 360 lands only at one spin setting (deterministic, so it replays; a person
+  would find it hard).

@@ -31,6 +31,12 @@ export interface SlowMotion {
   readonly toS: number;
   /** Simulation seconds per video second, (0, 1]. */
   readonly scale: number;
+  /**
+   * Ease into and out of the slow motion over this much clip time at each end, s (a
+   * smoothstep of the scale), instead of a step: board-relative camera moves then keep a
+   * continuous speed through the change. Absent = a step.
+   */
+  readonly rampS?: number;
 }
 
 /** What `montage:verify` checks. */
@@ -39,6 +45,11 @@ export interface ClipExpectation {
   readonly tricks: readonly string[];
   /** The board must be rolling fakie (backwards in the same stance) at this clip time, s. */
   readonly rollsFakieAtS?: number;
+  /**
+   * The clip is a bail on purpose (a promo's gag): it must end in a `RiderBailed` (the
+   * ragdoll), and `tricks` lists what lands before it (usually nothing).
+   */
+  readonly bails?: boolean;
 }
 
 export interface MontageClip {
@@ -74,7 +85,13 @@ export interface MontageClip {
 /** Simulation seconds per video second at clip time `tS` (1 outside slow-motion windows). */
 export function timeScaleAt(clip: MontageClip, tS: number): number {
   for (const w of clip.slowMotion ?? []) {
-    if (tS >= w.fromS && tS < w.toS) return w.scale;
+    if (tS < w.fromS || tS >= w.toS) continue;
+    const ramp = Math.min(w.rampS ?? 0, (w.toS - w.fromS) / 2);
+    if (ramp <= 0) return w.scale;
+    const edge = Math.min(tS - w.fromS, w.toS - tS) / ramp;
+    if (edge >= 1) return w.scale;
+    const k = edge * edge * (3 - 2 * edge);
+    return 1 + (w.scale - 1) * k;
   }
   return 1;
 }

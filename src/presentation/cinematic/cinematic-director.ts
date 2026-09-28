@@ -5,7 +5,7 @@ import type { PresentationConfig } from "../presentation.config";
 import type { RenderFrame } from "../render-frame";
 import type { CinematicConfig } from "./cinematic.config";
 import type { CameraPose, ShotSpec, ShotSubject } from "./shots";
-import { blendPoses, riggedShotPose, smoothstep, widenFollowPose } from "./shots";
+import { blendPoses, riggedShotPose, smootherstep, widenFollowPose } from "./shots";
 
 /** One camera shot of a clip: active from `fromS` (clip time) until the next one starts. */
 export interface ShotSegment {
@@ -97,7 +97,7 @@ export class CinematicDirector {
       return current;
     }
     const before = this.poseOf(this.previous, subject, this.previousAgeS, aspect);
-    return blendPoses(before, current, smoothstep(t));
+    return blendPoses(before, current, smootherstep(t));
   }
 
   private poseOf(index: number, subject: ShotSubject, ageS: number, aspect: number): CameraPose {

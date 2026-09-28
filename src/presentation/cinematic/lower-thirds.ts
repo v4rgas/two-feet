@@ -77,7 +77,7 @@ export class LowerThirdsModel {
       if (this.showTricks) {
         this.show({ text: event.name, caption: this.trickCaption, tone: "trick" });
       }
-    } else if (event.type === "RiderBailed") {
+    } else if (event.type === "RiderBailed" && this.showTricks) {
       this.show({ text: "bail", caption: "", tone: "bail" });
     }
   }

@@ -33,9 +33,10 @@ const POP_S = 1.05;
  * It grinds down the long rail; ↓ + S from 3.15 s and ↓ let go at 3.40 s pop out of the grind
  * (the rail ends at ≈ 3.8 s), W + A flips it, Space at 3.93 s (`findCatchTimeS`; lands with
  * Space in ≈ 3.89–3.97 s), the landing at ≈ 4.05 s, then it rides away.
- * Camera: locked at the phone's pose through the cut, then travelling with the board (the
- * same framing, the world sliding by), then a 1.8 s eased move back and round
- * to a low angle beside the rail (a blend into `lowSide`), which follows the ride-away.
+ * Camera: locked at the phone's pose through most of the dissolve; from 1.76 s it travels with
+ * the board (eased in from rest), and from 1.98 s blends back and round to a low angle beside
+ * the rail (quintic eases throughout: no jolt, no constant-speed leg), which then follows
+ * the ride-away.
  */
 export const promoDeskKickflipFiftyFifty: MontageClip = {
   id: "promo-desk-kickflip-fifty-fifty",
@@ -44,7 +45,7 @@ export const promoDeskKickflipFiftyFifty: MontageClip = {
   createLevel: createDeskSetLevel,
   stance: "regular",
   spawn: { xM: DESK_RAIL_FAR_X - 5.5, yM: 0, zM: 0.15, headingRad: 0.03, speedMps: 3.6 },
-  durationS: 5.945,
+  durationS: 6.005,
   keys: new KeyTimeline("regular")
     .loadAndPop("tail", POP_S - 0.36, POP_S)
     .level("tail", POP_S + 0.05)
@@ -69,21 +70,23 @@ export const promoDeskKickflipFiftyFifty: MontageClip = {
       },
     },
     {
-      // Just before the lock (inside the dissolve): the same pose, travelling with the board
-      // from there on, so the board keeps its size at the lock (the size of the real board)
-      // instead of growing as it comes at the lens.
-      fromS: 1.62,
+      // Late in the dissolve the camera starts to travel with the board, from rest (a quintic
+      // ease: velocity and acceleration start at zero), so the board holds its place...
+      fromS: 1.58,
       shot: {
         kind: "travelWith",
         positionM: DESK_CAMERA.positionM,
         lookAtM: DESK_CAMERA.lookAtM,
         fovDeg: DESK_CAMERA.fovDeg,
-        easeInS: 0.2,
+        easeInS: 0.3,
       },
     },
     {
-      fromS: 2.3,
-      blendS: 1.8,
+      // ...and, before that travel has even reached the board's speed, it blends (quintic
+      // again: C2 at both ends, the eye, the look-at and the FOV together) back and round to
+      // the low side angle beside the rail, which then tracks the ride.
+      fromS: 1.78,
+      blendS: 1.6,
       shot: {
         kind: "lowSide",
         side: "left",
@@ -94,12 +97,9 @@ export const promoDeskKickflipFiftyFifty: MontageClip = {
       },
     },
   ],
-  // Real time through the crossfade (so the match holds); the grind a little slow while the
-  // camera moves; the trick-out slower; the ride-away real time.
-  slowMotion: [
-    { fromS: 1.85, toS: 3.38, scale: 0.6 },
-    { fromS: 3.38, toS: 4.12, scale: 0.5 },
-  ],
+  // Real time through most of the dissolve (so the match holds), then one slow-motion window
+  // eased in and out (0.3 s ramps) over the camera move, the grind and the trick-out.
+  slowMotion: [{ fromS: 1.8, toS: 4.2, scale: 0.55, rampS: 0.3 }],
   expect: { tricks: ["Kickflip → BS 50-50 → Kickflip out"] },
 };
 

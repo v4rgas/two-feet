@@ -171,6 +171,15 @@ export function smoothstep(t: number): number {
   return x * x * (3 - 2 * x);
 }
 
+/**
+ * Quintic smootherstep in [0, 1]: zero velocity AND acceleration at both ends, so a camera
+ * move or blend built on it starts and settles without a jolt (C2).
+ */
+export function smootherstep(t: number): number {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * x * (x * (x * 6 - 15) + 10);
+}
+
 /** Vertical FOV that gives `horizontalFovDeg` at `aspect` (width / height), deg. */
 export function verticalFovDeg(horizontalFovDeg: number, aspect: number): number {
   const h = (horizontalFovDeg * Math.PI) / 180;
@@ -288,14 +297,28 @@ export function deckShowcasePose(
  * `travelWith`: the start pose moved by the board's horizontal displacement since the shot started
  * (`start`, the subject then), eased in over `easeInS`.
  */
+/**
+ * How much of the board's displacement a `travelWith` camera has covered after `t` of its
+ * ease (`easeS`): its VELOCITY eases from 0 to the board's on a quintic smootherstep (for a
+ * board at a steady speed), so it accelerates smoothly and never overshoots the board's
+ * speed to catch up; the price is that the board closes in by speed × `easeS` / 2.
+ * (∫₀ˣ smootherstep = x⁶ − 3x⁵ + 2.5x⁴.)
+ */
+export function travelFraction(t: number, easeS: number): number {
+  if (t <= 0) return 0;
+  if (easeS <= 0) return 1;
+  if (t >= easeS) return 1 - easeS / (2 * t);
+  const x = t / easeS;
+  return (easeS * (x ** 6 - 3 * x ** 5 + 2.5 * x ** 4)) / t;
+}
+
 export function travelWithPose(
   spec: TravelWithShot,
   subject: ShotSubject,
   start: ShotSubject,
   shotTimeS: number,
 ): CameraPose {
-  const ease = spec.easeInS ?? 0.4;
-  const w = ease <= 0 ? 1 : smoothstep(shotTimeS / ease);
+  const w = travelFraction(shotTimeS, spec.easeInS ?? 0.4);
   // Horizontal only: an operator walks with the board, the lens height stays (a low camera
   // following a board that drops onto a rail would otherwise go under the ground).
   const [sx, , sz] = subject.position;

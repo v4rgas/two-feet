@@ -66,6 +66,8 @@ export interface MontageOptions {
   readonly unknown: readonly string[];
   readonly record: RecordMode;
   readonly pads: boolean;
+  /** Record the camera pose of every frame in the status (`&trace`). */
+  readonly trace: boolean;
   /** Output frame (`&format=`; else a promo's own format, else the 1280×720 default). */
   readonly format: VideoFormatId;
 }
@@ -109,6 +111,7 @@ export function montageOptionsFromUrl(
           ? record
           : "auto",
     pads: params.has("pads"),
+    trace: params.has("trace"),
     format,
   };
 }
@@ -121,6 +124,14 @@ export interface MontageStatus {
   recorder: string;
   saved: string[];
   error: string | null;
+  /** Camera poses per frame (`&trace`: to check a camera move's speed curve). */
+  trace: {
+    clip: string;
+    clipS: number;
+    eye: readonly number[];
+    target: readonly number[];
+    fovDeg: number;
+  }[];
 }
 
 /** Sim-time instants to grab a still at, for a clip. */
@@ -231,6 +242,7 @@ export async function startMontage(
     recorder: "none",
     saved: [],
     error: null,
+    trace: [],
   };
   Object.assign(window, { __montage: status });
   try {
@@ -384,6 +396,15 @@ async function play(
             ? rec.width / rec.height
             : canvas.clientWidth / Math.max(1, canvas.clientHeight);
           const pose = director.update(frame, clipTimeS, dtS, aspect);
+          if (options.trace) {
+            status.trace.push({
+              clip: clip.id,
+              clipS: clipTimeS,
+              eye: pose.eye,
+              target: pose.target,
+              fovDeg: pose.fovDeg,
+            });
+          }
           renderer.setMontageOverrides(pose, dtS);
           const look = item.look;
           renderer.setMontageLook(look?.look ?? null, look ? lookWeightAt(look, clipTimeS) : 0);
