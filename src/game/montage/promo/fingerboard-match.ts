@@ -44,7 +44,7 @@ export const promoDeskKickflipFiftyFifty: MontageClip = {
   createLevel: createDeskSetLevel,
   stance: "regular",
   spawn: { xM: DESK_RAIL_FAR_X - 5.5, yM: 0, zM: 0.15, headingRad: 0.03, speedMps: 3.6 },
-  durationS: 5.99,
+  durationS: 5.945,
   keys: new KeyTimeline("regular")
     .loadAndPop("tail", POP_S - 0.36, POP_S)
     .level("tail", POP_S + 0.05)
@@ -69,15 +69,16 @@ export const promoDeskKickflipFiftyFifty: MontageClip = {
       },
     },
     {
-      // Just after the crossfade: the same pose, now travelling with the board (it holds
-      // its place in the frame instead of running past the lens).
-      fromS: 1.74,
+      // Just before the lock (inside the dissolve): the same pose, travelling with the board
+      // from there on, so the board keeps its size at the lock (the size of the real board)
+      // instead of growing as it comes at the lens.
+      fromS: 1.62,
       shot: {
         kind: "travelWith",
         positionM: DESK_CAMERA.positionM,
         lookAtM: DESK_CAMERA.lookAtM,
         fovDeg: DESK_CAMERA.fovDeg,
-        easeInS: 0.3,
+        easeInS: 0.2,
       },
     },
     {
@@ -131,7 +132,7 @@ export const promoDeskMatch: PromoSequence = {
     {
       kind: "clip",
       clip: promoDeskKickflipFiftyFifty,
-      startAtS: 1.45,
+      startAtS: 1.25,
       look: DESK_LOOK,
       tricks: { show: false, caption: "" },
       fadeInS: 0,

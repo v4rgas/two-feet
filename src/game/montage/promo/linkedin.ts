@@ -2,8 +2,7 @@ import { EL_TORO } from "../../../maps/el-toro/el-toro.config";
 import { STREET_CONFIG } from "../../../maps/street/street.config";
 import type { MontageClip } from "../clip";
 import { treFlipEuroGap } from "../clips/ramps";
-import { stairsTailslideHardflip } from "../clips/stairs";
-import { ollieSevenStair } from "../clips/street";
+import { kickflipStairs, stairsTailslideHardflip } from "../clips/stairs";
 import { KeyTimeline } from "../timeline";
 import { DESK_LAND_S, DESK_LOOK, promoDeskKickflipFiftyFifty } from "./fingerboard-match";
 import type { PromoSequence } from "./promo";
@@ -27,7 +26,7 @@ const QUAD_Y = EL_TORO.stairs.stepCount * EL_TORO.stairs.riseM + EL_TORO.plaza.a
 
 /** The basics' pops (clip s): the ollie, then the kickflip. */
 const OLLIE_S = 8.96;
-const FLIP_S = 12.76;
+const FLIP_S = 11.76;
 
 /**
  * The basics, in the player's own camera (the game's follow rig) with the input widgets
@@ -45,7 +44,7 @@ export const promoBasics: MontageClip = {
   level: "flat",
   stance: "regular",
   spawn: { xM: -24, yM: 0, zM: 0, headingRad: 0, speedMps: 0 },
-  durationS: 15.39,
+  durationS: 14.7,
   keys: new KeyTimeline("regular")
     .push(5.0)
     .push(5.7)
@@ -56,12 +55,15 @@ export const promoBasics: MontageClip = {
     .loadAndPop("tail", FLIP_S - 0.36, FLIP_S)
     .level("tail", FLIP_S + 0.05)
     .flick("tail", "heel", FLIP_S + 0.05, 0.12)
-    .catch(13.3)
+    .catch(12.3)
     .build(),
-  shots: [{ fromS: 0, shot: { kind: "follow" } }],
+  // The game's own camera, framed a little wider and higher for the 4:5 frame.
+  shots: [
+    { fromS: 0, shot: { kind: "follow", widen: { pullBack: 1.4, raiseM: 0.18, fovAddDeg: 4 } } },
+  ],
   slowMotion: [
     { fromS: OLLIE_S - 0.4, toS: 9.65, scale: 0.5 },
-    { fromS: FLIP_S - 0.4, toS: 13.55, scale: 0.5 },
+    { fromS: FLIP_S - 0.4, toS: 12.55, scale: 0.5 },
   ],
   expect: { tricks: ["Ollie", "Kickflip"] },
 };
@@ -89,17 +91,85 @@ export const promoRailFiftyFifty: MontageClip = {
   expect: { tricks: ["BS 50-50"] },
 };
 
-/** The 7-stair ollie, with a longer ride-away (landing ≈ 1.77 s). */
-export const promoOllieSevenStair: MontageClip = {
-  ...ollieSevenStair,
-  id: "promo-ollie-seven-stair",
-  durationS: 3.96,
-  slowMotion: [{ fromS: 0.85, toS: 1.8, scale: 0.5 }],
+/**
+ * Heelflip off the euro gap (a new flip, off a small drop): the 360 flip clip's line (4.5 m/s
+ * on the 0.6 m platform, the pop at 0.9 s before the edge) with only the front foot's flick
+ * off the toe edge (D, with W); Space at 1.46 s (`findCatchTimeS` → 1.46; lands with Space
+ * in ≈ 1.41–1.51 s), the landing ≈ 1.77 s.
+ */
+export const promoHeelflipGap: MontageClip = {
+  ...treFlipEuroGap,
+  id: "promo-heelflip-gap",
+  title: "Heelflip · euro gap",
+  durationS: 4.13,
+  keys: new KeyTimeline("regular")
+    .loadAndPop("tail", 0.54, 0.9)
+    .level("tail", 0.95)
+    .flick("tail", "toe", 0.95, 0.12)
+    .catch(1.46)
+    .build(),
+  slowMotion: [{ fromS: 0.86, toS: 1.64, scale: 0.5 }],
+  expect: { tricks: ["Heelflip"] },
+};
+
+/** The 7-stair kickflip (a flip plus a drop), 0.5× over the air, a longer ride-away. */
+export const promoKickflipSevenStair: MontageClip = {
+  ...kickflipStairs,
+  id: "promo-kickflip-seven-stair",
+  durationS: 5.29,
+  slowMotion: [{ fromS: 2.58, toS: 3.5, scale: 0.5 }],
 };
 
 /** The 7-stair's foot (its last nosing), x, and the +Z hubba's steel edge, z. */
 const STAIRS_FOOT_X = stairs.xM + (stairs.stepCount - 1) * stairs.runM;
 const HUBBA_EDGE_Z = stairs.zM + stairs.widthM / 2;
+
+/** The tripod beside the hubba's foot and the tracking side angle for its ride-away. */
+const HUBBA_TRIPOD = {
+  kind: "fixedTripod",
+  positionM: [STAIRS_FOOT_X + 5.5, 0.7, HUBBA_EDGE_Z - 4.4],
+  fovStartDeg: 40,
+  fovEndDeg: 30,
+  zoomS: 3,
+} as const;
+const HUBBA_RIDE_AWAY = {
+  kind: "lowSide",
+  side: "left",
+  distanceM: 3.0,
+  heightM: 0.35,
+  leadM: 1.0,
+} as const;
+
+/**
+ * A tailslide on the hubba on its own (the G4 line without its flips): the same approach
+ * (3.5 m/s on the landing, 5 m behind the top nosing, 0.37 m inside the hubba's edge); an
+ * ollie at 0.75 s, W, ↓ held from 1.0 s (the tailslide), a Q quarter turn, Space at 1.25 s;
+ * the slide locks at ≈ 1.38 s; S from 1.70 s and ↓ let go at 1.95 s pop out (an ollie out),
+ * W, Space at 2.25 s; the landing ≈ 2.72 s: "FS Tailslide".
+ */
+export const promoTailslideHubba: MontageClip = {
+  ...stairsTailslideHardflip,
+  id: "promo-tailslide-hubba",
+  title: "FS Tailslide · 7-stair hubba",
+  durationS: 4.455,
+  keys: new KeyTimeline("regular")
+    .loadAndPop("tail", 0.3, 0.75)
+    .level("tail", 0.8, 0.1)
+    .foot("back", "down", 1.0, 0.95)
+    .spin("left", 1.0, 0.14)
+    .catch(1.25)
+    .foot("front", "down", 1.7, 0.3)
+    .level("tail", 2.0, 0.1)
+    .catch(2.25)
+    .build(),
+  shots: [
+    ...stairsTailslideHardflip.shots.slice(0, 2),
+    { fromS: 2.0, shot: HUBBA_TRIPOD },
+    { fromS: 3.1, blendS: 0.7, shot: HUBBA_RIDE_AWAY },
+  ],
+  slowMotion: [{ fromS: 1.3, toS: 1.98, scale: 0.6 }],
+  expect: { tricks: ["FS Tailslide"] },
+};
 
 /**
  * The G4 line (kickflip → FS tailslide → hardflip out on the 7-stair hubba, landing ≈ 2.67
@@ -110,38 +180,17 @@ const HUBBA_EDGE_Z = stairs.zM + stairs.widthM / 2;
 export const promoLineG4: MontageClip = {
   ...stairsTailslideHardflip,
   id: "promo-line-g4",
-  durationS: 4.75,
+  durationS: 4.753,
   shots: [
     ...stairsTailslideHardflip.shots.slice(0, 2),
-    {
-      fromS: 1.9,
-      shot: {
-        kind: "fixedTripod",
-        positionM: [STAIRS_FOOT_X + 5.5, 0.7, HUBBA_EDGE_Z - 4.4],
-        fovStartDeg: 40,
-        fovEndDeg: 30,
-        zoomS: 3,
-      },
-    },
+    { fromS: 1.9, shot: HUBBA_TRIPOD },
     // The ride-away heads for the tripod: ease into a tracking side angle before it gets close.
-    {
-      fromS: 3.0,
-      blendS: 0.7,
-      shot: { kind: "lowSide", side: "left", distanceM: 3.0, heightM: 0.35, leadM: 1.0 },
-    },
+    { fromS: 3.0, blendS: 0.7, shot: HUBBA_RIDE_AWAY },
   ],
   slowMotion: [
     { fromS: 1.3, toS: 1.84, scale: 0.6 },
     { fromS: 1.92, toS: 2.7, scale: 0.5 },
   ],
-};
-
-/** The 360 flip off the euro gap (landing ≈ 1.77 s), a longer ride-away. */
-export const promoLineTreGap: MontageClip = {
-  ...treFlipEuroGap,
-  id: "promo-line-tre-gap",
-  durationS: 3.96,
-  slowMotion: [{ fromS: 0.86, toS: 1.64, scale: 0.45 }],
 };
 
 /**
@@ -159,7 +208,7 @@ export const promoTreFlipElToro: MontageClip = {
   level: "el-toro",
   stance: "regular",
   spawn: { xM: -9, yM: QUAD_Y, zM: 0, headingRad: 0, speedMps: 4.5 },
-  durationS: 4.37,
+  durationS: 4.95,
   keys: new KeyTimeline("regular")
     .push(0.25)
     .push(0.9)
@@ -202,11 +251,12 @@ export const promoLinkedIn: PromoSequence = {
   format: "4x5",
   items: [
     {
-      // The match cut: enters at 5.72 s of the real clip (game = real − 4.11 s), under the
-      // edit's crossfade; the lock at ≈ 1.66 s; the landing (4.05 s) is the music's entry.
+      // The match cut: enters at 5.40 s of the real clip (game = real − 4.11 s), under the
+      // edit's 0.65 s dissolve (5.40–6.05, over the lock at ≈ 1.66 s = 5.77 s); the landing
+      // (4.05 s) is where the music reaches full level on a downbeat.
       kind: "clip",
       clip: promoDeskKickflipFiftyFifty,
-      startAtS: 1.61,
+      startAtS: 1.29,
       look: DESK_LOOK,
       tricks: { show: false, caption: "" },
       fadeInS: 0,
@@ -227,28 +277,29 @@ export const promoLinkedIn: PromoSequence = {
     {
       kind: "clip",
       clip: promoBasics,
-
+      // The standing start carries the first two captions; then "space pushes" 1.7 s ahead.
+      startAtS: 0.3,
       tricks: { show: false, caption: "" },
       sticks: "large",
       fadeInS: 0,
       fadeOutS: 0,
       overlays: [
-        { kind: "kicker", text: "wasd moves the front foot", fromS: 0.1, holdS: 2.8, ...CUE },
+        { kind: "kicker", text: "wasd moves the front foot", fromS: 0.3, holdS: 2.8, ...CUE },
         {
           kind: "kicker",
           text: "arrows move the back foot",
-          fromS: 0.4,
+          fromS: 0.6,
           holdS: 2.7,
           atY: 0.14,
           ...CUE,
         },
-        { kind: "kicker", text: "space pushes", fromS: 3.2, holdS: 3.4, ...CUE },
+        { kind: "kicker", text: "space pushes", fromS: 3.3, holdS: 3.2, ...CUE },
         { kind: "kicker", text: "hold ↓ and s, let go of ↓", fromS: 7.0, holdS: 3.7, ...CUE },
-        { kind: "kicker", text: "tap a to flip it", fromS: 10.3, holdS: 3.0, ...CUE },
+        { kind: "kicker", text: "tap a to flip it", fromS: 9.8, holdS: 3.0, ...CUE },
         {
           kind: "kicker",
           text: "space to catch",
-          fromS: 11.2,
+          fromS: 10.3,
           holdS: 3.2,
           atY: 0.14,
           ...CUE,
@@ -267,12 +318,31 @@ export const promoLinkedIn: PromoSequence = {
     },
     {
       kind: "clip",
-      clip: promoOllieSevenStair,
+      clip: promoHeelflipGap,
       sticks: "small",
       tricks: NAME_ONLY,
       fadeInS: 0,
       fadeOutS: 0,
-      stillsAtS: [1.4],
+      stillsAtS: [1.2],
+    },
+    {
+      kind: "clip",
+      clip: promoKickflipSevenStair,
+      startAtS: 1.3,
+      sticks: "small",
+      tricks: NAME_ONLY,
+      fadeInS: 0,
+      fadeOutS: 0,
+      stillsAtS: [2.9],
+    },
+    {
+      kind: "clip",
+      clip: promoTailslideHubba,
+      sticks: "small",
+      tricks: NAME_ONLY,
+      fadeInS: 0,
+      fadeOutS: 0,
+      stillsAtS: [1.6],
     },
     {
       kind: "clip",
@@ -285,17 +355,8 @@ export const promoLinkedIn: PromoSequence = {
     },
     {
       kind: "clip",
-      clip: promoLineTreGap,
-      sticks: "small",
-      tricks: NAME_ONLY,
-      fadeInS: 0,
-      fadeOutS: 0,
-      stillsAtS: [1.2],
-    },
-    {
-      kind: "clip",
       clip: promoTreFlipElToro,
-      startAtS: 0.4,
+      startAtS: 0,
       tricks: NAME_ONLY,
       fadeInS: 0,
       fadeOutS: 0.4,
@@ -304,7 +365,7 @@ export const promoLinkedIn: PromoSequence = {
     {
       kind: "card",
       id: "end-card",
-      durationS: 3.0,
+      durationS: 3.5,
       fadeInS: 0.4,
       fadeOutS: 0,
       card: {

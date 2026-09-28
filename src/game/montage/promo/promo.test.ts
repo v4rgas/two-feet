@@ -28,25 +28,32 @@ describe("promo sequences (data)", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("the LinkedIn cut (game half): the match cut first, an escalation, one title, a plain end card, ≤ 60 s", () => {
+  it("the LinkedIn cut (game half): the match cut first, an escalation with no repeats, one title, ≤ 80 s", () => {
     const promo = promoById("promo-linkedin");
     if (promo === undefined) throw new Error("no promo-linkedin");
     expect(promo.format).toBe("4x5");
-    // With the ≈ 5.7 s of real footage the edit puts in front, the video stays ≈ 60 s.
-    expect(promoVideoS(promo, MONTAGE_CONFIG.record.fps)).toBeLessThanOrEqual(60.5 - 5.72);
+    // With the ≈ 5.4 s of real footage the edit puts in front, the video stays ≤ 80 s.
+    expect(promoVideoS(promo, MONTAGE_CONFIG.record.fps)).toBeLessThanOrEqual(80 - 5.4);
     const [first] = promo.items;
     expect(first?.kind === "clip" && first.clip.id).toBe("promo-desk-kickflip-fifty-fifty");
     expect(first?.fadeInS).toBe(0);
-    expect(promo.items.flatMap((i) => (i.kind === "clip" ? i.clip.expect.tricks : []))).toEqual([
+    const tricks = promo.items.flatMap((i) => (i.kind === "clip" ? i.clip.expect.tricks : []));
+    expect(tricks).toEqual([
       "Kickflip → BS 50-50 → Kickflip out",
       "Ollie",
       "Kickflip",
       "BS 50-50",
-      "Ollie",
+      "Heelflip",
+      "Kickflip",
+      "FS Tailslide",
       "Kickflip → FS Tailslide → Hardflip out",
       "360 Flip",
-      "360 Flip",
     ]);
+    // The names shown on screen (the climb after the basics) never repeat.
+    const named = promo.items.flatMap((i) =>
+      i.kind === "clip" && i.tricks.show ? i.clip.expect.tricks : [],
+    );
+    expect(new Set(named).size).toBe(named.length);
     // TWO FEET once, over the opening's landing; no other wordmark.
     const wordmarks = promo.items.flatMap((i) =>
       (i.overlays ?? []).filter((o) => o.kind === "wordmark"),
@@ -84,7 +91,7 @@ describe("promo sequences (data)", () => {
 
   it("the desk match starts on the real clip's time: game = source − 4.11 s", () => {
     const desk = promoById("promo-linkedin")?.items[0];
-    expect(desk?.kind === "clip" && desk.startAtS).toBeCloseTo(5.72 - MATCH_OFFSET_S, 5);
+    expect(desk?.kind === "clip" && desk.startAtS).toBeCloseTo(5.4 - MATCH_OFFSET_S, 5);
   });
 
   it("slow motion stretches a clip's video length", () => {
@@ -100,7 +107,7 @@ describe("promo playback options", () => {
     const o = montageOptionsFromUrl(new URLSearchParams("montage=promo-linkedin&record=frames"));
     expect(o.promo?.id).toBe("promo-linkedin");
     expect(o.format).toBe("4x5");
-    expect(o.items.map((i) => i.kind)).toEqual([...Array(7).fill("clip"), "card"]);
+    expect(o.items.map((i) => i.kind)).toEqual([...Array(8).fill("clip"), "card"]);
     expect(o.unknown).toEqual([]);
     expect(
       montageOptionsFromUrl(new URLSearchParams("montage=promo-linkedin&format=16x9")).format,

@@ -28,6 +28,30 @@ export interface ShotSubject {
 /** The game's follow camera (STYLE.md §Camera). */
 export interface FollowShot {
   readonly kind: "follow";
+  /**
+   * A wider framing of the game's own camera for a video (the game itself never changes):
+   * the eye pulled back from its target by this factor (1 = the game's), raised by `raiseM`
+   * and the FOV widened by `fovAddDeg`. For a portrait frame, where the game's close camera
+   * crowds the board.
+   */
+  readonly widen?: {
+    readonly pullBack: number;
+    readonly raiseM: number;
+    readonly fovAddDeg: number;
+  };
+}
+
+/** The follow rig's pose, widened for a video frame (see `FollowShot.widen`). */
+export function widenFollowPose(pose: CameraPose, widen: FollowShot["widen"]): CameraPose {
+  if (widen === undefined) return pose;
+  const [tx, ty, tz] = pose.target;
+  const [ex, ey, ez] = pose.eye;
+  const k = widen.pullBack;
+  return {
+    eye: [tx + (ex - tx) * k, ty + (ey - ty) * k + widen.raiseM, tz + (ez - tz) * k],
+    target: [tx, ty + widen.raiseM * 0.35, tz],
+    fovDeg: pose.fovDeg + widen.fovAddDeg,
+  };
 }
 
 /** A low angle beside the line, tracking along with the board. */
@@ -261,7 +285,7 @@ export function deckShowcasePose(
 }
 
 /**
- * `travelWith`: the start pose moved by the board's displacement since the shot started
+ * `travelWith`: the start pose moved by the board's horizontal displacement since the shot started
  * (`start`, the subject then), eased in over `easeInS`.
  */
 export function travelWithPose(
@@ -272,13 +296,11 @@ export function travelWithPose(
 ): CameraPose {
   const ease = spec.easeInS ?? 0.4;
   const w = ease <= 0 ? 1 : smoothstep(shotTimeS / ease);
-  const [sx, sy, sz] = subject.position;
-  const [ox, oy, oz] = start.position;
-  const move = (p: Vec3Tuple): Vec3Tuple => [
-    p[0] + (sx - ox) * w,
-    p[1] + (sy - oy) * w,
-    p[2] + (sz - oz) * w,
-  ];
+  // Horizontal only: an operator walks with the board, the lens height stays (a low camera
+  // following a board that drops onto a rail would otherwise go under the ground).
+  const [sx, , sz] = subject.position;
+  const [ox, , oz] = start.position;
+  const move = (p: Vec3Tuple): Vec3Tuple => [p[0] + (sx - ox) * w, p[1], p[2] + (sz - oz) * w];
   return { eye: move(spec.positionM), target: move(spec.lookAtM), fovDeg: spec.fovDeg };
 }
 

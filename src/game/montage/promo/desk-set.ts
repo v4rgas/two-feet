@@ -11,11 +11,11 @@ import { deepFreeze, Quat, Transform, Vec3 } from "../../../shared";
  * that matches the phone is `DESK_CAMERA` (fitted to the footage: SCRIPT.md).
  *
  * Scale: the matched geometry is the first fit (a 1.0 m rail, camera 0.535 m out) scaled by
- * 0.8, so the (fixed-size) board reads 25 % bigger in the matched frame, closer to the real
- * board's size next to its rail. Angles and the FOV don't change with the scale.
+ * 0.9, so the (fixed-size) board reads 11 % bigger in the matched frame, the size of the real
+ * board next to its rail (0.8 made it bigger than the real one). Angles and the FOV don't change.
  */
 
-const SCALE = 0.8;
+const SCALE = 0.9;
 
 export const DESK_SET = deepFreeze({
   ground: { halfSizeM: 80, thicknessM: 1 },
