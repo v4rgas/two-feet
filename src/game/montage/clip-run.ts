@@ -31,7 +31,7 @@ export function baseClipLevel(id: ClipLevel): Level {
 
 /** The level of a clip, with its spawn override applied. */
 export function clipLevel(clip: MontageClip): Level {
-  const base = baseClipLevel(clip.level);
+  const base = clip.createLevel?.() ?? baseClipLevel(clip.level);
   if (clip.spawn === undefined) return base;
   const { xM, yM, zM, headingRad } = clip.spawn;
   return Level.create({ ...base, spawn: { positionM: Vec3.create(xM, yM, zM), headingRad } });

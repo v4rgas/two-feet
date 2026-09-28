@@ -7,8 +7,16 @@ export const MONTAGE_CONFIG = deepFreeze({
   record: {
     /** Video frame rate. Each video frame advances the simulation by exactly 1/fps × time scale. */
     fps: 60,
+    /** The default frame (`&format=` picks one of `formats`). */
     width: 1280,
     height: 720,
+    /** Output frames by `&format=` id: the default, full-HD landscape, and the feed crops. */
+    formats: {
+      "720p": { width: 1280, height: 720 },
+      "16x9": { width: 1920, height: 1080 },
+      "4x5": { width: 1080, height: 1350 },
+      "1x1": { width: 1080, height: 1080 },
+    },
     bitrate: 12_000_000,
     /** A keyframe every this many frames (2 s). */
     keyframeEvery: 120,
@@ -24,3 +32,10 @@ export const MONTAGE_CONFIG = deepFreeze({
 });
 
 export type MontageConfig = typeof MONTAGE_CONFIG;
+/** An output format id (`&format=`). */
+export type VideoFormatId = keyof MontageConfig["record"]["formats"];
+
+/** True when `id` is an output format id. */
+export function isVideoFormatId(id: string, config: MontageConfig): id is VideoFormatId {
+  return Object.hasOwn(config.record.formats, id);
+}

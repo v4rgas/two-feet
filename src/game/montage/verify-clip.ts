@@ -36,7 +36,13 @@ export async function verifyClip(clip: MontageClip): Promise<ClipReport> {
     if (outcome.tricks.join(" | ") !== want.join(" | ")) {
       problems.push(`tricks: wanted [${want.join(", ")}], got [${outcome.tricks.join(", ")}]`);
     }
-    for (const bail of outcome.bails) problems.push(bail);
+    if (clip.expect.bails === true) {
+      if (!outcome.bails.some((b) => b.startsWith("rider bailed"))) {
+        problems.push("expected a bail (a ragdoll gag), but the rider never bailed");
+      }
+    } else {
+      for (const bail of outcome.bails) problems.push(bail);
+    }
     if (fakieAtS !== undefined && !(fakieMps !== null && fakieMps < FAKIE_MAX_FORWARD_MPS)) {
       problems.push(
         `not rolling fakie at ${fakieAtS} s (speed along heading ${fakieMps?.toFixed(2) ?? "?"} m/s)`,

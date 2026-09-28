@@ -1,15 +1,34 @@
+import type { FootId } from "../../shared";
 import { padLayout } from "../hud/hud-model";
 import type { PresentationConfig } from "../presentation.config";
 import type { RenderFrame } from "../render-frame";
+import { loadFont, loadImage, publicUrl } from "../textures/browser-assets";
 import type { CinematicConfig } from "./cinematic.config";
+import type { LowerThird, TrickCards } from "./lower-thirds";
 import { LowerThirdsModel } from "./lower-thirds";
+import type { EndCard, TextOverlay, VisibleOverlay } from "./promo-overlays";
+import { PromoOverlayModel } from "./promo-overlays";
+import type { StickWidgetSize } from "./stick-widgets";
+import { drawStickWidgets, StickTrails } from "./stick-widgets";
 import "./video-hud.css";
 
-/** Layout reference height: sizes below are px at 720 p and scale with the frame. */
-const REF_HEIGHT = 720;
+/**
+ * Layout reference: sizes below are px for a 720-px SHORT side and scale with it, so a
+ * 1280×720, a 1920×1080 and a 1080×1350 (portrait) frame all get the same proportions.
+ */
+const REF_SHORT_SIDE = 720;
 const MARGIN = 56;
 const PAD_SIZE = 58;
 const PAD_GAP = 14;
+/** STYLE.md "Wordmark": TWO FEET is tracked 0.04 em. */
+const WORDMARK_SPACING_EM = 0.04;
+
+/** v4rgas brand (STYLE.md "Banners"): a black field; the end card follows the game's OG image. */
+const V4RGAS_BLACK = "#000000";
+/** The play URL's grey (the OG image's, a touch lighter so it reads on a phone). */
+const V4RGAS_URL_GREY = "#aaaaaa";
+const SPACE_MONO = '"Space Mono", ui-monospace, monospace';
+const INTER = "Inter, system-ui, sans-serif";
 
 export interface VideoHudOptions {
   /** Draw the foot pads (`&pads`). */
@@ -30,20 +49,38 @@ export interface TitleCardContent {
   readonly icon: CanvasImageSource | null;
 }
 
+/** What a clip shows besides the picture (a promo's text; the montage uses the defaults). */
+export interface ClipHudOptions {
+  readonly tricks?: TrickCards;
+  readonly overlays?: readonly TextOverlay[];
+  /** The input widgets (the two sticks and their keys): big, small, or none. */
+  readonly sticks?: StickWidgetSize;
+}
+
 /**
  * The montage's "video" HUD, drawn on a 2D canvas so the SAME pixels are shown over the
- * game and composited into the recording: a trick lower-third, a clip title card,
- * optional foot pads and the fade between clips. While it exists, the DOM game HUD is
- * hidden (the `skate-montage` body class) and the debug overlay stays off.
+ * game and composited into the recording: a trick lower-third, a clip title card, the
+ * intro's wordmark card, a promo's text overlays and end card, optional foot pads and the
+ * fade between clips. While it exists, the DOM game HUD is hidden (the `skate-montage`
+ * body class) and the debug overlay stays off.
  */
 export class VideoHud {
   readonly overlay: HTMLCanvasElement;
   readonly model: LowerThirdsModel;
+  readonly promo: PromoOverlayModel;
   private readonly ctx: CanvasRenderingContext2D;
   private stickFront = { x: 0, y: 0 };
   private stickBack = { x: 0, y: 0 };
   private layout = padLayout("regular");
   private fade = 0;
+  private endCard: EndCard | null = null;
+  private penguin: HTMLImageElement | null = null;
+  /** The input widgets (promo controls shot and lines), their trails and the raw keys. */
+  private sticks: StickWidgetSize = "off";
+  private readonly trails = new StickTrails();
+  private keysDown: ReadonlySet<string> = new Set();
+  /** Height of the widgets' band this frame, px (lower-thirds sit above it). */
+  private bottomBandPx = 0;
 
   constructor(
     parent: HTMLElement,
@@ -59,19 +96,61 @@ export class VideoHud {
     if (ctx === null) throw new Error("No 2D canvas context for the video HUD");
     this.ctx = ctx;
     this.model = new LowerThirdsModel(config.lowerThird);
+    this.promo = new PromoOverlayModel(config.lowerThird);
   }
 
-  startClip(title: string, index: number, total: number): void {
-    this.model.startClip(title, index, total);
+  /** Loads what the promo text and end card draw with (Space Mono, the pixel penguin). */
+  async preload(): Promise<void> {
+    await Promise.all([
+      loadFont("Space Mono", "700", publicUrl("fonts/SpaceMono-Bold.latin.woff2")),
+      loadFont("Space Mono", "400"),
+    ]);
+    this.penguin = await loadImage(publicUrl("sponsors/v4rgas/penguin.png")).catch(() => null);
   }
 
-  /** Advances by `dtS` of video time and reads the frame's events and sticks. */
-  update(frame: RenderFrame, dtS: number, fadeToBlack: number): void {
+  startClip(title: string, index: number, total: number, options: ClipHudOptions = {}): void {
+    this.endCard = null;
+    this.model.startClip(title, index, total, options.tricks);
+    this.promo.start(options.overlays ?? []);
+    this.sticks = options.sticks ?? "off";
+    this.trails.clear();
+    this.keysDown = new Set();
+  }
+
+  /** A full-frame card (no game picture) with optional overlays on top. */
+  startCard(card: EndCard, overlays: readonly TextOverlay[] = []): void {
+    this.endCard = card;
+    this.model.startClip("", 0, 1, { show: false, caption: "" });
+    this.promo.start(overlays);
+    this.sticks = "off";
+  }
+
+  /**
+   * Advances by `dtS` of video time: reads the frame's events and sticks (null on a card),
+   * the raw keys held now (for the input widgets), and starts the overlays that item time
+   * `itemTimeS` has reached.
+   */
+  update(
+    frame: RenderFrame | null,
+    dtS: number,
+    fadeToBlack: number,
+    itemTimeS = 0,
+    keysDown: ReadonlySet<string> = new Set(),
+  ): void {
     this.model.advance(dtS);
-    for (const event of frame.recentEvents) this.model.onEvent(event);
-    this.stickFront = frame.intents.front.stick;
-    this.stickBack = frame.intents.back.stick;
-    this.layout = padLayout(frame.stance);
+    this.promo.advance(itemTimeS, dtS);
+    if (frame !== null) {
+      for (const event of frame.recentEvents) this.model.onEvent(event);
+      this.stickFront = frame.intents.front.stick;
+      this.stickBack = frame.intents.back.stick;
+      this.layout = padLayout(frame.stance);
+      const stickOf = (foot: FootId) => (foot === "front" ? this.stickFront : this.stickBack);
+      const left = stickOf(this.layout.left);
+      const right = stickOf(this.layout.right);
+      this.trails.push("left", left.x, left.y, dtS);
+      this.trails.push("right", right.x, right.y, dtS);
+    }
+    this.keysDown = keysDown;
     this.fade = Math.min(1, Math.max(0, fadeToBlack));
   }
 
@@ -95,19 +174,47 @@ export class VideoHud {
     this.draw(this.ctx, w, h);
   }
 
-  /** Draws the game frame (`gl`, scaled to fill) plus this HUD into `out`. */
+  /** Draws the game frame (`gl`, scaled to fill; not on a card) plus this HUD into `out`. */
   composite(gl: HTMLCanvasElement, out: CanvasRenderingContext2D): void {
     const { width, height } = out.canvas;
-    out.drawImage(gl, 0, 0, width, height);
+    if (this.endCard === null) out.drawImage(gl, 0, 0, width, height);
     this.draw(out, width, height);
   }
 
   /** The HUD itself, at any resolution. */
   draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const u = h / REF_HEIGHT;
+    const u = Math.min(w, h) / REF_SHORT_SIDE;
+    if (this.endCard !== null) this.drawEndCard(ctx, this.endCard, u, w, h);
     this.drawTitle(ctx, u);
-    this.drawLowerThird(ctx, u, h);
+    const stick = (foot: FootId) => (foot === "front" ? this.stickFront : this.stickBack);
+    // The input widgets take a band along the bottom; lower-thirds sit above it.
+    this.bottomBandPx = drawStickWidgets(
+      ctx,
+      {
+        left: {
+          foot: this.layout.left,
+          stick: stick(this.layout.left),
+          trail: this.trails.of("left"),
+        },
+        right: {
+          foot: this.layout.right,
+          stick: stick(this.layout.right),
+          trail: this.trails.of("right"),
+        },
+        keysDown: this.keysDown,
+      },
+      this.sticks,
+      this.presentation.palette,
+      u,
+      w,
+      h,
+    );
+    const card = this.model.current;
+    if (card !== null) {
+      this.drawLowerThird(ctx, u, h, card, this.model.opacity, this.model.entrance);
+    }
     this.drawTitleCard(ctx, u, w, h);
+    for (const v of this.promo.visible) this.drawPromoOverlay(ctx, v, u, w, h);
     this.drawHint(ctx, u, w, h);
     if (this.options.pads) this.drawPads(ctx, u, w, h);
     if (this.fade > 0) {
@@ -138,7 +245,7 @@ export class VideoHud {
       shadowText(ctx, this.model.counter, x, y + 13 * u, u);
       y += 22 * u;
     }
-    ctx.font = `700 ${22 * u}px Inter, system-ui, sans-serif`;
+    ctx.font = `700 ${22 * u}px ${INTER}`;
     ctx.fillStyle = p.concrete100;
     shadowText(ctx, this.model.title, x, y + 22 * u, u);
     ctx.restore();
@@ -168,22 +275,22 @@ export class VideoHud {
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     // The wordmark: Inter 800, caps, a little tracking.
-    ctx.font = `800 ${titleSize}px Inter, system-ui, sans-serif`;
-    setLetterSpacing(ctx, titleSize * 0.04);
+    ctx.font = `800 ${titleSize}px ${INTER}`;
+    setSpacing(ctx, titleSize * WORDMARK_SPACING_EM);
     ctx.fillStyle = p.concrete100;
     shadowText(ctx, card.title, cx, top + titleSize * 0.8, u);
-    setLetterSpacing(ctx, 0);
+    setSpacing(ctx, 0);
     // The accent: a short bar in the deck colour, like the lower-thirds' edge.
     const barY = top + titleSize * 0.8 + 20 * u;
     ctx.fillStyle = p.deck;
     ctx.fillRect(cx - 28 * u, barY, 56 * u, 5 * u);
     // The pun, in the credit face.
     const taglineY = barY + 39 * u;
-    ctx.font = `400 ${20 * u}px "Space Mono", ui-monospace, monospace`;
+    ctx.font = `400 ${20 * u}px ${SPACE_MONO}`;
     ctx.fillStyle = p.concrete100;
     shadowText(ctx, card.tagline, cx, taglineY, u);
     // The credit, with the pixel penguin (crisp nearest-neighbour pixels).
-    ctx.font = `400 ${14 * u}px "Space Mono", ui-monospace, monospace`;
+    ctx.font = `400 ${14 * u}px ${SPACE_MONO}`;
     const iconSize = card.icon === null ? 0 : 24 * u;
     const spacing = card.icon === null ? 0 : 10 * u;
     const rowW = iconSize + spacing + ctx.measureText(card.credit).width;
@@ -208,31 +315,39 @@ export class VideoHud {
     ctx.globalAlpha = 0.55;
     ctx.textAlign = "right";
     ctx.textBaseline = "alphabetic";
-    ctx.font = `400 ${13 * u}px "Space Mono", ui-monospace, monospace`;
+    ctx.font = `400 ${13 * u}px ${SPACE_MONO}`;
     ctx.fillStyle = this.presentation.palette.ink;
     ctx.fillText(hint, w - MARGIN * 0.6 * u, h - MARGIN * 0.6 * u);
     ctx.restore();
   }
 
-  private drawLowerThird(ctx: CanvasRenderingContext2D, u: number, h: number): void {
-    const card = this.model.current;
-    const opacity = this.model.opacity;
-    if (card === null || opacity <= 0) return;
+  private drawLowerThird(
+    ctx: CanvasRenderingContext2D,
+    u: number,
+    h: number,
+    card: LowerThird,
+    opacity: number,
+    entrance: number,
+  ): void {
+    if (opacity <= 0) return;
     const p = this.presentation.palette;
-    const slide = (1 - this.model.entrance) ** 2 * 36 * u;
-    const nameSize = (card.tone === "bail" ? 34 : 46) * u;
-    const captionSize = 14 * u;
+    const slide = (1 - entrance) ** 2 * 36 * u;
+    const text = card.tone === "bail" ? card.text.toLowerCase() : card.text;
+    // A long line name shrinks to fit a narrow (portrait) frame.
+    const maxNameW = ctx.canvas.width - 2 * MARGIN * u - 36 * u;
+    const baseSize = (card.tone === "bail" ? 34 : 46) * u;
+    const nameSize = fitFontPx(ctx, text, `800 %px ${INTER}`, maxNameW, baseSize, 0);
+    const captionSize = 17 * u;
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.font = `800 ${nameSize}px Inter, system-ui, sans-serif`;
-    const text = card.tone === "bail" ? card.text.toLowerCase() : card.text;
+    ctx.font = `800 ${nameSize}px ${INTER}`;
     const nameW = ctx.measureText(text).width;
-    ctx.font = `600 ${captionSize}px Inter, system-ui, sans-serif`;
+    ctx.font = `600 ${captionSize}px ${INTER}`;
     const caption = card.caption.toUpperCase();
     const captionW = ctx.measureText(caption).width + caption.length * 1.5 * u;
 
     const x = MARGIN * u - slide;
-    const bottom = h - MARGIN * 1.5 * u;
+    const bottom = h - Math.max(MARGIN * 1.5 * u, this.bottomBandPx + 16 * u);
     const padX = 18 * u;
     const boxH = nameSize + (caption === "" ? 0 : captionSize + 10 * u) + 26 * u;
     const boxW = Math.max(nameW, captionW) + padX * 2;
@@ -246,13 +361,176 @@ export class VideoHud {
 
     ctx.textBaseline = "top";
     ctx.fillStyle = card.tone === "bail" ? p.warn : p.ink;
-    ctx.font = `800 ${nameSize}px Inter, system-ui, sans-serif`;
+    ctx.font = `800 ${nameSize}px ${INTER}`;
     ctx.fillText(text, x + padX, top + 13 * u);
     if (caption !== "") {
       ctx.fillStyle = p.concrete600;
-      ctx.font = `600 ${captionSize}px Inter, system-ui, sans-serif`;
-      if ("letterSpacing" in ctx) ctx.letterSpacing = `${1.5 * u}px`;
+      ctx.font = `600 ${captionSize}px ${INTER}`;
+      setSpacing(ctx, 1.5 * u);
       ctx.fillText(caption, x + padX, top + 13 * u + nameSize + 8 * u);
+    }
+    ctx.restore();
+  }
+
+  private drawPromoOverlay(
+    ctx: CanvasRenderingContext2D,
+    v: VisibleOverlay,
+    u: number,
+    w: number,
+    h: number,
+  ): void {
+    const o = v.overlay;
+    if (o.kind === "lowerThird") {
+      const card: LowerThird = { text: o.text, caption: o.caption ?? "", tone: "trick" };
+      this.drawLowerThird(ctx, u, h, card, v.opacity, v.entrance);
+      return;
+    }
+    const p = this.presentation.palette;
+    ctx.save();
+    // A soft ink scrim from the top edge keeps light text readable over the bright plaza.
+    const scrimH =
+      ((o.atY ?? (o.kind === "wordmark" ? 0.2 : 0.085)) + (o.kind === "wordmark" ? 0.16 : 0.115)) *
+      h;
+    const scrim = ctx.createLinearGradient(0, 0, 0, scrimH);
+    scrim.addColorStop(0, hexWithAlpha(p.ink, 0.5));
+    scrim.addColorStop(1, hexWithAlpha(p.ink, 0));
+    ctx.globalAlpha = v.opacity;
+    ctx.fillStyle = scrim;
+    ctx.fillRect(0, 0, w, scrimH);
+    const rise = (1 - v.entrance) ** 2 * 14 * u;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = p.concrete100;
+    if (o.kind === "wordmark") {
+      const y = (o.atY ?? 0.2) * h + rise;
+      const size = fitFontPx(
+        ctx,
+        o.text,
+        `800 %px ${INTER}`,
+        0.86 * w,
+        128 * u,
+        WORDMARK_SPACING_EM,
+      );
+      ctx.font = `800 ${size}px ${INTER}`;
+      setSpacing(ctx, WORDMARK_SPACING_EM * size);
+      softShadow(ctx, u);
+      ctx.fillText(o.text, w / 2, y);
+      setSpacing(ctx, 0);
+      // The deck-red bar under the wordmark (the intro's title card).
+      const barY = y + size * 0.5;
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = p.deck;
+      ctx.fillRect(w / 2 - 0.29 * size, barY, 0.58 * size, 0.052 * size);
+      if (o.sub !== undefined) {
+        const subSize = size * 0.3;
+        ctx.fillStyle = p.concrete100;
+        ctx.font = `700 ${subSize}px ${SPACE_MONO}`;
+        softShadow(ctx, u);
+        ctx.fillText(o.sub, w / 2, barY + 0.052 * size + subSize * 1.1);
+      }
+    } else {
+      const size = fitFontPx(ctx, o.text, `700 %px ${INTER}`, 0.86 * w, 40 * u, 0);
+      ctx.font = `700 ${size}px ${INTER}`;
+      softShadow(ctx, u);
+      ctx.fillText(o.text, w / 2, (o.atY ?? 0.085) * h + rise);
+    }
+    ctx.restore();
+  }
+
+  /**
+   * The closing card: the intro's title card on the v4rgas black (STYLE.md "Wordmark"):
+   * TWO FEET, a short deck-red bar, the tagline, the pixel penguin beside the credit, the
+   * site, and a small line at the bottom.
+   */
+  private drawEndCard(
+    ctx: CanvasRenderingContext2D,
+    card: EndCard,
+    u: number,
+    w: number,
+    h: number,
+  ): void {
+    const p = this.presentation.palette;
+    ctx.save();
+    ctx.fillStyle = V4RGAS_BLACK;
+    ctx.fillRect(0, 0, w, h);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    const cx = w / 2;
+    const titleSize = fitFontPx(
+      ctx,
+      card.title,
+      `800 %px ${INTER}`,
+      0.84 * w,
+      124 * u,
+      WORDMARK_SPACING_EM,
+    );
+    const taglineSize = 30 * u;
+    const creditSize = 32 * u;
+    const urlSize = 44 * u;
+    const penguinPx =
+      card.penguin && this.penguin !== null ? 32 * Math.max(1, Math.floor((90 * u) / 32)) : 0;
+    const barH = 7 * u;
+    const gap = 30 * u;
+    const rowH = Math.max(penguinPx, creditSize);
+    const stackH =
+      titleSize * 0.74 +
+      gap * 0.7 +
+      barH +
+      gap +
+      taglineSize +
+      gap * 1.6 +
+      rowH +
+      gap * 1.4 +
+      urlSize;
+    let y = (h - stackH) / 2;
+    // The wordmark.
+    y += titleSize * 0.74;
+    ctx.fillStyle = p.concrete100;
+    ctx.font = `800 ${titleSize}px ${INTER}`;
+    setSpacing(ctx, WORDMARK_SPACING_EM * titleSize);
+    ctx.fillText(card.title, cx, y);
+    setSpacing(ctx, 0);
+    // The deck-red bar.
+    y += gap * 0.7;
+    ctx.fillStyle = p.deck;
+    ctx.fillRect(cx - 40 * u, y, 80 * u, barH);
+    y += barH + gap + taglineSize * 0.8;
+    // The pun, in the credit face.
+    if (card.tagline !== "") {
+      ctx.fillStyle = p.concrete100;
+      ctx.font = `400 ${taglineSize}px ${SPACE_MONO}`;
+      ctx.fillText(card.tagline, cx, y);
+    }
+    y += taglineSize * 0.2 + gap * 1.6;
+    // The pixel penguin beside the credit (crisp nearest-neighbour pixels).
+    ctx.font = `400 ${creditSize}px ${SPACE_MONO}`;
+    const creditW = ctx.measureText(card.credit).width;
+    const spacing = penguinPx > 0 ? 16 * u : 0;
+    const left = cx - (penguinPx + spacing + creditW) / 2;
+    if (penguinPx > 0 && this.penguin !== null) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(this.penguin, Math.round(left), Math.round(y), penguinPx, penguinPx);
+      ctx.imageSmoothingEnabled = true;
+    }
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = p.concrete100;
+    ctx.fillText(card.credit, left + penguinPx + spacing, y + rowH / 2);
+    y += rowH + gap * 1.6 + urlSize * 0.8;
+    // The URL (where to play), in the site's grey, one line (the game's OG image).
+    ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "center";
+    const urlPx = fitFontPx(ctx, card.url, `400 %px ${SPACE_MONO}`, 0.84 * w, urlSize, 0);
+    ctx.font = `400 ${urlPx}px ${SPACE_MONO}`;
+    ctx.fillStyle = V4RGAS_URL_GREY;
+    ctx.fillText(card.url, cx, y);
+    if (card.line !== "") {
+      ctx.textAlign = "center";
+      const lineSize = fitFontPx(ctx, card.line, `600 %px ${INTER}`, 0.84 * w, 21 * u, 0.06);
+      ctx.font = `600 ${lineSize}px ${INTER}`;
+      setSpacing(ctx, 0.06 * lineSize);
+      ctx.fillStyle = p.concrete600;
+      ctx.fillText(card.line, cx, h - MARGIN * 1.4 * u);
     }
     ctx.restore();
   }
@@ -289,6 +567,37 @@ export class VideoHud {
   }
 }
 
+/**
+ * The largest font size ≤ `maxPx` at which `text` fits in `maxWidth` (`font` has "%" where
+ * the size goes; `spacingEm` is the letter spacing it will be drawn with).
+ */
+function fitFontPx(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  font: string,
+  maxWidth: number,
+  maxPx: number,
+  spacingEm: number,
+): number {
+  const probe = 100;
+  ctx.save();
+  ctx.font = font.replace("%", String(probe));
+  setSpacing(ctx, 0);
+  const width = ctx.measureText(text).width + spacingEm * probe * Math.max(0, text.length - 1);
+  ctx.restore();
+  return Math.min(maxPx, (probe * maxWidth) / Math.max(1, width));
+}
+
+function setSpacing(ctx: CanvasRenderingContext2D, px: number): void {
+  if ("letterSpacing" in ctx) ctx.letterSpacing = `${px}px`;
+}
+
+function softShadow(ctx: CanvasRenderingContext2D, u: number): void {
+  ctx.shadowColor = "rgba(28, 27, 25, 0.6)";
+  ctx.shadowBlur = 16 * u;
+  ctx.shadowOffsetY = 2 * u;
+}
+
 function shadowText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -301,11 +610,6 @@ function shadowText(
   ctx.shadowOffsetY = 1 * u;
   ctx.fillText(text, x, y);
   ctx.shadowColor = "transparent";
-}
-
-/** `ctx.letterSpacing` where the browser has it, px. */
-function setLetterSpacing(ctx: CanvasRenderingContext2D, px: number): void {
-  if ("letterSpacing" in ctx) ctx.letterSpacing = `${px}px`;
 }
 
 function roundRect(

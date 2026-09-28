@@ -5,7 +5,7 @@ import type { PresentationConfig } from "../presentation.config";
 import type { RenderFrame } from "../render-frame";
 import type { CinematicConfig } from "./cinematic.config";
 import type { CameraPose, ShotSpec, ShotSubject } from "./shots";
-import { blendPoses, riggedShotPose, smoothstep } from "./shots";
+import { blendPoses, riggedShotPose, smootherstep, widenFollowPose } from "./shots";
 
 /** One camera shot of a clip: active from `fromS` (clip time) until the next one starts. */
 export interface ShotSegment {
@@ -45,6 +45,8 @@ export class CinematicDirector {
   private activeAgeS = 0;
   private previousAgeS = 0;
   private initialized = false;
+  /** The subject when each segment became active (the `travelWith` shot keeps its offset). */
+  private readonly startSubjects = new Map<number, ShotSubject>();
 
   constructor(
     camera: PresentationConfig["camera"],
@@ -60,6 +62,7 @@ export class CinematicDirector {
     this.active = -1;
     this.previous = -1;
     this.initialized = false;
+    this.startSubjects.clear();
     this.follow.snap();
   }
 
@@ -74,6 +77,7 @@ export class CinematicDirector {
 
     const index = activeSegmentIndex(this.segments, clipTimeS);
     if (index !== this.active) {
+      this.startSubjects.set(index, subject);
       const blendS = this.segments[index]?.blendS ?? 0;
       this.previous = this.active >= 0 && blendS > 0 ? this.active : -1;
       this.previousAgeS = this.activeAgeS;
@@ -93,19 +97,21 @@ export class CinematicDirector {
       return current;
     }
     const before = this.poseOf(this.previous, subject, this.previousAgeS, aspect);
-    return blendPoses(before, current, smoothstep(t));
+    return blendPoses(before, current, smootherstep(t));
   }
 
   private poseOf(index: number, subject: ShotSubject, ageS: number, aspect: number): CameraPose {
     const shot = this.segments[index]?.shot ?? { kind: "follow" };
     if (shot.kind === "follow") {
-      return {
+      const pose: CameraPose = {
         eye: [...this.follow.eye],
         target: [...this.follow.target],
         fovDeg: this.follow.fovDeg,
       };
+      return widenFollowPose(pose, shot.widen);
     }
-    return riggedShotPose(shot, subject, ageS, aspect, this.config);
+    const start = this.startSubjects.get(index) ?? subject;
+    return riggedShotPose(shot, subject, ageS, aspect, this.config, start);
   }
 
   private updateSubject(frame: RenderFrame, dtS: number): ShotSubject {

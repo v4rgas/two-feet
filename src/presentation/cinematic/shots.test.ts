@@ -3,10 +3,12 @@ import { CINEMATIC_CONFIG } from "./cinematic.config";
 import type { ShotSubject } from "./shots";
 import {
   blendPoses,
+  deckShowcasePose,
   fisheyeFollowPose,
   fixedTripodPose,
   lowSidePose,
   slowOrbitPose,
+  travelWithPose,
   verticalFovDeg,
 } from "./shots";
 
@@ -77,6 +79,52 @@ describe("cinematic shots (pure rigs)", () => {
       expect(Math.hypot(p.eye[0] - 10, p.eye[2] - 2)).toBeCloseTo(r);
       expect(p.eye[1]).toBeCloseTo(0.1 + C.shots.slowOrbit.heightM);
     }
+  });
+
+  it("fisheyeFollow in a portrait frame keeps the fisheye's width as its height", () => {
+    const p = fisheyeFollowPose({ kind: "fisheyeFollow" }, SUBJECT, 4 / 5, C);
+    expect(p.fovDeg).toBeCloseTo(C.shots.fisheyeFollow.horizontalFovDeg);
+  });
+
+  it("deckShowcase: pushes in (radius, height, framed width) and frames the same width in any aspect", () => {
+    const d = C.shots.deckShowcase;
+    const spec = { kind: "deckShowcase", startAngleRad: -Math.PI / 2, rateRadps: 0 } as const;
+    const start = deckShowcasePose(spec, SUBJECT, 0, 16 / 9, C);
+    const end = deckShowcasePose(spec, SUBJECT, d.pushS + 1, 16 / 9, C);
+    // −π/2 from the travel (+X) is its right side, +Z.
+    expect(start.eye[2]).toBeCloseTo(2 + d.radiusStartM);
+    expect(end.eye[2]).toBeCloseTo(2 + d.radiusEndM);
+    expect(start.eye[1]).toBeCloseTo(0.1 + d.heightStartM);
+    expect(end.eye[1]).toBeCloseTo(0.1 + d.heightEndM);
+    expect(start.target).toEqual([10, 0.1 + d.lookHeightM, 2]);
+    // The framed width at the board, from the horizontal FOV, in landscape and portrait.
+    const width = (fovDeg: number, aspect: number, eye: readonly number[]) => {
+      const h = 2 * Math.atan(Math.tan((fovDeg * Math.PI) / 360) * aspect);
+      return 2 * Math.tan(h / 2) * dist(eye, [10, 0.1 + d.lookHeightM, 2]);
+    };
+    expect(width(start.fovDeg, 16 / 9, start.eye)).toBeCloseTo(d.frameStartM, 3);
+    const portrait = deckShowcasePose(spec, SUBJECT, d.pushS + 1, 4 / 5, C);
+    expect(width(portrait.fovDeg, 4 / 5, portrait.eye)).toBeCloseTo(d.frameEndM, 3);
+    expect(portrait.fovDeg).toBeGreaterThan(end.fovDeg);
+  });
+
+  it("travelWith: starts at its pose, then keeps the offset to the board (eased in)", () => {
+    const spec = {
+      kind: "travelWith",
+      positionM: [1, 0.1, -0.2],
+      lookAtM: [-2, 0.3, 0.1],
+      fovDeg: 68,
+      easeInS: 0.3,
+    } as const;
+    const moved = { ...SUBJECT, position: [12, 0.1, 2] as const };
+    expect(travelWithPose(spec, SUBJECT, SUBJECT, 0).eye).toEqual([1, 0.1, -0.2]);
+    const later = travelWithPose(spec, moved, SUBJECT, 1);
+    // After the ease the camera moves at the board's speed, trailing it by v × ease / 2.
+    expect(later.eye[0]).toBeCloseTo(1 + 2 * (1 - 0.3 / 2));
+    expect(later.target[0]).toBeCloseTo(-2 + 2 * (1 - 0.3 / 2));
+    const early = travelWithPose(spec, moved, SUBJECT, 0.15);
+    expect(early.eye[0]).toBeGreaterThan(1);
+    expect(early.eye[0]).toBeLessThan(3);
   });
 
   it("verticalFovDeg converts horizontal FOV for an aspect; blendPoses lerps", () => {
