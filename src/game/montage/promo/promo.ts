@@ -1,4 +1,5 @@
 import type { TrickCards } from "../../../presentation/cinematic/lower-thirds";
+import type { MontageLookCue } from "../../../presentation/cinematic/montage-look";
 import type { EndCard, TextOverlay } from "../../../presentation/cinematic/promo-overlays";
 import type { StickWidgetSize } from "../../../presentation/cinematic/stick-widgets";
 import type { MontageClip } from "../clip";
@@ -31,6 +32,8 @@ export interface PromoClipItem extends PromoItemBase {
    * that enters mid-action, e.g. the game half of a match cut from real footage.
    */
   readonly startAtS?: number;
+  /** A look of its own (lighting and ground), eased out over the clip (the desk match). */
+  readonly look?: MontageLookCue;
   /** The input widgets (both sticks and their keys, from this clip's real input). */
   readonly sticks?: StickWidgetSize;
   /** Landed tricks' lower-thirds (the recognizer's real name) and their caption. */

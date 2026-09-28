@@ -1,6 +1,7 @@
 import { CINEMATIC_CONFIG } from "../../presentation/cinematic/cinematic.config";
 import { CinematicDirector } from "../../presentation/cinematic/cinematic-director";
 import type { TrickCards } from "../../presentation/cinematic/lower-thirds";
+import { lookWeightAt } from "../../presentation/cinematic/montage-look";
 import { VideoHud } from "../../presentation/cinematic/video-hud";
 import type { RecorderOptions, VideoRecorder } from "../../presentation/cinematic/video-recorder";
 import {
@@ -384,6 +385,8 @@ async function play(
             : canvas.clientWidth / Math.max(1, canvas.clientHeight);
           const pose = director.update(frame, clipTimeS, dtS, aspect);
           renderer.setMontageOverrides(pose, dtS);
+          const look = item.look;
+          renderer.setMontageLook(look?.look ?? null, look ? lookWeightAt(look, clipTimeS) : 0);
           renderer.render(frame);
           const fade = fadeAt(videoS, clipTimeS, clip.durationS, fadeInS, fadeOutS);
           hud.update(frame, dtS, fade, clipTimeS, keysDownAt(clip, run.timeS));

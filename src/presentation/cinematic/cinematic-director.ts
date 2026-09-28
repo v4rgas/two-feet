@@ -45,6 +45,8 @@ export class CinematicDirector {
   private activeAgeS = 0;
   private previousAgeS = 0;
   private initialized = false;
+  /** The subject when each segment became active (the `travelWith` shot keeps its offset). */
+  private readonly startSubjects = new Map<number, ShotSubject>();
 
   constructor(
     camera: PresentationConfig["camera"],
@@ -60,6 +62,7 @@ export class CinematicDirector {
     this.active = -1;
     this.previous = -1;
     this.initialized = false;
+    this.startSubjects.clear();
     this.follow.snap();
   }
 
@@ -74,6 +77,7 @@ export class CinematicDirector {
 
     const index = activeSegmentIndex(this.segments, clipTimeS);
     if (index !== this.active) {
+      this.startSubjects.set(index, subject);
       const blendS = this.segments[index]?.blendS ?? 0;
       this.previous = this.active >= 0 && blendS > 0 ? this.active : -1;
       this.previousAgeS = this.activeAgeS;
@@ -105,7 +109,8 @@ export class CinematicDirector {
         fovDeg: this.follow.fovDeg,
       };
     }
-    return riggedShotPose(shot, subject, ageS, aspect, this.config);
+    const start = this.startSubjects.get(index) ?? subject;
+    return riggedShotPose(shot, subject, ageS, aspect, this.config, start);
   }
 
   private updateSubject(frame: RenderFrame, dtS: number): ShotSubject {

@@ -28,26 +28,43 @@ describe("promo sequences (data)", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("the LinkedIn cut (game half): the match cut first, the tricks in order, a plain end card, ≤ 40 s", () => {
+  it("the LinkedIn cut (game half): the match cut first, an escalation, one title, a plain end card, ≤ 60 s", () => {
     const promo = promoById("promo-linkedin");
     if (promo === undefined) throw new Error("no promo-linkedin");
     expect(promo.format).toBe("4x5");
-    // With the ≈ 5.7 s of real footage the edit puts in front, the video stays ≤ 45 s.
-    expect(promoVideoS(promo, MONTAGE_CONFIG.record.fps)).toBeLessThanOrEqual(40);
+    // With the ≈ 5.7 s of real footage the edit puts in front, the video stays ≈ 60 s.
+    expect(promoVideoS(promo, MONTAGE_CONFIG.record.fps)).toBeLessThanOrEqual(60.5 - 5.72);
     const [first] = promo.items;
     expect(first?.kind === "clip" && first.clip.id).toBe("promo-desk-kickflip-fifty-fifty");
     expect(first?.fadeInS).toBe(0);
     expect(promo.items.flatMap((i) => (i.kind === "clip" ? i.clip.expect.tricks : []))).toEqual([
-      "Kickflip → BS 50-50",
-      "Heelflip",
+      "Kickflip → BS 50-50 → Kickflip out",
+      "Ollie",
       "Kickflip",
+      "BS 50-50",
+      "Ollie",
       "Kickflip → FS Tailslide → Hardflip out",
       "360 Flip",
-      "BS 180 Kickflip",
       "360 Flip",
     ]);
-    const title = promo.items[1]?.overlays?.[0];
-    expect(title).toMatchObject({ kind: "wordmark", text: "TWO FEET" });
+    // TWO FEET once, over the opening's landing; no other wordmark.
+    const wordmarks = promo.items.flatMap((i) =>
+      (i.overlays ?? []).filter((o) => o.kind === "wordmark"),
+    );
+    expect(wordmarks).toHaveLength(1);
+    expect(wordmarks[0]).toMatchObject({ text: "TWO FEET" });
+    // Captions only in the basics; trick names without sub-captions.
+    for (const [i, item] of promo.items.entries()) {
+      if (item.kind !== "clip") continue;
+      expect(item.tricks.caption, item.clip.id).toBe("");
+      const kickers = (item.overlays ?? []).filter((o) => o.kind === "kicker");
+      if (i !== 1) expect(kickers, item.clip.id).toEqual([]);
+      // Readable: ≥ 1 s per 3 words + 1 s, and ≥ 2 s.
+      for (const k of kickers) {
+        const words = k.text.split(/\s+/).length;
+        expect(k.holdS, k.text).toBeGreaterThanOrEqual(Math.max(2, words / 3 + 1));
+      }
+    }
     const card = promo.items.at(-1);
     expect(card?.kind === "card" && card.card).toMatchObject({
       title: "TWO FEET",
@@ -65,7 +82,7 @@ describe("promo sequences (data)", () => {
     expect(clipById("promo-tre-flip-el-toro")?.level).toBe("el-toro");
   });
 
-  it("the desk match starts on the real clip's time: game = source − 4.14 s", () => {
+  it("the desk match starts on the real clip's time: game = source − 4.11 s", () => {
     const desk = promoById("promo-linkedin")?.items[0];
     expect(desk?.kind === "clip" && desk.startAtS).toBeCloseTo(5.72 - MATCH_OFFSET_S, 5);
   });

@@ -104,13 +104,30 @@ export interface DeckShowcaseShot {
   readonly pushS?: number;
 }
 
+/**
+ * A camera that starts at a given pose and then travels with the board, keeping the offset
+ * it had when the shot started (the board holds its place in the frame while the world
+ * slides by): the promo's match cut, where a locked-off camera has to keep the board in
+ * frame after the cut. The travel eases in over `easeInS` (a camera operator starting to
+ * walk), so the switch from a fixed camera shows no jolt.
+ */
+export interface TravelWithShot {
+  readonly kind: "travelWith";
+  readonly positionM: Vec3Tuple;
+  readonly lookAtM: Vec3Tuple;
+  readonly fovDeg: number;
+  /** How long the travel takes to reach the board's speed, s of shot time. */
+  readonly easeInS?: number;
+}
+
 export type ShotSpec =
   | FollowShot
   | LowSideShot
   | FixedTripodShot
   | FisheyeFollowShot
   | SlowOrbitShot
-  | DeckShowcaseShot;
+  | DeckShowcaseShot
+  | TravelWithShot;
 export type ShotKind = ShotSpec["kind"];
 export type RiggedShotSpec = Exclude<ShotSpec, FollowShot>;
 
@@ -243,6 +260,28 @@ export function deckShowcasePose(
   };
 }
 
+/**
+ * `travelWith`: the start pose moved by the board's displacement since the shot started
+ * (`start`, the subject then), eased in over `easeInS`.
+ */
+export function travelWithPose(
+  spec: TravelWithShot,
+  subject: ShotSubject,
+  start: ShotSubject,
+  shotTimeS: number,
+): CameraPose {
+  const ease = spec.easeInS ?? 0.4;
+  const w = ease <= 0 ? 1 : smoothstep(shotTimeS / ease);
+  const [sx, sy, sz] = subject.position;
+  const [ox, oy, oz] = start.position;
+  const move = (p: Vec3Tuple): Vec3Tuple => [
+    p[0] + (sx - ox) * w,
+    p[1] + (sy - oy) * w,
+    p[2] + (sz - oz) * w,
+  ];
+  return { eye: move(spec.positionM), target: move(spec.lookAtM), fovDeg: spec.fovDeg };
+}
+
 /** Pose of any rigged (non-follow) shot. */
 export function riggedShotPose(
   spec: RiggedShotSpec,
@@ -250,6 +289,8 @@ export function riggedShotPose(
   shotTimeS: number,
   aspect: number,
   config: CinematicConfig,
+  /** The subject when the shot started (`travelWith`); default: now. */
+  start: ShotSubject = subject,
 ): CameraPose {
   switch (spec.kind) {
     case "lowSide":
@@ -262,6 +303,8 @@ export function riggedShotPose(
       return slowOrbitPose(spec, subject, shotTimeS, config);
     case "deckShowcase":
       return deckShowcasePose(spec, subject, shotTimeS, aspect, config);
+    case "travelWith":
+      return travelWithPose(spec, subject, start, shotTimeS);
   }
 }
 

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { BoardSpec } from "../contexts/board";
 import { FollowCameraRig } from "./camera/follow-camera-rig";
+import type { MontageLook } from "./cinematic/montage-look";
 import type { CameraPose } from "./cinematic/shots";
 import { DebugOverlay } from "./debug/debug-overlay";
 import { Hud } from "./hud/hud";
@@ -52,6 +53,8 @@ export class ThreeRenderer implements Renderer {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly sun: THREE.DirectionalLight;
   private readonly sky: THREE.Mesh;
+  private readonly hemi: THREE.HemisphereLight;
+  private readonly lookScratch = new THREE.Color();
   private readonly rig: FollowCameraRig;
   private readonly hud: Hud;
   private readonly debug: DebugOverlay;
@@ -113,12 +116,12 @@ export class ThreeRenderer implements Renderer {
     this.sky = buildSky(config);
     this.scene.add(this.sky);
 
-    const hemi = new THREE.HemisphereLight(
+    this.hemi = new THREE.HemisphereLight(
       lighting.hemiSkyColor,
       lighting.hemiGroundColor,
       lighting.hemiIntensity,
     );
-    this.scene.add(hemi);
+    this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(lighting.sunColor, lighting.sunIntensity);
     this.sun.castShadow = true;
     const shadow = this.sun.shadow;
@@ -236,6 +239,33 @@ export class ThreeRenderer implements Renderer {
   setMontageOverrides(cameraPose: CameraPose | null, frameDtS: number | null): void {
     this.cameraOverride = cameraPose;
     this.frameDtOverrideS = frameDtS;
+  }
+
+  /**
+   * Montage hook: a shot's own look (the promo's desk match: a dark, warm "desk" ground and
+   * warmer light), blended in by `weight` (0 = the game's own look, 1 = the full look).
+   * Recomputed from the config every call, so it is safe to call every frame and to end
+   * with `null`.
+   */
+  setMontageLook(look: MontageLook | null, weight = 1): void {
+    const w = look === null ? 0 : Math.min(1, Math.max(0, weight));
+    const l = this.config.lighting;
+    const mix = (base: string, to: string | undefined): THREE.Color =>
+      this.lookScratch.set(base).lerp(new THREE.Color(to ?? base), w);
+    this.sun.color.copy(mix(l.sunColor, look?.sunColor));
+    this.sun.intensity = l.sunIntensity * (1 + ((look?.sunIntensityScale ?? 1) - 1) * w);
+    this.hemi.color.copy(mix(l.hemiSkyColor, look?.hemiSkyColor));
+    this.hemi.groundColor.copy(mix(l.hemiGroundColor, look?.hemiGroundColor));
+    this.hemi.intensity = l.hemiIntensity * (1 + ((look?.hemiIntensityScale ?? 1) - 1) * w);
+    // The ground slab's material: its palette colour (scaled like the texture set does once
+    // it has loaded), towards the look's ground colour.
+    const ground = this.levelAssets.surfaces.get("ground");
+    const spec = this.config.surfaces.ground;
+    const base = new THREE.Color(spec.color);
+    if (ground.map !== null) base.multiplyScalar(1 / this.config.surfaces.detailMeanLinear);
+    const target = new THREE.Color(look?.groundColor ?? spec.color);
+    if (ground.map !== null) target.multiplyScalar(1 / this.config.surfaces.detailMeanLinear);
+    ground.color.copy(base.lerp(target, w));
   }
 
   /** The WebGL canvas (the montage recorder composites it with the video HUD). */
