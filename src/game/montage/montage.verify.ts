@@ -15,7 +15,7 @@ const TIMEOUT_MS = 60_000;
 const ONLY = import.meta.env.CLIP as string | undefined;
 
 function line(r: ClipReport): string {
-  const tricks = r.outcome.tricks.length > 0 ? r.outcome.tricks.join(", ") : "—";
+  const tricks = r.outcome.tricks.length > 0 ? r.outcome.tricks.join(", ") : "-";
   const head = `${r.status.toUpperCase().padEnd(7)} ${r.clip.id.padEnd(26)} landed: ${tricks}`;
   const why = r.problems.map((p) => `\n          ${p}`).join("");
   const pending = r.clip.pending !== undefined ? `\n          pending: ${r.clip.pending}` : "";

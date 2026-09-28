@@ -45,7 +45,7 @@ const performanceClock: Clock = { nowS: () => performance.now() / 1000 };
 
 /** The credit in the menu footer (STYLE.md "Wordmark": lowercase in credit lines). */
 const CREDIT = {
-  text: "two feet — a game by v4rgas",
+  text: "two feet, a game by v4rgas",
   linkText: "v4rgas.com",
   href: "https://v4rgas.com",
   iconSrc: `${import.meta.env.BASE_URL}sponsors/v4rgas/penguin.png`,

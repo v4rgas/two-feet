@@ -13,8 +13,8 @@
     "test:human": "vitest run --config vitest.human.config.ts",
     "montage:verify": "vitest run --config vitest.montage.config.ts",
     "preview": "vite preview",
-    "deploy": "pnpm build && wrangler pages deploy dist --project-name two-feet --branch main",
-    "deploy:preview": "pnpm build && wrangler pages deploy dist --project-name two-feet --branch preview"
+    "deploy": "pnpm build && wrangler deploy",
+    "deploy:preview": "pnpm build && wrangler versions upload"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

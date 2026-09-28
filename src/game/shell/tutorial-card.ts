@@ -7,7 +7,7 @@ import { TUTORIAL_STEPS, tutorialHintVisible } from "./tutorial";
 /** The words of the outro card (GAME.md "Tutorial") and its credit. */
 export const TUTORIAL_OUTRO = {
   title: "Nice. Welcome to the Street Course.",
-  footnote: "two feet — a game by v4rgas",
+  footnote: "two feet, a game by v4rgas",
 } as const;
 
 /** The prompt card for a tutorial state, keys and hints in the current stance. */
@@ -31,7 +31,7 @@ export function tutorialCard(state: TutorialState, stance: Stance): TutorialCard
         progress,
         title: "Ollie",
         keys: [...olliePartsFor(stance), text("·"), cap("Space"), text("in the air to catch")],
-        hint: hint(`Let go of ${popKey} to pop — keep holding ${setKey}`),
+        hint: hint(`Let go of ${popKey} to pop. Keep holding ${setKey}.`),
         footnote: null,
       };
     case "kickflip":
@@ -45,7 +45,7 @@ export function tutorialCard(state: TutorialState, stance: Stance): TutorialCard
           cap("Space"),
           text("to catch"),
         ],
-        hint: hint(`Pop first, tap ${flickKey} once you're up — Space as it comes round`),
+        hint: hint(`Pop first, then tap ${flickKey} in the air. Space as it comes round.`),
         footnote: null,
       };
     case "outro":

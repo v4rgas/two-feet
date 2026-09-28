@@ -1,5 +1,5 @@
 /**
- * The boot screen (the credit: "two feet — a game by v4rgas") is plain HTML in index.html, so it
+ * The boot screen (the credit: "two feet, a game by v4rgas") is plain HTML in index.html, so it
  * shows before any script loads. Once the game is ready it fades into the game (like
  * v4rgas.com's own intro) and is removed. Never blocks input for longer than the fade.
  */

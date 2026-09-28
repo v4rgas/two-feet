@@ -199,7 +199,7 @@ export class DebugOverlay {
     const r = frame.debug.rotation;
     const rot =
       r === null
-        ? "roll    —   yaw    —   pitch    —"
+        ? "roll    -   yaw    -   pitch    -"
         : `roll ${radToDeg(r.rollRad).toFixed(0).padStart(5)}° yaw ${radToDeg(r.yawRad)
             .toFixed(0)
             .padStart(5)}° pitch ${radToDeg(r.pitchRad).toFixed(0).padStart(5)}°`;

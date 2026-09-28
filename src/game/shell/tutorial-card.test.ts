@@ -19,10 +19,10 @@ describe("tutorial cards", () => {
     expect(first?.hint).toBeNull();
     expect(first?.progress).toBe("2 / 3");
     const again = tutorialCard({ step: "ollie", failures: 1, outroS: 0 }, "regular");
-    expect(again?.hint).toBe("Let go of ↓ to pop — keep holding S");
+    expect(again?.hint).toBe("Let go of ↓ to pop. Keep holding S.");
     const outro = tutorialCard({ step: "outro", failures: 0, outroS: 0 }, "regular");
     expect(outro?.title).toBe("Nice. Welcome to the Street Course.");
-    expect(outro?.footnote).toBe("two feet — a game by v4rgas");
+    expect(outro?.footnote).toBe("two feet, a game by v4rgas");
     expect(tutorialCard({ step: "done", failures: 0, outroS: 0 }, "regular")).toBeNull();
   });
 });

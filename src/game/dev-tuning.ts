@@ -101,6 +101,6 @@ const BAKED = [
 function onTuningChange(section: string, path: string, _value: unknown): void {
   const key = `${section}.${path}`;
   if (BAKED.some((re) => re.test(key))) {
-    document.title = `Two Feet — reload to apply ${key}`;
+    document.title = `Two Feet: reload to apply ${key}`;
   }
 }

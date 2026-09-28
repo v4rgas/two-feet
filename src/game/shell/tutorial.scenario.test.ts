@@ -163,7 +163,7 @@ describe("tutorial (full loop, real keys)", () => {
       g.until(() => g.sim().loop.rider.bailed || (g.shell.tutorial?.failures ?? 0) > 0, 3);
       expect(g.step()).toBe("kickflip");
       expect(g.shell.tutorial?.failures).toBeGreaterThan(0);
-      expect(g.view.card?.hint).toMatch(/^Pop first, tap A/);
+      expect(g.view.card?.hint).toMatch(/^Pop first, then tap A/);
       // The bail resets to the tutorial's spawn (no checkpoint in the tutorial).
       g.until(() => !g.sim().loop.rider.bailed, 4);
       g.run(STEP_S);
@@ -200,7 +200,7 @@ describe("tutorial (full loop, real keys)", () => {
       g.until(() => g.step() !== "kickflip", 2);
       expect(g.step()).toBe("outro");
       expect(g.view.card?.title).toBe("Nice. Welcome to the Street Course.");
-      expect(g.view.card?.footnote).toBe("two feet — a game by v4rgas");
+      expect(g.view.card?.footnote).toBe("two feet, a game by v4rgas");
 
       // 4. ≈ 2 s later: the Street Course, the tutorial done.
       g.run(1.5);
