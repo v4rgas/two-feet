@@ -11,7 +11,7 @@ set -e
 GAME="$1"
 OUT="$2"
 PREVIEW="${OUT%.mp4}-preview.mp4"
-DIR=/home/juan/devel/bipbop-projects/skate/recordings/linkedin
+DIR="${MONTAGE_OUT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)/recordings/linkedin}"
 SRC=$DIR/source/fingerboard.mp4
 MUSIC=$DIR/source/rio-samba-liborio-conti.mp3
 XF_OFFSET=5.40
