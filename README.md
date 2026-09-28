@@ -55,3 +55,13 @@ shows in the menu. See [`src/maps/README.md`](src/maps/README.md).
 - [`REQUIREMENTS.md`](REQUIREMENTS.md): architecture (DDD contexts, layer rules)
 - [`STYLE.md`](STYLE.md): look and feel
 - [`docs/adr/`](docs/adr): design decisions
+
+## Deploy (Cloudflare Pages)
+
+The game is a static Vite build, hosted on Cloudflare Pages as the project `two-feet`.
+
+1. One time: `pnpm exec wrangler login` (opens a browser to authorise Cloudflare).
+2. Deploy to production: `pnpm deploy` (runs the checks, builds `dist/`, uploads it).
+3. Deploy a preview URL instead: `pnpm deploy:preview`.
+
+`wrangler.toml` holds the project settings, and `public/_headers` sets the cache headers.

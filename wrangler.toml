@@ -1,0 +1,5 @@
+# Cloudflare Pages project for Two Feet (static Vite build).
+# Deploy: `pnpm deploy` (builds, then uploads dist/ with wrangler).
+name = "two-feet"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-28"

@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:human": "vitest run --config vitest.human.config.ts",
     "montage:verify": "vitest run --config vitest.montage.config.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "pnpm build && wrangler pages deploy dist --project-name two-feet --branch main",
+    "deploy:preview": "pnpm build && wrangler pages deploy dist --project-name two-feet --branch preview"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",
@@ -25,7 +27,8 @@
     "lil-gui": "^0.21.0",
     "typescript": "^6.0.3",
     "vite": "^8.3.1",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.2",
+    "wrangler": "^4.141.0"
   },
   "packageManager": "pnpm@11.3.0"
 }
