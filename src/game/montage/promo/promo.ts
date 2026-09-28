@@ -1,6 +1,8 @@
 import type { TrickCards } from "../../../presentation/cinematic/lower-thirds";
 import type { EndCard, TextOverlay } from "../../../presentation/cinematic/promo-overlays";
+import type { StickWidgetSize } from "../../../presentation/cinematic/stick-widgets";
 import type { MontageClip } from "../clip";
+import { timeScaleAt } from "../clip";
 import type { VideoFormatId } from "../montage.config";
 
 /*
@@ -24,6 +26,13 @@ interface PromoItemBase {
 export interface PromoClipItem extends PromoItemBase {
   readonly kind: "clip";
   readonly clip: MontageClip;
+  /**
+   * Clip time the video starts at, s (the simulation still runs from 0, unfilmed): a clip
+   * that enters mid-action, e.g. the game half of a match cut from real footage.
+   */
+  readonly startAtS?: number;
+  /** The input widgets (both sticks and their keys, from this clip's real input). */
+  readonly sticks?: StickWidgetSize;
   /** Landed tricks' lower-thirds (the recognizer's real name) and their caption. */
   readonly tricks: TrickCards;
 }
@@ -53,10 +62,8 @@ export function itemVideoS(item: PromoItem, fps: number): number {
   const clip = item.clip;
   const stepS = 1 / fps / 4;
   let videoS = 0;
-  for (let t = 0; t < clip.durationS - 1e-9; t += stepS) {
-    let scale = 1;
-    for (const w of clip.slowMotion ?? []) if (t >= w.fromS && t < w.toS) scale = w.scale;
-    videoS += stepS / scale;
+  for (let t = item.startAtS ?? 0; t < clip.durationS - 1e-9; t += stepS) {
+    videoS += stepS / timeScaleAt(clip, t);
   }
   return videoS;
 }

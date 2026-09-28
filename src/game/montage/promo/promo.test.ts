@@ -6,52 +6,73 @@ import { clipById } from "../clips";
 import { MONTAGE_CONFIG } from "../montage.config";
 import { fadeAt, montageOptionsFromUrl } from "../montage-player";
 import { itemVideoS, PROMO_CLIPS, PROMOS, promoById, promoVideoS } from ".";
+import { MATCH_OFFSET_S } from "./fingerboard-match";
 
 describe("promo sequences (data)", () => {
-  it("every promo is well-formed: valid clips on real maps, a known format, 20–30 s", () => {
+  it("every promo is well-formed: valid clips on real maps or their own set, a known format", () => {
     for (const promo of PROMOS) {
       expect(MONTAGE_CONFIG.record.formats[promo.format], promo.id).toBeDefined();
-      const length = promoVideoS(promo, MONTAGE_CONFIG.record.fps);
-      expect(length, promo.id).toBeGreaterThanOrEqual(20);
-      expect(length, promo.id).toBeLessThanOrEqual(30);
       for (const item of promo.items) {
         if (item.kind === "card") {
           expect(item.durationS).toBeGreaterThan(0);
           continue;
         }
         expect(clipProblems(item.clip), item.clip.id).toEqual([]);
-        expect(MAPS.get(item.clip.level), item.clip.id).toBeDefined();
+        if (item.clip.createLevel === undefined) {
+          expect(MAPS.get(item.clip.level), item.clip.id).toBeDefined();
+        }
+        expect(item.startAtS ?? 0).toBeLessThan(item.clip.durationS);
       }
     }
     const ids = PROMO_CLIPS.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("the LinkedIn cut: TWO FEET on frame 1, the three tricks, the v4rgas end card", () => {
+  it("the LinkedIn cut (game half): the match cut first, the tricks in order, a plain end card, ≤ 40 s", () => {
     const promo = promoById("promo-linkedin");
     if (promo === undefined) throw new Error("no promo-linkedin");
     expect(promo.format).toBe("4x5");
-    const [first, ...rest] = promo.items;
+    // With the ≈ 5.7 s of real footage the edit puts in front, the video stays ≤ 45 s.
+    expect(promoVideoS(promo, MONTAGE_CONFIG.record.fps)).toBeLessThanOrEqual(40);
+    const [first] = promo.items;
+    expect(first?.kind === "clip" && first.clip.id).toBe("promo-desk-kickflip-fifty-fifty");
     expect(first?.fadeInS).toBe(0);
-    const title = first?.overlays?.[0];
-    expect(title).toMatchObject({ kind: "wordmark", text: "TWO FEET", fromS: 0, fadeInS: 0 });
-    expect(rest.flatMap((i) => (i.kind === "clip" ? i.clip.expect.tricks : []))).toEqual([
+    expect(promo.items.flatMap((i) => (i.kind === "clip" ? i.clip.expect.tricks : []))).toEqual([
       "Kickflip → BS 50-50",
+      "Heelflip",
+      "Kickflip",
+      "Kickflip → FS Tailslide → Hardflip out",
+      "360 Flip",
+      "BS 180 Kickflip",
       "360 Flip",
     ]);
+    const title = promo.items[1]?.overlays?.[0];
+    expect(title).toMatchObject({ kind: "wordmark", text: "TWO FEET" });
     const card = promo.items.at(-1);
     expect(card?.kind === "card" && card.card).toMatchObject({
       title: "TWO FEET",
+      tagline: "",
       credit: "a game by v4rgas",
       url: "v4rgas.com",
     });
+    // Plain copy: no exclamation marks or em dashes anywhere on screen.
+    const texts = promo.items.flatMap((i) => [
+      ...(i.overlays ?? []).flatMap((o) => [o.text, "sub" in o ? (o.sub ?? "") : ""]),
+      i.kind === "clip" ? i.tricks.caption : [i.card.title, i.card.credit, i.card.line].join(" "),
+    ]);
+    for (const t of texts) expect(t).not.toMatch(/[!—]/);
     // Promo clips can be previewed one by one too.
     expect(clipById("promo-tre-flip-el-toro")?.level).toBe("el-toro");
   });
 
+  it("the desk match starts on the real clip's time: game = source − 4.14 s", () => {
+    const desk = promoById("promo-linkedin")?.items[0];
+    expect(desk?.kind === "clip" && desk.startAtS).toBeCloseTo(5.72 - MATCH_OFFSET_S, 5);
+  });
+
   it("slow motion stretches a clip's video length", () => {
     const promo = PROMOS[0];
-    const item = promo?.items.find((i) => i.kind === "clip");
+    const item = promo?.items.find((i) => i.kind === "clip" && i.startAtS === undefined);
     if (item === undefined || item.kind !== "clip") throw new Error("no clip");
     expect(itemVideoS(item, 60)).toBeGreaterThan(item.clip.durationS);
   });
@@ -62,7 +83,7 @@ describe("promo playback options", () => {
     const o = montageOptionsFromUrl(new URLSearchParams("montage=promo-linkedin&record=frames"));
     expect(o.promo?.id).toBe("promo-linkedin");
     expect(o.format).toBe("4x5");
-    expect(o.items.map((i) => i.kind)).toEqual(["clip", "clip", "clip", "card"]);
+    expect(o.items.map((i) => i.kind)).toEqual([...Array(7).fill("clip"), "card"]);
     expect(o.unknown).toEqual([]);
     expect(
       montageOptionsFromUrl(new URLSearchParams("montage=promo-linkedin&format=16x9")).format,

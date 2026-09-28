@@ -50,6 +50,11 @@ export interface FixedTripodShot {
   readonly fovEndDeg?: number;
   /** Duration of the zoom from start to end FOV, s of shot time. */
   readonly zoomS?: number;
+  /**
+   * A fixed point to look at instead of the board: a locked-off camera (the promo's match
+   * to real footage, whose pose is fitted to the real frame).
+   */
+  readonly lookAtM?: Vec3Tuple;
 }
 
 /** Close, low, very wide: the filmer skating right behind the rider. */
@@ -164,7 +169,7 @@ export function fixedTripodPose(
   const [px, py, pz] = subject.position;
   return {
     eye: spec.positionM,
-    target: [px, py + d.lookHeightM, pz],
+    target: spec.lookAtM ?? [px, py + d.lookHeightM, pz],
     fovDeg: f0 + (f1 - f0) * t,
   };
 }

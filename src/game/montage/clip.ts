@@ -1,4 +1,5 @@
 import type { KeyPress, Stance } from "../../contexts/input";
+import type { Level } from "../../contexts/world";
 import type { ShotSegment } from "../../presentation/cinematic/cinematic-director";
 
 /*
@@ -46,6 +47,11 @@ export interface MontageClip {
   /** Title card / lower-third caption, e.g. "Kickflip · 5-stair". */
   readonly title: string;
   readonly level: ClipLevel;
+  /**
+   * A set built only for this clip (a promo's, e.g. the desk set), used instead of the
+   * map `level`; `level` then just names it. Absent = the registered map.
+   */
+  readonly createLevel?: () => Level;
   readonly stance: Stance;
   /** Absent = the level's own spawn at rest. */
   readonly spawn?: ClipSpawn;

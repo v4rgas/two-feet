@@ -1,3 +1,4 @@
+import type { FootId } from "../../shared";
 import { padLayout } from "../hud/hud-model";
 import type { PresentationConfig } from "../presentation.config";
 import type { RenderFrame } from "../render-frame";
@@ -7,6 +8,8 @@ import type { LowerThird, TrickCards } from "./lower-thirds";
 import { LowerThirdsModel } from "./lower-thirds";
 import type { EndCard, TextOverlay, VisibleOverlay } from "./promo-overlays";
 import { PromoOverlayModel } from "./promo-overlays";
+import type { StickWidgetSize } from "./stick-widgets";
+import { drawStickWidgets, StickTrails } from "./stick-widgets";
 import "./video-hud.css";
 
 /**
@@ -50,6 +53,8 @@ export interface TitleCardContent {
 export interface ClipHudOptions {
   readonly tricks?: TrickCards;
   readonly overlays?: readonly TextOverlay[];
+  /** The input widgets (the two sticks and their keys): big, small, or none. */
+  readonly sticks?: StickWidgetSize;
 }
 
 /**
@@ -70,6 +75,12 @@ export class VideoHud {
   private fade = 0;
   private endCard: EndCard | null = null;
   private penguin: HTMLImageElement | null = null;
+  /** The input widgets (promo controls shot and lines), their trails and the raw keys. */
+  private sticks: StickWidgetSize = "off";
+  private readonly trails = new StickTrails();
+  private keysDown: ReadonlySet<string> = new Set();
+  /** Height of the widgets' band this frame, px (lower-thirds sit above it). */
+  private bottomBandPx = 0;
 
   constructor(
     parent: HTMLElement,
@@ -101,6 +112,9 @@ export class VideoHud {
     this.endCard = null;
     this.model.startClip(title, index, total, options.tricks);
     this.promo.start(options.overlays ?? []);
+    this.sticks = options.sticks ?? "off";
+    this.trails.clear();
+    this.keysDown = new Set();
   }
 
   /** A full-frame card (no game picture) with optional overlays on top. */
@@ -108,13 +122,21 @@ export class VideoHud {
     this.endCard = card;
     this.model.startClip("", 0, 1, { show: false, caption: "" });
     this.promo.start(overlays);
+    this.sticks = "off";
   }
 
   /**
-   * Advances by `dtS` of video time: reads the frame's events and sticks (null on a card)
-   * and starts the overlays that item time `itemTimeS` has reached.
+   * Advances by `dtS` of video time: reads the frame's events and sticks (null on a card),
+   * the raw keys held now (for the input widgets), and starts the overlays that item time
+   * `itemTimeS` has reached.
    */
-  update(frame: RenderFrame | null, dtS: number, fadeToBlack: number, itemTimeS = 0): void {
+  update(
+    frame: RenderFrame | null,
+    dtS: number,
+    fadeToBlack: number,
+    itemTimeS = 0,
+    keysDown: ReadonlySet<string> = new Set(),
+  ): void {
     this.model.advance(dtS);
     this.promo.advance(itemTimeS, dtS);
     if (frame !== null) {
@@ -122,7 +144,13 @@ export class VideoHud {
       this.stickFront = frame.intents.front.stick;
       this.stickBack = frame.intents.back.stick;
       this.layout = padLayout(frame.stance);
+      const stickOf = (foot: FootId) => (foot === "front" ? this.stickFront : this.stickBack);
+      const left = stickOf(this.layout.left);
+      const right = stickOf(this.layout.right);
+      this.trails.push("left", left.x, left.y, dtS);
+      this.trails.push("right", right.x, right.y, dtS);
     }
+    this.keysDown = keysDown;
     this.fade = Math.min(1, Math.max(0, fadeToBlack));
   }
 
@@ -158,6 +186,29 @@ export class VideoHud {
     const u = Math.min(w, h) / REF_SHORT_SIDE;
     if (this.endCard !== null) this.drawEndCard(ctx, this.endCard, u, w, h);
     this.drawTitle(ctx, u);
+    const stick = (foot: FootId) => (foot === "front" ? this.stickFront : this.stickBack);
+    // The input widgets take a band along the bottom; lower-thirds sit above it.
+    this.bottomBandPx = drawStickWidgets(
+      ctx,
+      {
+        left: {
+          foot: this.layout.left,
+          stick: stick(this.layout.left),
+          trail: this.trails.of("left"),
+        },
+        right: {
+          foot: this.layout.right,
+          stick: stick(this.layout.right),
+          trail: this.trails.of("right"),
+        },
+        keysDown: this.keysDown,
+      },
+      this.sticks,
+      this.presentation.palette,
+      u,
+      w,
+      h,
+    );
     const card = this.model.current;
     if (card !== null) {
       this.drawLowerThird(ctx, u, h, card, this.model.opacity, this.model.entrance);
@@ -296,7 +347,7 @@ export class VideoHud {
     const captionW = ctx.measureText(caption).width + caption.length * 1.5 * u;
 
     const x = MARGIN * u - slide;
-    const bottom = h - MARGIN * 1.5 * u;
+    const bottom = h - Math.max(MARGIN * 1.5 * u, this.bottomBandPx + 16 * u);
     const padX = 18 * u;
     const boxH = nameSize + (caption === "" ? 0 : captionSize + 10 * u) + 26 * u;
     const boxW = Math.max(nameW, captionW) + padX * 2;
@@ -337,7 +388,9 @@ export class VideoHud {
     const p = this.presentation.palette;
     ctx.save();
     // A soft ink scrim from the top edge keeps light text readable over the bright plaza.
-    const scrimH = (o.kind === "wordmark" ? (o.atY ?? 0.2) + 0.16 : 0.2) * h;
+    const scrimH =
+      ((o.atY ?? (o.kind === "wordmark" ? 0.2 : 0.085)) + (o.kind === "wordmark" ? 0.16 : 0.115)) *
+      h;
     const scrim = ctx.createLinearGradient(0, 0, 0, scrimH);
     scrim.addColorStop(0, hexWithAlpha(p.ink, 0.5));
     scrim.addColorStop(1, hexWithAlpha(p.ink, 0));
@@ -369,9 +422,9 @@ export class VideoHud {
       ctx.fillStyle = p.deck;
       ctx.fillRect(w / 2 - 0.29 * size, barY, 0.58 * size, 0.052 * size);
       if (o.sub !== undefined) {
-        const subSize = size * 0.24;
+        const subSize = size * 0.3;
         ctx.fillStyle = p.concrete100;
-        ctx.font = `400 ${subSize}px ${SPACE_MONO}`;
+        ctx.font = `700 ${subSize}px ${SPACE_MONO}`;
         softShadow(ctx, u);
         ctx.fillText(o.sub, w / 2, barY + 0.052 * size + subSize * 1.1);
       }
@@ -379,7 +432,7 @@ export class VideoHud {
       const size = fitFontPx(ctx, o.text, `700 %px ${INTER}`, 0.86 * w, 40 * u, 0);
       ctx.font = `700 ${size}px ${INTER}`;
       softShadow(ctx, u);
-      ctx.fillText(o.text, w / 2, 0.085 * h + rise);
+      ctx.fillText(o.text, w / 2, (o.atY ?? 0.085) * h + rise);
     }
     ctx.restore();
   }
@@ -412,10 +465,10 @@ export class VideoHud {
       WORDMARK_SPACING_EM,
     );
     const taglineSize = 30 * u;
-    const creditSize = 28 * u;
+    const creditSize = 34 * u;
     const urlSize = 40 * u;
     const penguinPx =
-      card.penguin && this.penguin !== null ? 32 * Math.max(1, Math.floor((64 * u) / 32)) : 0;
+      card.penguin && this.penguin !== null ? 32 * Math.max(1, Math.floor((90 * u) / 32)) : 0;
     const barH = 7 * u;
     const gap = 30 * u;
     const rowH = Math.max(penguinPx, creditSize);

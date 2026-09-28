@@ -32,6 +32,8 @@ export interface WordmarkOverlay extends OverlayTiming {
 export interface KickerOverlay extends OverlayTiming {
   readonly kind: "kicker";
   readonly text: string;
+  /** Vertical centre as a fraction of the frame height (default 0.085; stack lines below). */
+  readonly atY?: number;
 }
 
 /** A lower-third card with a fixed text (the trick lower-third is automatic, from events). */

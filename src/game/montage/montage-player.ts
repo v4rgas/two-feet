@@ -146,6 +146,13 @@ export function fadeAt(
   return Math.min(1, Math.max(0, fadeIn, fadeOut));
 }
 
+/** The raw keys a clip's timeline holds at clip time `tS` (what the input is fed). */
+export function keysDownAt(clip: MontageClip, tS: number): Set<string> {
+  const down = new Set<string>();
+  for (const k of clip.keys) if (tS >= k.atS - 1e-9 && tS < k.atS + k.holdS) down.add(k.code);
+  return down;
+}
+
 /** Waits for the next task (MessageChannel: not throttled in background tabs, unlike timers). */
 function nextTask(): Promise<void> {
   return new Promise((resolve) => {
@@ -347,8 +354,12 @@ async function play(
         hud.startClip(item.showTitle ? clip.title : "", clipIndex, clipTotal, {
           ...(item.tricks === undefined ? {} : { tricks: item.tricks }),
           overlays: item.overlays ?? [],
+          sticks: item.sticks ?? "off",
         });
         clipIndex += 1;
+        // A clip that enters mid-action: simulate (unfilmed) up to its start.
+        const startAtS = item.startAtS ?? 0;
+        while (run.timeS < startAtS - 1e-9 && !run.done) run.step();
         const clock = new StepClock(run.stepS);
         let stills: number[] = [];
         if (recording) {
@@ -359,7 +370,9 @@ async function play(
         let videoS = 0;
         let first = true;
         while (!run.done) {
-          const dtS = first ? 0 : await nextFrame();
+          // Only the video's very first frame is a still (dt 0): a clip that follows another
+          // starts one frame in, so each item lasts exactly its video length (cuts on the beat).
+          const dtS = first && frameIndex === 0 ? 0 : await nextFrame();
           first = false;
           videoS += dtS;
           const steps = clock.advance(dtS, timeScaleAt(clip, run.timeS));
@@ -373,7 +386,7 @@ async function play(
           renderer.setMontageOverrides(pose, dtS);
           renderer.render(frame);
           const fade = fadeAt(videoS, clipTimeS, clip.durationS, fadeInS, fadeOutS);
-          hud.update(frame, dtS, fade, clipTimeS);
+          hud.update(frame, dtS, fade, clipTimeS, keysDownAt(clip, run.timeS));
           hud.drawOverlay(canvas);
           await emit(stills, clipTimeS, stillName);
         }

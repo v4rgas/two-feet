@@ -1,10 +1,11 @@
 import type { MontageClip } from "../clip";
+import { promoDeskMatch } from "./fingerboard-match";
 import { promoLinkedIn } from "./linkedin";
 import type { PromoSequence } from "./promo";
 import { promoClips } from "./promo";
 
 /** Every promo sequence (`?montage=<id>`). */
-export const PROMOS: readonly PromoSequence[] = [promoLinkedIn];
+export const PROMOS: readonly PromoSequence[] = [promoLinkedIn, promoDeskMatch];
 
 /** The promo with this id, or undefined. */
 export function promoById(id: string): PromoSequence | undefined {
@@ -12,7 +13,9 @@ export function promoById(id: string): PromoSequence | undefined {
 }
 
 /** Every clip used by a promo (verified with the montage clips). */
-export const PROMO_CLIPS: readonly MontageClip[] = PROMOS.flatMap(promoClips);
+export const PROMO_CLIPS: readonly MontageClip[] = [
+  ...new Map(PROMOS.flatMap(promoClips).map((c) => [c.id, c])).values(),
+];
 
 export type { PromoCardItem, PromoClipItem, PromoItem, PromoSequence } from "./promo";
 export { itemVideoS, promoVideoS } from "./promo";
